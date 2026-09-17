@@ -1,8 +1,8 @@
 # Teenie: recursive arithmetic PoC
 
-A runnable first slice: deterministic arithmetic data, a shared recurrent MLP,
-learned per-example halting, and addition-only training with subtraction probes.
-Use `uv` (Python 3.12+).
+Learn relations from examples `(a, b, c)` and predict a missing result for a new
+pair `(a, b)`. Use `uv` (Python 3.12+). The original recurrent arithmetic
+experiments are retained below as legacy workflows.
 
 **Current experiment:** [anonymous relation completion](docs/relation-completion.md).
 Supply `(a,b,c)` examples and a query `(a,b,?)`, with no operation IDs, primitive
@@ -11,9 +11,109 @@ accuracy with 99–419 examples on `0..20`, without division training.
 The untrained same-architecture baseline reaches 94.76% at 419 examples, so this
 is context-interpolation evidence, not a claim of learned general reasoning.
 
-**New:** [99-example context learning and unseen floor-division evaluation](docs/context-learning.md).
-This is a separate context-aware model, not an extension of the old checkpoint's
-input shape. It trains only on add/sub/mul episodes; division is evaluation-only.
+## Quick start: train the relation model
+
+```bash
+uv sync
+uv run pytest
+uv run python -m teenie.relation_train --device cuda \
+  --operand-max 20 --context-size 99 --updates 1000 \
+  --batch-size 16 --lr 0.01 --seed 0 \
+  --save checkpoints/relation.pt
+```
+
+Training uses **addition, subtraction and multiplication only**, with operands
+in `0..20`. Division and your custom relations are never included in this training.
+This current model learns a continuous similarity kernel for context regression;
+it is not the older recurrent MLP or a symbolic operation selector.
+
+- `checkpoints/relation.pt`: latest saved weights.
+- `checkpoints/relation.best.pt`: best validation checkpoint, selected only on
+  add/sub/mul (accuracy, then MSE).
+- `--updates` controls training length; `--log-every` controls validation/logging.
+- Use `--device cpu` without CUDA, or `--device auto` for automatic selection.
+- Use a different `--save` path for each experiment to avoid overwriting weights.
+
+### Evaluate unseen floor division
+
+```bash
+uv run python -m teenie.relation_eval --device cuda \
+  --load checkpoints/relation.best.pt --contexts 99 199 419 \
+  --output experiments/my-division-results.json
+```
+
+This loads frozen weights and tests `a // b` (for example, `7 // 2 = 3`),
+excluding zero divisors. Each query is absent from its own context. The report
+includes shuffled/absent-context controls and an untrained-kernel baseline.
+
+## Test your own relation
+
+### 1. Define a function
+
+Edit [`examples/custom_relation.py`](examples/custom_relation.py), or create your
+own Python file:
+
+```python
+def f(a, b):
+    return a // b  # Replace with your formula, e.g. (a - 7)**2 + 2*b
+
+
+def valid(a, b):
+    return b != 0  # Optional: exclude points where f is undefined
+```
+
+Remove `valid` (or return `True`) if your function is defined everywhere.
+`f` must be deterministic and return one finite real number. Only load function
+files you trust: generation executes ordinary Python code, not a sandbox.
+
+### 2. Generate examples and a held-out query
+
+```bash
+uv run python -m teenie.relation_generate \
+  --function examples/custom_relation.py \
+  --context-size 99 --seed 0 --query 17 5 \
+  --output experiments/my-input.json
+```
+
+This writes two files:
+
+- `my-input.json`: unique `(a,b,c)` examples plus query `(17,5)`, without its answer.
+- `my-input.answer.json`: the expected result for comparison; **do not feed it to
+  the model**.
+
+Omit `--query` for a seeded random pair. Change `--seed` to sample another context.
+The query pair is always excluded from the examples. The default integer grid is
+`0..20`; keep `--operand-max` consistent with your checkpoint. On this grid you
+can use up to 419 examples for division, or 440 for a function defined everywhere.
+These are inference-context limits, not training-context limits.
+
+### 3. Load the model and predict
+
+```bash
+uv run python -m teenie.relation_eval --device cuda \
+  --load checkpoints/relation.best.pt \
+  --input experiments/my-input.json \
+  --output experiments/my-prediction.json
+
+cat experiments/my-input.answer.json
+```
+
+Compare `prediction` with the expected value; use `rounded_prediction` for integer
+relations. The function and expected answer are not passed to the model, and its
+weights are not updated. Any finite numeric relation can be supplied, but accurate
+inference is not guaranteed, especially for discontinuous or random-looking rules.
+
+The earlier `experiments/relation-input-example.json` is a **quadratic** example
+(`c = (a - 7)² + 2*b`), not division. See
+[relation-completion details](docs/relation-completion.md) for measured results
+and limitations.
+
+## Legacy single-pair arithmetic experiments
+
+The commands below use the older `teenie` CLI, not the anonymous relation model.
+Their checkpoints and input formats are not interchangeable. The earlier
+[context-aware recurrent experiment](docs/context-learning.md) is also retained
+separately.
 
 ```bash
 uv sync
@@ -34,7 +134,7 @@ only for operations never trained in the checkpoint lineage. Operations trained
 in an earlier run but disabled now are labelled `previously_trained_<op>`.
 Long training is opt-in; no measured grokking or transfer results are claimed.
 
-## Higher-accuracy bounded arithmetic
+## Legacy: higher-accuracy bounded arithmetic
 
 Measured on operands `[-10,10]` with all three operations, using fresh runs:
 
@@ -84,7 +184,7 @@ accuracy **at logging intervals**, keeping the earlier checkpoint on ties. The
 regular `--save` path still contains the latest weights. Validation-selected
 results are not independent test accuracy or proof of arbitrary-range reasoning.
 
-## Operations and local checkpoints
+## Legacy: operations and local checkpoints
 
 ```bash
 # Addition only (default), using CUDA; save at logging intervals and final epoch
@@ -125,7 +225,7 @@ result, steps = model.predict(a, b, op, adaptive=metadata["adaptive"])
 print(result.item(), steps.item())  # predictions, not guaranteed correct
 ```
 
-## Model contract
+## Legacy model contract
 
 - Inputs are matching `torch.long` vectors of **signed integers** in `[-N,N]`
   and operation IDs (`0=ADD`, `1=SUB`, `2=MUL`). Embedding offsets are internal.
@@ -148,7 +248,7 @@ print(result.item(), steps.item())  # predictions, not guaranteed correct
 - `--no-loop` sets one step. `--no-ponder` disables adaptive halting and trains
   only the final emission, then always uses the full step budget at inference.
 
-## Interpretation and limits
+## Legacy interpretation and limits
 
 An operation ID unseen during training has no learned subtraction semantics.
 Addition examples alone do not identify what `op=1` should mean. Recurrence and
@@ -166,6 +266,10 @@ Plotting notebooks and long-run experiments are follow-up work.
 No synthetic success curves are presented.
 
 ## Files
+
+- `src/teenie/relation_*.py`: current anonymous relation training, generation,
+  inference and local checkpoints.
+- `examples/custom_relation.py`: editable custom function for JSON generation.
 
 - `src/teenie/data.py`: operations, exhaustive datasets, reproducible splits.
 - `src/teenie/model.py`: shared cell, output heads, independent adaptive halting.

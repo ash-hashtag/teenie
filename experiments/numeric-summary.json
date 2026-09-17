@@ -1,0 +1,112 @@
+[
+  {
+    "seed": 0,
+    "checkpoint": "checkpoints/numeric-long-seed0.best.pt",
+    "selected_epoch": 8500,
+    "val": {
+      "accuracy": 0.9924528301886792,
+      "steps": 4.0,
+      "per_op": {
+        "add": {
+          "accuracy": 1.0,
+          "count": 89
+        },
+        "sub": {
+          "accuracy": 1.0,
+          "count": 85
+        },
+        "mul": {
+          "accuracy": 0.978021978021978,
+          "count": 91
+        }
+      }
+    },
+    "all": {
+      "accuracy": 0.99848828420257,
+      "steps": 4.0,
+      "per_op": {
+        "add": {
+          "accuracy": 1.0,
+          "count": 441
+        },
+        "sub": {
+          "accuracy": 1.0,
+          "count": 441
+        },
+        "mul": {
+          "accuracy": 0.9954648526077098,
+          "count": 441
+        }
+      }
+    },
+    "errors": [
+      {
+        "a": -10,
+        "b": 10,
+        "op": 2,
+        "target": -100,
+        "prediction": -98,
+        "raw_prediction": -98.49279022216797
+      },
+      {
+        "a": 10,
+        "b": -10,
+        "op": 2,
+        "target": -100,
+        "prediction": -98,
+        "raw_prediction": -98.17144775390625
+      }
+    ]
+  },
+  {
+    "seed": 1,
+    "checkpoint": "checkpoints/numeric-long-seed1.best.pt",
+    "selected_epoch": 6000,
+    "val": {
+      "accuracy": 0.9962264150943396,
+      "steps": 4.0,
+      "per_op": {
+        "add": {
+          "accuracy": 1.0,
+          "count": 100
+        },
+        "sub": {
+          "accuracy": 1.0,
+          "count": 81
+        },
+        "mul": {
+          "accuracy": 0.9880952380952381,
+          "count": 84
+        }
+      }
+    },
+    "all": {
+      "accuracy": 0.9969765684051398,
+      "steps": 4.0,
+      "per_op": {
+        "add": {
+          "accuracy": 1.0,
+          "count": 441
+        },
+        "sub": {
+          "accuracy": 1.0,
+          "count": 441
+        },
+        "mul": {
+          "accuracy": 0.9909297052154195,
+          "count": 441
+        }
+      }
+    },
+    "errors": [
+      {
+        "a": -10,
+        "b": -10,
+        "op": 2,
+        "target": 100,
+        "prediction": 98,
+        "raw_prediction": 98.12417602539062
+      }
+    ]
+  }
+]

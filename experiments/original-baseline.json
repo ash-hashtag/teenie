@@ -1,0 +1,39 @@
+{
+  "epoch": 1000,
+  "train": {
+    "accuracy": 1.0,
+    "steps": 1.0,
+    "per_op": {
+      "add": {
+        "accuracy": 1.0,
+        "count": 352
+      },
+      "sub": {
+        "accuracy": 1.0,
+        "count": 356
+      },
+      "mul": {
+        "accuracy": 1.0,
+        "count": 350
+      }
+    }
+  },
+  "val": {
+    "accuracy": 0.42641509433962266,
+    "steps": 1.0,
+    "per_op": {
+      "add": {
+        "accuracy": 0.449438202247191,
+        "count": 89
+      },
+      "sub": {
+        "accuracy": 0.5176470588235295,
+        "count": 85
+      },
+      "mul": {
+        "accuracy": 0.31868131868131866,
+        "count": 91
+      }
+    }
+  }
+}

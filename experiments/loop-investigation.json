@@ -1,0 +1,185 @@
+{
+  "context_checkpoint": "checkpoints/context-long-seed0.best.pt",
+  "trained_steps": 4,
+  "step_sweep": [
+    {
+      "steps": 1,
+      "known": {
+        "accuracy": 0.03745318352059925,
+        "mae": 10.22293905193886,
+        "mse": 189.7501421867685,
+        "count": 267
+      },
+      "signed_division": {
+        "accuracy": 0.03571428571428571,
+        "mae": 14.29986837477911,
+        "mse": 393.523533703032,
+        "count": 420
+      },
+      "nonnegative_division_0_10": {
+        "accuracy": 0.00909090909090909,
+        "mae": 23.710932506214487,
+        "mse": 761.5670632102273,
+        "count": 110
+      }
+    },
+    {
+      "steps": 2,
+      "known": {
+        "accuracy": 0.033707865168539325,
+        "mae": 8.08127053935876,
+        "mse": 104.46725406718164,
+        "count": 267
+      },
+      "signed_division": {
+        "accuracy": 0.05714285714285714,
+        "mae": 10.528675188337054,
+        "mse": 211.97426772344681,
+        "count": 420
+      },
+      "nonnegative_division_0_10": {
+        "accuracy": 0.01818181818181818,
+        "mae": 15.492191938920454,
+        "mse": 359.9487482244318,
+        "count": 110
+      }
+    },
+    {
+      "steps": 4,
+      "known": {
+        "accuracy": 0.9925093632958801,
+        "mae": 0.08832259928242545,
+        "mse": 0.015588504265756642,
+        "count": 267
+      },
+      "signed_division": {
+        "accuracy": 0.09523809523809523,
+        "mae": 4.392391132173084,
+        "mse": 32.75235995338077,
+        "count": 420
+      },
+      "nonnegative_division_0_10": {
+        "accuracy": 0.11818181818181818,
+        "mae": 3.7814430930397727,
+        "mse": 22.367737371271307,
+        "count": 110
+      }
+    },
+    {
+      "steps": 8,
+      "known": {
+        "accuracy": 0.0299625468164794,
+        "mae": 10.800317542829763,
+        "mse": 228.55389655752575,
+        "count": 267
+      },
+      "signed_division": {
+        "accuracy": 0.014285714285714285,
+        "mae": 4.466768537248884,
+        "mse": 23.759676397414434,
+        "count": 420
+      },
+      "nonnegative_division_0_10": {
+        "accuracy": 0.16363636363636364,
+        "mae": 1.7779291326349431,
+        "mse": 4.5186826532537285,
+        "count": 110
+      }
+    },
+    {
+      "steps": 16,
+      "known": {
+        "accuracy": 0.02247191011235955,
+        "mae": 14.987859147318293,
+        "mse": 516.3509644926264,
+        "count": 267
+      },
+      "signed_division": {
+        "accuracy": 0.009523809523809525,
+        "mae": 4.997393326532273,
+        "mse": 28.980946277436757,
+        "count": 420
+      },
+      "nonnegative_division_0_10": {
+        "accuracy": 0.02727272727272727,
+        "mae": 3.3189774946732955,
+        "mse": 12.19396279074929,
+        "count": 110
+      }
+    },
+    {
+      "steps": 24,
+      "known": {
+        "accuracy": 0.0149812734082397,
+        "mae": 15.350672232524285,
+        "mse": 551.4958322360721,
+        "count": 267
+      },
+      "signed_division": {
+        "accuracy": 0.009523809523809525,
+        "mae": 4.998543839227586,
+        "mse": 29.067559814453126,
+        "count": 420
+      },
+      "nonnegative_division_0_10": {
+        "accuracy": 0.02727272727272727,
+        "mae": 3.4928687355735084,
+        "mse": 13.396607832475143,
+        "count": 110
+      }
+    }
+  ],
+  "oracle_subtraction_0_20_HOST_PROGRAMMED": [
+    {
+      "budget": 4,
+      "correct": 386,
+      "queries": 420,
+      "failures": 34,
+      "accuracy": 0.919047619047619
+    },
+    {
+      "budget": 20,
+      "correct": 420,
+      "queries": 420,
+      "failures": 0,
+      "accuracy": 1.0
+    }
+  ],
+  "oracle_trace_17_by_5": {
+    "answer": 3,
+    "failure": null,
+    "trace": [
+      {
+        "remainder": 17,
+        "count": 0
+      },
+      {
+        "remainder": 12,
+        "count": 1
+      },
+      {
+        "remainder": 7,
+        "count": 2
+      },
+      {
+        "remainder": 2,
+        "count": 3
+      }
+    ]
+  },
+  "learned_subtraction_0_10_HOST_PROGRAMMED": {
+    "primitive_checkpoint": "checkpoints/numeric-long-seed0.best.pt",
+    "correct": 110,
+    "queries": 110,
+    "failures": 0,
+    "accuracy": 1.0
+  },
+  "existing_context_model_on_0_20": "operands must be integer tensors in the configured range",
+  "checkpoints_unchanged": true,
+  "caveats": [
+    "Increasing inference steps exceeds the model's trained four-step distribution.",
+    "Nonnegative subset changes both context composition and support density; it is not a retrained 0..20 comparison.",
+    "Host-programmed positive controls supply comparison, loop, counter, primitive choice and return value; no division program was inferred.",
+    "No training or checkpoint selection occurs in this diagnostic."
+  ]
+}

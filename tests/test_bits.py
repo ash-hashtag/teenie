@@ -234,3 +234,23 @@ def test_loops_tiers_and_held_combinations():
 def fingerprint_of(relation):
     from teenie.bits.expressions import fingerprint
     return fingerprint(relation, 8)
+
+
+def test_serve_functions_are_checked_and_episodes_are_distinct():
+    import random
+
+    from teenie.bits.serve import Function, episode
+
+    assert Function('a*b + a')(200, 3) == (200 * 3 + 200) % 256
+    assert Function('a if a > b else b ^ 3')(1, 4) == 7
+    assert Function('sum(a + i for i in range(b & 15))')(10, 3) == 10 + 11 + 12
+    assert Function('popcount(a) + reverse(b)')(255, 1) == 8 + 128
+    assert Function('a // b')(5, 0) == 255  # division by zero reads as all ones
+    for unsafe in ('__import__("os")', 'a.__class__', '(lambda: 1)()', 'open("x")', 'a[0]', '"text"',
+                   'sum(i for i in range(10) for j in range(10))', 'sum(range(10**9))'):
+        with pytest.raises(ValueError):
+            Function(unsafe)(1, 2)
+    context, questions = episode(Function('a ^ b'), 5, random.Random(0))
+    pairs = {(a, b) for a, b, _ in context + questions}
+    assert len(context) == 999 and len(questions) == 5 and len(pairs) == 1004
+    assert all(c == a ^ b for a, b, c in context)

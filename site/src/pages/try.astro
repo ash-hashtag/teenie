@@ -1,0 +1,369 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const presets = [
+  'a + b',
+  'a * b',
+  'a * b + a',
+  'max(a, b) - min(a, b)',
+  '(a ^ b) * 3',
+  'a if a > b else b - a',
+  'a // b',
+  'sum(a + i for i in range(b & 15))',
+  'popcount(a ^ b)',
+  'rotl(a, b & 7)',
+];
+---
+
+<Layout title="Try it" description="Give the model your own function: it sees 999 generated examples and answers new questions.">
+  <p class="eyebrow">Try it</p>
+  <h1>Give it your own rule</h1>
+  <p class="lede">
+    Write any function of <code>a</code> and <code>b</code>. The relay generates 999 distinct examples
+    <code>(a, b, c)</code> from it and a question it has never seen; the model — never told your function — answers. Or
+    run 1,000 fresh questions over 10 different sets of examples and get its accuracy.
+  </p>
+
+  <p class="status small" data-role="status">Connecting to the relay…</p>
+
+  <section class="card form">
+    <label for="function" class="eyebrow">Function (8-bit, results wrap modulo 256)</label>
+    <div class="row">
+      <span class="prefix">c =</span>
+      <input id="function" type="text" value="a * b + a" spellcheck="false" autocomplete="off" />
+    </div>
+    <div class="chips" data-role="presets">
+      {presets.map((p) => <button class="chip" type="button" data-preset={p}>{p}</button>)}
+    </div>
+    <p class="small muted help">
+      Python syntax: <code>+ - * // % **</code>, <code>&amp; | ^ ~ &lt;&lt; &gt;&gt;</code>, comparisons,
+      <code>x if cond else y</code>, <code>min max abs</code>, one loop as <code>sum(... for i in range(n))</code> (up to
+      256 steps), and <code>popcount(x)</code>, <code>reverse(x)</code>, <code>rotl(x, k)</code>. Division by zero gives
+      255.
+    </p>
+    <div class="actions">
+      <button class="primary" type="button" data-role="sample">Ask one question</button>
+      <button class="primary secondary" type="button" data-role="evaluate">Evaluate 1,000 questions</button>
+    </div>
+    <p class="error small" data-role="error" hidden></p>
+  </section>
+
+  <section class="card result" data-role="sample-result" hidden>
+    <h2>One question</h2>
+    <div class="grid-2">
+      <div>
+        <p class="eyebrow">The 999 examples it was shown (first 8)</p>
+        <div data-role="examples"></div>
+      </div>
+      <div>
+        <p class="eyebrow">The question</p>
+        <div class="strips" data-role="question"></div>
+        <p class="verdict" data-role="verdict"></p>
+        <p class="eyebrow guess-title">Its guess, round by round</p>
+        <div class="evolution" data-role="evolution"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card result" data-role="evaluate-result" hidden>
+    <h2>1,000 fresh questions</h2>
+    <div class="grid-3 tiles">
+      <div class="stat">
+        <span class="label">Exact (all 8 bits right)</span>
+        <span class="value" data-role="exact">—</span>
+      </div>
+      <div class="stat">
+        <span class="label">Bits right</span>
+        <span class="value" data-role="bits">—</span>
+      </div>
+      <div class="stat">
+        <span class="label">Sure (≥ 0.99) · right when sure</span>
+        <span class="value" data-role="sure">—</span>
+      </div>
+    </div>
+    <p class="small muted" data-role="eval-note"></p>
+    <details data-role="mistakes-box">
+      <summary>Some of its mistakes</summary>
+      <div data-role="mistakes"></div>
+    </details>
+  </section>
+</Layout>
+
+<script>
+  import { strip } from '../lib/bits-dom';
+
+  type Sample = {
+    function: string;
+    context: [number, number, number][];
+    question: { a: number; b: number; truth: number };
+    rounds: number[][];
+    answer: number;
+    correct: boolean;
+    confidence: number;
+  };
+  type Evaluation = {
+    function: string;
+    questions: number;
+    contexts: number;
+    exact: number;
+    bits: number;
+    sure_coverage: number;
+    sure_accuracy: number | null;
+    seconds: number;
+    mistakes: { a: number; b: number; truth: number; answer: number; confidence: number }[];
+  };
+
+  // Same origin when the page is served by `uv run teenie-serve`; override for the Astro dev server.
+  const api = (import.meta.env.PUBLIC_TEENIE_API as string | undefined) ?? '';
+  const $ = <T extends Element>(role: string) => document.querySelector<T>(`[data-role="${role}"]`)!;
+  const input = document.getElementById('function') as HTMLInputElement;
+  const pct = (x: number | null) => (x === null ? '—' : `${(x * 100).toFixed(1)}%`);
+
+  async function call<T>(path: string, body?: object): Promise<T> {
+    const response = await fetch(`${api}${path}`, body
+      ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      : undefined);
+    const data = (await response.json()) as T & { error?: string };
+    if (!response.ok) throw new Error(data.error ?? `HTTP ${response.status}`);
+    return data;
+  }
+
+  function showError(message: string | null): void {
+    const box = $<HTMLParagraphElement>('error');
+    box.hidden = message === null;
+    box.textContent = message ?? '';
+  }
+
+  function busy(on: boolean): void {
+    document.querySelectorAll<HTMLButtonElement>('.actions button').forEach((b) => (b.disabled = on));
+  }
+
+  async function sample(): Promise<void> {
+    showError(null);
+    busy(true);
+    try {
+      const s = await call<Sample>('/api/sample', { function: input.value });
+      $('examples').innerHTML =
+        `<table><thead><tr><th class="num">a</th><th class="num">b</th><th class="num">c</th></tr></thead><tbody>` +
+        s.context.slice(0, 8).map(([a, b, c]) => `<tr><td class="num">${a}</td><td class="num">${b}</td><td class="num">${c}</td></tr>`).join('') +
+        `<tr><td colspan="3" class="muted small">… ${s.context.length - 8} more</td></tr></tbody></table>`;
+      $('question').innerHTML = [
+        strip(s.question.a, { label: 'a' }),
+        strip(s.question.b, { label: 'b' }),
+        strip(s.answer, { label: 'ĉ', wrong: !s.correct }),
+        strip(s.question.truth, { label: 'c' }),
+      ].join('');
+      $('verdict').innerHTML = `<span class="${s.correct ? 'ok' : 'bad'}">${s.correct ? '✓ exact' : '✗ wrong'}</span>
+        <span class="muted small">confidence ${(s.confidence * 100).toFixed(1)}% (least certain bit)</span>`;
+      $('evolution').innerHTML = s.rounds
+        .map((p, t) => `<div class="erow"><span class="rlabel">${t + 1}</span>${[...Array(8).keys()]
+          .map((i) => `<span class="cell" style="--p:${p[7 - i]}" data-tip="round ${t + 1}, bit ${7 - i}: p(1) = ${p[7 - i]!.toFixed(3)}"></span>`)
+          .join('')}</div>`)
+        .join('');
+      $<HTMLElement>('sample-result').hidden = false;
+    } catch (error) {
+      showError((error as Error).message);
+    } finally {
+      busy(false);
+    }
+  }
+
+  async function evaluate(): Promise<void> {
+    showError(null);
+    busy(true);
+    $('exact').textContent = '…';
+    $<HTMLElement>('evaluate-result').hidden = false;
+    try {
+      const e = await call<Evaluation>('/api/evaluate', { function: input.value, questions: 1000, contexts: 10 });
+      $('exact').textContent = pct(e.exact);
+      $('bits').textContent = pct(e.bits);
+      $('sure').textContent = `${pct(e.sure_coverage)} · ${pct(e.sure_accuracy)}`;
+      $('eval-note').textContent = `c = ${e.function} — ${e.questions.toLocaleString('en-US')} questions over ${e.contexts} different sets of 999 examples, answered in ${e.seconds} s.`;
+      $('mistakes').innerHTML = e.mistakes.length
+        ? `<table><thead><tr><th class="num">a</th><th class="num">b</th><th class="num">true c</th><th class="num">its answer</th><th class="num">confidence</th></tr></thead><tbody>` +
+          e.mistakes.map((m) => `<tr><td class="num">${m.a}</td><td class="num">${m.b}</td><td class="num">${m.truth}</td><td class="num">${m.answer}</td><td class="num">${(m.confidence * 100).toFixed(1)}%</td></tr>`).join('') +
+          '</tbody></table>'
+        : '<p class="small">No mistakes.</p>';
+    } catch (error) {
+      showError((error as Error).message);
+      $<HTMLElement>('evaluate-result').hidden = true;
+    } finally {
+      busy(false);
+    }
+  }
+
+  document.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((b) =>
+    b.addEventListener('click', () => {
+      input.value = b.dataset.preset ?? '';
+      void sample();
+    }),
+  );
+  $('sample').addEventListener('click', () => void sample());
+  $('evaluate').addEventListener('click', () => void evaluate());
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') void sample();
+  });
+
+  call<{ checkpoint: string; parameters: number; config: { layers: number; steps: number } }>('/api/info')
+    .then((info) => {
+      $('status').innerHTML = `<span class="dot"></span> Connected — ${info.parameters.toLocaleString('en-US')}-parameter model (${info.config.layers} look layers × ${info.config.steps} rounds), <code>${info.checkpoint}</code>.`;
+      void sample();
+    })
+    .catch(() => {
+      $('status').innerHTML = 'The relay is not running. Start it from the repository root with <code>uv run teenie-serve</code>, then open <a href="http://127.0.0.1:8000/try/">http://127.0.0.1:8000/try/</a>.';
+      busy(true);
+    });
+</script>
+
+<style>
+  .status {
+    color: var(--ink-2);
+  }
+
+  .status :global(.dot) {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--good);
+    margin-right: 0.3rem;
+  }
+
+  .form {
+    display: grid;
+    gap: 0.8rem;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .prefix {
+    font-family: var(--mono);
+    color: var(--muted);
+  }
+
+  #function {
+    flex: 1;
+    min-width: 0;
+    font: 1rem var(--mono);
+    padding: 0.55rem 0.7rem;
+    border-radius: 8px;
+    border: 1px solid var(--axis);
+    background: var(--page);
+    color: var(--ink);
+  }
+
+  .chips .chip {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+  }
+
+  .help {
+    margin: 0;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .primary {
+    font: inherit;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    padding: 0.55rem 1rem;
+    background: var(--series-1);
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .primary.secondary {
+    background: var(--ink);
+    color: var(--page);
+  }
+
+  .primary:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .error {
+    color: var(--bad);
+    margin: 0;
+  }
+
+  .result {
+    margin-top: 1.25rem;
+  }
+
+  .result h2 {
+    margin-top: 0;
+  }
+
+  [data-role='question'] {
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .verdict {
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+    flex-wrap: wrap;
+  }
+
+  .verdict :global(.ok) {
+    color: var(--good);
+    font-weight: 700;
+  }
+
+  .verdict :global(.bad) {
+    color: var(--bad);
+    font-weight: 700;
+  }
+
+  .guess-title {
+    margin-top: 1rem;
+  }
+
+  .evolution {
+    display: grid;
+    gap: 3px;
+    font-family: var(--mono);
+  }
+
+  .evolution :global(.erow) {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .evolution :global(.rlabel) {
+    width: 1.4rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+    text-align: right;
+    margin-right: 4px;
+  }
+
+  .evolution :global(.cell) {
+    width: 24px;
+    height: 16px;
+    border-radius: 3px;
+    background: color-mix(in oklab, var(--series-1) calc(var(--p, 0) * 100%), var(--bit-off));
+  }
+
+  [data-role='examples'] :global(table),
+  [data-role='mistakes'] :global(table) {
+    max-width: 420px;
+  }
+
+  .tiles {
+    margin-bottom: 0.75rem;
+  }
+</style>

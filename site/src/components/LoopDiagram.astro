@@ -4,9 +4,10 @@ interface Props {
   layers: number;
   rounds: number;
   heads: number;
+  scratch?: number;
 }
 
-const { layers, rounds, heads } = Astro.props;
+const { layers, rounds, heads, scratch = 0 } = Astro.props;
 const box = [
   { id: 'ex', x: 20, y: 30, w: 190, h: 58, t: ['999 examples', 'a, b, c as 24 bits'], kind: 'data' },
   { id: 'enc', x: 20, y: 140, w: 190, h: 58, t: ['Example encoder', 'bilinear · run once'], kind: '' },
@@ -17,6 +18,9 @@ const box = [
   { id: 'mem', x: 290, y: 315, w: 210, h: 52, t: ['Memory', 'GRU cell, carried to the next round'], kind: '' },
   { id: 'read', x: 580, y: 315, w: 180, h: 52, t: ['Readout', 'new 8-bit guess'], kind: '' },
   { id: 'ans', x: 580, y: 30, w: 180, h: 58, t: ['Answer', `after round ${rounds} + confidence`], kind: 'data' },
+  ...(scratch
+    ? [{ id: 'slots', x: 545, y: 215, w: 115, h: 66, t: [`${scratch} scratch slots`, 'never scored', 'self-attention'], kind: 'slot' }]
+    : []),
 ];
 type Box = (typeof box)[number];
 const by = Object.fromEntries(box.map((b) => [b.id, b])) as Record<string, Box>;
@@ -50,6 +54,7 @@ const cy = (id: string) => by[id]!.y + by[id]!.h / 2;
       <path d={`M${cx('look')},${bottom('look')} V${by.mem!.y - 4}`} />
       <path d={`M${r('mem')},${cy('mem')} H${by.read!.x - 4}`} />
       <path d={`M${r('vec')},${cy('vec')} H${by.look!.x - 4}`} />
+      {scratch > 0 && <path class="both" d={`M${r('look')},${cy('look')} H${by.slots!.x - 4}`} />}
       <path class="loop" d={`M${cx('read')},${by.read!.y} V100 H540 V${cy('q')} H${r('q') + 4}`} />
       <path class="loop" d={`M${r('read')},${cy('read')} H790 V${cy('ans')} H${r('ans') + 4}`} />
     </g>
@@ -105,6 +110,12 @@ const cy = (id: string) => by[id]!.y + by[id]!.h / 2;
     fill: var(--page);
   }
 
+  .node.slot rect {
+    fill: var(--surface);
+    stroke: var(--series-3);
+    stroke-width: 1.5;
+  }
+
   .node.att rect {
     fill: var(--wash-1);
     stroke: var(--series-1);
@@ -127,6 +138,10 @@ const cy = (id: string) => by[id]!.y + by[id]!.h / 2;
     stroke: var(--muted);
     stroke-width: 1.5;
     marker-end: url(#loop-arrow);
+  }
+
+  .edges .both {
+    marker-start: url(#loop-arrow);
   }
 
   .edges .loop {

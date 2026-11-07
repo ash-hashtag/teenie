@@ -173,14 +173,21 @@ class LoopModel(nn.Module):
         if context.shape[1] != CONTEXT_SIZE or width != self.config['width']:
             raise ValueError(f'context must contain exactly {CONTEXT_SIZE} examples; width must be {self.config["width"]}')
         rounds = self.config['steps'] if steps is None else steps
-        probes = self.config['probes']
         bits = torch.cat([to_bits(context[..., i], width) for i in range(3)], -1) * 2 - 1  # [B, N, 3W]
+        asked = torch.cat([to_bits(query[..., i], width) for i in range(2)], -1) * 2 - 1  # [B, Q, 2W]
+        return LoopPrediction(self.forward_bits(bits, asked, rounds), query.shape[1])
+
+    def forward_bits(self, bits: Tensor, asked: Tensor, rounds: int) -> Tensor:
+        """The model on bits in {-1, 1}: examples [B, 999, 3W] and questions [B, Q, 2W]. Returns logits after every
+        round for the questions and the probes, [T, B, Q + P, W]. Used directly by the ONNX export."""
+        width = self.config['width']
+        probes = self.config['probes']
         examples = self.example(bits)  # computed once, fixed for every round
-        queries = query.shape[1]
-        asked = torch.cat([torch.cat([to_bits(query[..., i], width) for i in range(2)], -1) * 2 - 1,
-                           bits[:, :probes, :2 * width]], 1)  # [B, Q + P, 2W]
-        allowed = torch.ones(queries + probes, CONTEXT_SIZE, dtype=torch.bool, device=context.device)
-        allowed[queries + torch.arange(probes), torch.arange(probes)] = False  # a probe never sees itself
+        queries = asked.shape[1]
+        asked = torch.cat([asked, bits[:, :probes, :2 * width]], 1)  # [B, Q + P, 2W]
+        # A probe never sees itself: probe row Q + j may not attend to example j.
+        rows = torch.arange(queries + probes, device=bits.device)[:, None] - queries
+        allowed = rows != torch.arange(CONTEXT_SIZE, device=bits.device)[None, :]
         batch, items = asked.shape[:2]
         hidden = self.config['hidden']
         state = asked.new_zeros(batch * items, hidden)
@@ -191,7 +198,7 @@ class LoopModel(nn.Module):
         for step in range(rounds):
             x = self.ask(torch.cat([asked, guess], -1)) + state.view(batch, items, hidden)
             if self.config.get('clock', False):
-                x = x + round_signal(step, hidden, context.device)
+                x = x + round_signal(step, hidden, bits.device)
             for look in self.looks:
                 x = look(x, examples, allowed)
             if slots:
@@ -203,7 +210,7 @@ class LoopModel(nn.Module):
             logits = self.readout(state).view(batch, items, width)
             outputs.append(logits)
             guess = torch.tanh(logits / 2)  # = 2 * sigmoid(logits) - 1
-        return LoopPrediction(torch.stack(outputs), queries)
+        return torch.stack(outputs)
 
     def record_attention(self, enabled: bool = True) -> list[list[Tensor]]:
         """Toggle attention recording; returns per-layer lists the next forward fills, one entry per round."""

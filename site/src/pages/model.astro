@@ -41,7 +41,7 @@ const share = (n: number) => `${((100 * n) / arch.parameters).toFixed(1)}%`;
 
   <h2>Architecture</h2>
   <div class="card">
-    <LoopDiagram layers={arch.layers} rounds={arch.rounds} heads={arch.heads} />
+    <LoopDiagram layers={arch.layers} rounds={arch.rounds} heads={arch.heads} scratch={arch.scratch} />
   </div>
 
   <div class="grid-2 steps">
@@ -63,7 +63,8 @@ const share = (n: number) => `${((100 * n) / arch.parameters).toFixed(1)}%`;
     <div class="card">
       <p class="eyebrow">3 · Look and correct</p>
       <p>
-        {`Each round the question, carrying its current guess and memory, attends to the 999 example vectors in ${arch.layers} look layers.`} Each is followed by a <strong>gated (SwiGLU) feed-forward</strong> layer, which can
+        {`Each round the question, carrying its current guess and memory, attends to the 999 example vectors in ${arch.layers} look layers.`}
+        {arch.scratch > 0 && ` It then exchanges information with its ${arch.scratch} scratch slots — private memory vectors carried between rounds and never scored as the answer, a place for intermediate results such as a partial product or a running total.`} Each is followed by a <strong>gated (SwiGLU) feed-forward</strong> layer, which can
         multiply signals instead of only adding them. A GRU cell updates the memory and the readout writes a new guess.
       </p>
     </div>
@@ -113,7 +114,7 @@ const share = (n: number) => `${((100 * n) / arch.parameters).toFixed(1)}%`;
   <p>
     Recorded from the current model on fresh episodes. Play through the rounds: the guess starts undecided and
     sharpens as the question keeps looking back at the examples. <code>add</code> and <code>max</code> settle almost
-    immediately; <code>a*b</code> takes longer and is right only about half the time in this model;
+    immediately; {`a*b takes longer (${pct(current.families['a*b'])} exact for this model);`}
     <code>a*b+a</code> and the hidden sum loop show where it still fails.
   </p>
   <RoundsInspector />

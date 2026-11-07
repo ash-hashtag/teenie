@@ -85,9 +85,9 @@ def traces(model: LoopModel, device: str, queries: int = 2) -> list[dict[str, ob
 
 def main() -> None:
     parser = argparse.ArgumentParser(description='Export the current model for the docs site')
-    parser.add_argument('--checkpoint', default='checkpoints/mix3/mix3-mloop.pt')
-    parser.add_argument('--evaluation', default='experiments/mix3/mix3-mloop-eval.json')
-    parser.add_argument('--name', default='Multiplicative loop')
+    parser.add_argument('--checkpoint', default='checkpoints/mix3/mix3-mloop-scratch4.pt')
+    parser.add_argument('--evaluation', default='experiments/mix3/mix3-mloop-scratch4-eval.json')
+    parser.add_argument('--name', default='Multiplicative loop with scratch slots')
     parser.add_argument('--out', default='site')
     parser.add_argument('--device', default='cpu')
     args = parser.parse_args()

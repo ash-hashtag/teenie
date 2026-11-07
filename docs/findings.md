@@ -213,3 +213,28 @@ closed form. T1–T3 hold steady although the combinations are now truly unseen.
 
 Cost of breadth: with many more relation kinds sharing the same 10,000 updates, `a*b` falls to **53.9%** in B
 (99.6% in the `mix` run). Named relations stay at 99.6–100%.
+
+**S — B plus 4 scratch slots** (`--scratch 4`, 732K parameters; `mix3-mloop-scratch4-*`), same data and budget:
+
+| | B | S |
+|---|---|---|
+| trained relations | 87.7% | 89.7% |
+| `a*b` (trained) | 53.9% | **80.8%** |
+| T1 / T2 / T3 | 59.9 / 43.0 / 45.0% | 58.9 / 43.7 / 44.0% |
+| T4 | 68.9% | 71.9% |
+| T5 | 46.4% | 48.1% |
+| hidden | 52.8% | 53.4% |
+| product, then a step | 21.5% | 19.2% |
+
+Slots help where intermediate values matter — multiplication +27 points, Fibonacci-like loop 33 → 48%,
+x→3x+1 22 → 30% — but not "product, then another step", and the tiers won stay at 2 of 5. One seed each:
+likely, not yet confirmed. S becomes the site's current model.
+
+## 9. Try it: your own functions (`uv run teenie-serve`)
+
+A local relay (`src/teenie/bits/serve.py`) serves the built site and two endpoints: `/api/sample` generates
+999 distinct examples from a user expression plus an unseen question and returns the model's answer after
+every round; `/api/evaluate` answers 1,000 fresh questions over 10 different example sets (≈0.3 s on CPU).
+Expressions are checked against a whitelist (arithmetic, bit operations, comparisons, conditionals,
+min/max/abs, one `sum(... for i in range(n))` loop of ≤ 256 steps, popcount/reverse/rotl). With B: `a + b`
+99.8%, `max(a,b) − min(a,b)` 67.5%, the sum loop 31.9%, `a*b + a` 24.9%.

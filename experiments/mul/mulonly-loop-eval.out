@@ -1,0 +1,10 @@
+[train]
+  a*b          exact= 52.3 bit= 94.0 sure_coverage=  0.0
+[heldout]
+  a+b+1        exact=  0.5 bit= 51.1 sure_coverage=  0.0
+  a-2b         exact=  0.1 bit= 52.9 sure_coverage=  0.0
+  min          exact=  2.1 bit= 56.5 sure_coverage=  0.0
+  nand         exact=  0.0 bit= 41.8 sure_coverage=  0.0
+  3a           exact=  2.6 bit= 56.0 sure_coverage=  0.0
+[stress]
+  a*(b&63)     exact= 40.3 bit= 90.9 sure_coverage=  0.0

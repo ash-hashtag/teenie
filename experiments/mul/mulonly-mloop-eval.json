@@ -1,0 +1,60 @@
+{
+  "checkpoint": "checkpoints/mul/mulonly-mloop.pt",
+  "train_set": "mul-only",
+  "width": 8,
+  "episodes": 64,
+  "queries": 16,
+  "seed": 60000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "results": {
+    "train": {
+      "a*b": {
+        "exact": 0.9814453125,
+        "bit": 0.9976806640625,
+        "sure_coverage": 0.8095703125,
+        "sure_accuracy": 1.0
+      }
+    },
+    "heldout": {
+      "a+b+1": {
+        "exact": 0.00390625,
+        "bit": 0.508056640625,
+        "sure_coverage": 0.802734375,
+        "sure_accuracy": 0.004866180010139942
+      },
+      "a-2b": {
+        "exact": 0.001953125,
+        "bit": 0.5316162109375,
+        "sure_coverage": 0.794921875,
+        "sure_accuracy": 0.0012285012053325772
+      },
+      "min": {
+        "exact": 0.017578125,
+        "bit": 0.561767578125,
+        "sure_coverage": 0.80078125,
+        "sure_accuracy": 0.02073170803487301
+      },
+      "nand": {
+        "exact": 0.0,
+        "bit": 0.417236328125,
+        "sure_coverage": 0.7685546875,
+        "sure_accuracy": 0.0
+      },
+      "3a": {
+        "exact": 0.0166015625,
+        "bit": 0.5582275390625,
+        "sure_coverage": 0.794921875,
+        "sure_accuracy": 0.019656019285321236
+      }
+    },
+    "stress": {
+      "a*(b&63)": {
+        "exact": 0.5068359375,
+        "bit": 0.9224853515625,
+        "sure_coverage": 0.8076171875,
+        "sure_accuracy": 0.5586457252502441
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+[train]
+  add          exact=100.0 bit=100.0 sure_coverage= 99.0 sure_accuracy=100.0
+  sub          exact= 99.9 bit=100.0 sure_coverage= 98.1 sure_accuracy=100.0
+  b-a          exact=100.0 bit=100.0 sure_coverage= 97.4 sure_accuracy=100.0
+  xor          exact=100.0 bit=100.0 sure_coverage= 99.9 sure_accuracy=100.0
+  and          exact=100.0 bit=100.0 sure_coverage= 99.8 sure_accuracy=100.0
+  or           exact=100.0 bit=100.0 sure_coverage=100.0 sure_accuracy=100.0
+  a+2b         exact= 99.9 bit=100.0 sure_coverage= 94.0 sure_accuracy=100.0
+  2a+b         exact= 99.9 bit=100.0 sure_coverage= 95.4 sure_accuracy=100.0
+  max          exact= 99.9 bit=100.0 sure_coverage= 96.1 sure_accuracy=100.0
+  a<<1         exact=100.0 bit=100.0 sure_coverage=100.0 sure_accuracy=100.0
+  a+const      exact=100.0 bit=100.0 sure_coverage= 97.6 sure_accuracy=100.0
+  b^const      exact=100.0 bit=100.0 sure_coverage= 96.1 sure_accuracy=100.0
+  transducer   exact= 74.3 bit= 94.7 sure_coverage= 29.8 sure_accuracy= 99.7
+  a*const      exact= 98.9 bit= 99.9 sure_coverage= 78.6 sure_accuracy=100.0
+  a*(b&3)      exact=100.0 bit=100.0 sure_coverage= 95.6 sure_accuracy=100.0
+  a*(b&15)     exact= 81.8 bit= 97.0 sure_coverage= 44.1 sure_accuracy=100.0
+[heldout]
+  a+b+1        exact=100.0 bit=100.0 sure_coverage= 83.5 sure_accuracy=100.0
+  a-2b         exact= 91.2 bit= 98.3 sure_coverage= 50.3 sure_accuracy= 99.4
+  min          exact= 41.7 bit= 86.5 sure_coverage=  3.4 sure_accuracy= 77.1
+  nand         exact=100.0 bit=100.0 sure_coverage= 76.7 sure_accuracy=100.0
+  3a           exact= 99.6 bit=100.0 sure_coverage= 86.9 sure_accuracy=100.0
+[stress]
+  a*(b&63)     exact= 22.2 bit= 82.0 sure_coverage=  8.5 sure_accuracy= 48.3
+  a*b          exact= 16.5 bit= 80.3 sure_coverage=  6.3 sure_accuracy= 30.8

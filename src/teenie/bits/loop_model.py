@@ -31,16 +31,31 @@ class LoopConfig(TypedDict):
     multiplicative: NotRequired[bool]
     clock: NotRequired[bool]
     scratch: NotRequired[int]
+    halting: NotRequired[bool]
 
 
 @dataclass
 class LoopPrediction:
     logits: Tensor  # [T, B, Q + P, W] after each round, bit index order
     queries: int
+    halts: Tensor | None = None  # [T, B, Q + P] probability of stopping at each round, if the model halts itself
 
-    def probabilities(self, round: int = -1) -> Tensor:
-        """Probability that each query bit is 1 after a round (default: the last), [B, Q, W]."""
-        return torch.sigmoid(self.logits[round, :, :self.queries])
+    def stop(self) -> Tensor:
+        """Round each question answers at, [B, Q]: the first round by which stopping is more likely than not
+        (the median of its halting distribution); the last round when the model does not halt itself."""
+        if self.halts is None:
+            return torch.full(self.logits.shape[1:2] + (self.queries,), len(self.logits) - 1,
+                              device=self.logits.device, dtype=torch.long)
+        reached = self.halts[:, :, :self.queries].cumsum(0) >= .5
+        return reached.float().argmax(0)
+
+    def probabilities(self, round: int | None = None) -> Tensor:
+        """Probability that each query bit is 1, [B, Q, W]: after a given round, or by default at the round each
+        question stops (the last round for models without halting)."""
+        if round is not None:
+            return torch.sigmoid(self.logits[round, :, :self.queries])
+        chosen = self.stop()[None, :, :, None].expand(1, -1, -1, self.logits.shape[-1])
+        return torch.sigmoid(self.logits[:, :, :self.queries].gather(0, chosen)[0])
 
     def values(self) -> Tensor:
         return from_bits(self.probabilities() > .5)
@@ -49,6 +64,9 @@ class LoopPrediction:
         """Certainty of the least certain bit, in [0.5, 1]."""
         p = self.probabilities()
         return torch.maximum(p, 1 - p).amin(-1)
+
+
+HALT_COST = .005  # per round, in bits of cross-entropy: a round has to buy a real improvement to be worth it
 
 
 def round_signal(step: int, hidden: int, device: torch.device) -> Tensor:
@@ -141,13 +159,14 @@ class _Within(nn.Module):
 
 class LoopModel(nn.Module):
     def __init__(self, hidden: int = 128, heads: int = 4, layers: int = 2, width: int = 8, probes: int = 64,
-                 steps: int = 8, multiplicative: bool = False, clock: bool = False, scratch: int = 0) -> None:
+                 steps: int = 8, multiplicative: bool = False, clock: bool = False, scratch: int = 0,
+                 halting: bool = False) -> None:
         super().__init__()
         if hidden % heads or not 0 < probes <= CONTEXT_SIZE or min(layers, width, steps) < 1:
             raise ValueError('hidden must divide into heads; probes in 1..999; layers, width, steps >= 1')
         self.config: LoopConfig = {'hidden': hidden, 'heads': heads, 'layers': layers, 'width': width,
                                    'probes': probes, 'steps': steps, 'multiplicative': multiplicative,
-                                   'clock': clock, 'scratch': scratch}
+                                   'clock': clock, 'scratch': scratch, 'halting': halting}
         # `clock` tells every round which round it is (a fixed sinusoid, no parameters) and scores mostly the last
         # round, so earlier rounds are free to hold partial work instead of a finished answer.
         # `multiplicative` adds bilinear inputs and gated feed-forward layers: generic units that can multiply
@@ -162,6 +181,13 @@ class LoopModel(nn.Module):
         # `scratch` slots: per-question memory carried between rounds and never scored, for intermediate results
         # (a partial product, a running total, a counter). Only the main token reads the examples; the slots
         # exchange information with it through `within`. Each slot has a learned identity added every round.
+        # `halting`: every round also outputs the probability that the answer is done (PonderNet-style). Training
+        # minimises the expected error over the resulting stopping distribution plus a small cost per round, so it
+        # stops early when one pass is enough; `steps` is then only the cap.
+        if halting:
+            halt_out = nn.Linear(hidden, 1)
+            nn.init.constant_(halt_out.bias, -2.)  # start out preferring to keep going
+            self.halt = nn.Sequential(nn.LayerNorm(hidden), halt_out)
         if scratch:
             self.slot_identity = nn.Parameter(torch.randn(scratch, hidden) * .02)
             self.within = _Within(hidden, heads)
@@ -175,7 +201,17 @@ class LoopModel(nn.Module):
         rounds = self.config['steps'] if steps is None else steps
         bits = torch.cat([to_bits(context[..., i], width) for i in range(3)], -1) * 2 - 1  # [B, N, 3W]
         asked = torch.cat([to_bits(query[..., i], width) for i in range(2)], -1) * 2 - 1  # [B, Q, 2W]
-        return LoopPrediction(self.forward_bits(bits, asked, rounds), query.shape[1])
+        self._halt_logits: list[Tensor] = []
+        logits = self.forward_bits(bits, asked, rounds)
+        halts = None
+        if self.config.get('halting', False):
+            # Stopping distribution: halt at round t with probability h_t * prod_{s<t} (1 - h_s); the last round
+            # takes whatever probability is left, so every question stops by the cap.
+            h = torch.sigmoid(torch.stack(self._halt_logits))  # [T, B, Q + P]
+            h = torch.cat([h[:-1], torch.ones_like(h[-1:])])
+            survive = torch.cumprod(torch.cat([torch.ones_like(h[:1]), 1 - h[:-1]]), 0)
+            halts = h * survive
+        return LoopPrediction(logits, query.shape[1], halts)
 
     def forward_bits(self, bits: Tensor, asked: Tensor, rounds: int) -> Tensor:
         """The model on bits in {-1, 1}: examples [B, 999, 3W] and questions [B, Q, 2W]. Returns logits after every
@@ -209,6 +245,8 @@ class LoopModel(nn.Module):
             state = self.cell(x.reshape(-1, hidden), state)
             logits = self.readout(state).view(batch, items, width)
             outputs.append(logits)
+            if self.config.get('halting', False):
+                self._halt_logits.append(self.halt(state).view(batch, items))
             guess = torch.tanh(logits / 2)  # = 2 * sigmoid(logits) - 1
         return torch.stack(outputs)
 
@@ -223,6 +261,11 @@ class LoopModel(nn.Module):
         """Per-bit cross-entropy after every round, later rounds weighted more; queries and probes."""
         probes = to_bits(context[:, :prediction.logits.shape[2] - prediction.queries, 2], width)
         truth = torch.cat([to_bits(target, width), probes], 1).expand_as(prediction.logits)
+        if prediction.halts is not None:
+            # Expected per-question error over the stopping distribution, plus a small cost per round used.
+            error = F.binary_cross_entropy_with_logits(prediction.logits, truth, reduction='none').mean(-1)  # [T,B,I]
+            rounds = torch.arange(1, len(error) + 1, device=error.device, dtype=error.dtype)[:, None, None]
+            return ((prediction.halts * error).sum(0) + HALT_COST * (prediction.halts * rounds).sum(0)).mean()
         per_round = F.binary_cross_entropy_with_logits(prediction.logits, truth, reduction='none').mean((1, 2, 3))
         if self.config.get('clock', False) and len(per_round) > 1:
             return per_round[-1] + .1 * per_round[:-1].mean()

@@ -10,7 +10,7 @@ from .baselines import nearest, window_lookup
 from .checkpoint import AnyBitModel, load_bit_model
 from .data import BitSampler, to_bits
 from .bit_token_model import BitTokenModel
-from .loop_model import LoopModel
+from .loop_model import LoopModel, LoopPrediction
 from .relations import Family
 from .sets import ALL_NAMED, test_groups
 from .program_model import ProgramModel
@@ -40,6 +40,8 @@ def evaluate_family(model: AnyBitModel | None, family: Family, *, width: int = 8
             report.setdefault('bit', []).append(bits.flatten())
             report.setdefault('sure', []).append(sure.flatten())
             report.setdefault('sure_correct', []).append(correct[sure])
+            if isinstance(prediction, LoopPrediction) and prediction.halts is not None:
+                report.setdefault('rounds', []).append(prediction.stop().flatten().float() + 1)
         if baselines:
             report.setdefault('nearest', []).append((nearest(episode) == episode.target).flatten())
             for window in (1, 2):
@@ -105,7 +107,8 @@ def main() -> None:
     for group, reports in results.items():
         print(f'[{group}]')
         for name, report in reports.items():
-            print(f'  {name:12s} ' + ' '.join(f'{k}={100 * v:5.1f}' for k, v in report.items() if v is not None))
+            print(f'  {name:12s} ' + ' '.join(f'{k}={v:5.2f}' if k == 'rounds' else f'{k}={100 * v:5.1f}'
+                                              for k, v in report.items() if v is not None))
     for group, line in summary.items():
         exact, sure = line['exact'], line['sure_accuracy']
         print(f'{group:8s} exact={100 * float(exact or 0):5.1f}%  sure-right='

@@ -33,7 +33,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
           layers: int = 2, steps: int = 8, train_set: str = 'base', channels: int = 16,
           informed: bool = True, multiplicative: bool = False, clock: bool = False,
           adaptive: bool = False, init: str | Path | None = None, resume: bool = False,
-          scratch: int = 0) -> AnyBitModel:
+          scratch: int = 0, halting: bool = False) -> AnyBitModel:
     """`init` starts from saved weights and trains `updates` more (fresh optimizer and schedule; update numbers
     continue from the checkpoint). `resume` continues an interrupted run exactly from `<save>.resume.pt`, which
     every log step writes: weights, optimizer, schedule, sampling weights and random state."""
@@ -54,7 +54,8 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
     elif architecture == 'think':
         model = ThinkModel(hidden, heads, layers, width, steps).to(selected)
     elif architecture == 'loop':
-        model = LoopModel(hidden, heads, layers, width, probes, steps, multiplicative, clock, scratch).to(selected)
+        model = LoopModel(hidden, heads, layers, width, probes, steps, multiplicative, clock, scratch,
+                          halting).to(selected)
     elif architecture == 'serial':
         model = BitModel(hidden, heads, probes=probes).to(selected)
     else:
@@ -136,7 +137,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
             running = 0.
             metadata: dict[str, object] = {
                 'architecture': architecture, 'multiplicative': multiplicative, 'clock': clock, 'adaptive': adaptive,
-                'scratch': scratch,
+                'scratch': scratch, 'halting': halting,
                 'train_set': train_set, 'width': width, 'update': update, 'seed': seed, 'known_exact': score}
             save_bit_model(path, model, metadata)
             if snapshot_dir:
@@ -183,6 +184,8 @@ def main() -> None:
                         help='after each validation, draw relations in proportion to how often they are still wrong')
     parser.add_argument('--scratch', type=int, default=0,
                         help='loop: per-question memory slots carried between rounds, never scored')
+    parser.add_argument('--halting', action='store_true',
+                        help='loop: learn when to stop; --steps becomes the maximum number of rounds')
     parser.add_argument('--init', help='start from these weights and train --updates more (fresh optimizer)')
     parser.add_argument('--resume', action='store_true',
                         help='continue an interrupted run exactly from <save>.resume.pt')
@@ -200,7 +203,7 @@ def main() -> None:
           snapshots=args.snapshots, architecture=args.architecture, layers=args.layers, steps=args.steps,
           train_set=args.train_set, channels=args.channels, informed=not args.blank,
           multiplicative=args.multiplicative, clock=args.clock, adaptive=args.adaptive, init=args.init,
-          resume=args.resume, scratch=args.scratch)
+          resume=args.resume, scratch=args.scratch, halting=args.halting)
 
 
 if __name__ == '__main__':

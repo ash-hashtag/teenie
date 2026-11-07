@@ -281,3 +281,20 @@ def test_bit_token_model_rounds_probe_masking_and_checkpoint(tmp_path):
     save_bit_model(tmp_path / 'bt.pt', model, {'width': 8})
     loaded, _ = load_bit_model(tmp_path / 'bt.pt')
     assert isinstance(loaded, BitTokenModel) and loaded.config['steps'] == 3
+
+
+def test_halting_distribution_sums_to_one_and_stops_early_when_confident():
+    torch.manual_seed(0)
+    model = LoopModel(hidden=16, heads=2, layers=1, probes=8, steps=5, multiplicative=True, halting=True)
+    episode = BitSampler(seed=0).sample(2, queries=3)
+    prediction = model.forward(episode.context, episode.query, 8)
+    assert prediction.halts is not None and prediction.halts.shape == (5, 2, 3 + 8)
+    torch.testing.assert_close(prediction.halts.sum(0), torch.ones(2, 3 + 8))
+    model.loss(prediction, episode.context, episode.target, 8).backward()
+    stops = prediction.stop()
+    assert stops.shape == (2, 3) and int(stops.min()) >= 0 and int(stops.max()) <= 4
+    # A model told to halt immediately answers from round 1.
+    with torch.no_grad():
+        model.halt[1].bias.fill_(20.)
+        assert int(model.forward(episode.context, episode.query, 8).stop().max()) == 0
+        assert model.forward(episode.context, episode.query, 8, steps=9).logits.shape[0] == 9

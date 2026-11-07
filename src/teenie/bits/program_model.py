@@ -140,7 +140,8 @@ class ProgramModel(nn.Module):
             reports = self.report(torch.cat([examples, error, c * 2 - 1], -1))
             z = self.cell(self._pool(reports, keys, self.ask(z)), z)
         fit = ((context_outputs[-1] > 0).float() == c).all(-1).float().mean(-1)
-        return ProgramPrediction(torch.stack(outputs), query.shape[1], torch.stack(context_outputs), fit)
+        return ProgramPrediction(torch.stack(outputs), query.shape[1], context_logits=torch.stack(context_outputs),
+                                 fit=fit)
 
     def loss(self, prediction: ProgramPrediction, context: Tensor, target: Tensor, width: int) -> Tensor:
         """Per-bit cross-entropy on the questions after every round (later rounds weigh more), plus the same on

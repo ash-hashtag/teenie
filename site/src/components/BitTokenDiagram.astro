@@ -31,7 +31,6 @@ const tokenX = (i: number) => 300 + i * 56;
     <g class="edges">
       <path d="M120,96 V146" />
       <path d="M120,206 V256" />
-      <path d="M220,288 H284 V217 H296" />
     </g>
 
     <rect x="270" y="16" width="510" height="400" rx="14" class="round" />
@@ -49,7 +48,7 @@ const tokenX = (i: number) => 300 + i * 56;
     }
     <path class="arc" d={`M${tokenX(1) + 24},96 C${tokenX(1) + 24},76 ${tokenX(4) + 24},76 ${tokenX(4) + 24},96`} />
     <path class="arc" d={`M${tokenX(4) + 24},96 C${tokenX(4) + 24},80 ${tokenX(6) + 24},80 ${tokenX(6) + 24},96`} />
-    <text x="520" y="160" text-anchor="middle" class="label">8 bit tokens per question</text>
+    <text x="300" y="160" class="label">8 bit tokens per question</text>
 
     <g class="node att">
       <rect x="300" y="174" width="440" height="88" rx="10" />
@@ -65,6 +64,7 @@ const tokenX = (i: number) => 300 + i * 56;
     <g class="node"><rect x="300" y="290" width="200" height="52" rx="10" /><text x="400" y="312" class="head" text-anchor="middle">Memory</text><text x="400" y="330" class="sub" text-anchor="middle">GRU cell per bit token</text></g>
     <g class="node"><rect x="540" y="290" width="200" height="52" rx="10" /><text x="640" y="312" class="head" text-anchor="middle">Readout</text><text x="640" y="330" class="sub" text-anchor="middle">each token → its own bit</text></g>
     <g class="edges">
+      <path d="M220,288 H284 V217 H296" />
       <path d="M500,316 H536" />
       <path class="loop" d="M740,316 H764 V50 H744" />
     </g>

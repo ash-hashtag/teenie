@@ -281,3 +281,24 @@ in early rounds the model is scored on intermediate values it cannot see and wou
 decomposition to match; most of the training effort goes there. (Runs differ in width and data too, so this is
 not a clean ablation.) Next: bit tokens **without** step supervision on `mix4`, width 128, 8 rounds — the
 configuration that reached 99–100% in the capacity check — with bf16 training (3.5× faster, same loss).
+
+## 12. Bit tokens without step supervision — the new best model (`experiments/steps/bittoken-mix4-*`)
+
+Bit tokens (width 128, 8 rounds, 666K parameters) trained on final answers only, `mix4`, 64 questions per
+context, 16 probes, adaptive sampling, bf16, 10,000 updates (23 minutes). Full evaluation, 1,024 questions per
+relation, against S (loop + 4 scratch slots, 732K, `mix3`):
+
+| | S | bit tokens |
+|---|---|---|
+| trained relations | 89.7% | 88.1% |
+| hidden compositions | 53.4% | **57.5%** |
+| product, then a step | 19.2% | **30.7%** |
+| `a*b+a` (hidden) / `(a*b)^b` (hidden) | 20.1 / 19.5% | **37.4 / 35.8%** |
+| `a*b` | 80.8% | **91.8%** |
+| T1 / T2 / T3 | 58.9 / 43.7 / 44.0% | **61.3 / 46.9 / 45.6%** |
+| T4 | 71.9% | **72.7%** |
+| T5 | **48.1%** | 46.0% |
+
+Better on every non-loop measure with fewer parameters; tiers won stay 2 of 5 (T1, T4). Loops are slightly
+worse (Fibonacci-like 48 → 36%, `reverse(a^b)` 84 → 25%). One seed, and the training data differs (`mix4`
+adds the product-step family), so part of the gain may be data. Bit tokens become the site's current model.

@@ -91,9 +91,9 @@ def traces(model: LoopModel | BitTokenModel, device: str, queries: int = 2) -> l
 
 def main() -> None:
     parser = argparse.ArgumentParser(description='Export the current model for the docs site')
-    parser.add_argument('--checkpoint', default='checkpoints/mix3/mix3-mloop-scratch4.pt')
-    parser.add_argument('--evaluation', default='experiments/mix3/mix3-mloop-scratch4-eval.json')
-    parser.add_argument('--name', default='Multiplicative loop with scratch slots')
+    parser.add_argument('--checkpoint', default='checkpoints/steps/bittoken-mix4.pt')
+    parser.add_argument('--evaluation', default='experiments/steps/bittoken-mix4-eval.json')
+    parser.add_argument('--name', default='Bit tokens')
     parser.add_argument('--out', default='site')
     parser.add_argument('--device', default='cpu')
     args = parser.parse_args()

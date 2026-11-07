@@ -57,10 +57,12 @@ EXPERIMENTS: list[tuple[str, str, str, str, tuple[str, ...]]] = [
      'experiments/steps/loop-steps-eval.json', ('experiments/steps/loop-steps-train.jsonl',)),
     ('bittoken-steps', 'Step by step', 'bit tokens, step-by-step training, width 96 (mix4)',
      'experiments/steps/bittoken-steps-eval.json', ('experiments/steps/bittoken-steps-train.jsonl',)),
+    ('bittoken-mix4', 'Bit tokens', 'bit tokens, final answers only (mix4) — current model',
+     'experiments/steps/bittoken-mix4-eval.json', ('experiments/steps/bittoken-mix4-train.jsonl',)),
 ]
 
 # Architectures shown on the site besides the current model: (id, title, checkpoint).
-ARCHITECTURES = [('bittoken', 'Bit tokens', 'checkpoints/arch/nearonly-bittoken.pt')]
+ARCHITECTURES = [('bittoken', 'Bit tokens', 'checkpoints/steps/bittoken-mix4.pt')]
 
 LADDER = ('T1', 'T2', 'T3', 'T4', 'T5', 'hidden', 'near')
 HIGHLIGHTS = ('a*b', 'a*b+a', 'min', '3a', 'transducer')

@@ -1,6 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { evaluation, experimentById } from '../lib/data';
+import { evaluation, experimentById, progress } from '../lib/data';
 import { pct } from '../lib/format';
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -53,8 +53,8 @@ const phases = [
 ];
 ---
 
-<Layout title="Journey" description="How Teenie moved from approximate decimal regression to exact bit-level relation inference.">
-  <p class="eyebrow">Journey</p>
+<Layout title="Changelog" description="Every experiment so far, from decimal regression to exact bit-level relation inference with loops.">
+  <p class="eyebrow">Changelog</p>
   <h1>From fuzzy decimals to exact bits</h1>
   <p class="lede">
     The goal never changed: given exactly 999 examples of an unknown relation <code>c = f(a, b)</code> and one new
@@ -143,7 +143,7 @@ const phases = [
         One shared recurrent network reads every example one bit at a time; at each bit the question looks up the
         examples in the same situation; one pass runs from the lowest bit, one from the highest. 100% exact on all 12
         named relations it trained on — but only {pct(fam('serial', 'min'))} on <code>min</code>, the mirror of a trained
-        idea, because it could not decide which direction to read. <a href={`${base}/model/`}>Inside this model →</a>
+        idea, because it could not decide which direction to read. <a href={`${base}/first-model/`}>Inside this model →</a>
       </p>
     </li>
 
@@ -204,7 +204,7 @@ const phases = [
         Training now includes loops whose repeat count comes from <code>b</code> (sums of sequences, repeated
         application, Fibonacci-like recurrences, bit counting), and the tests are a ladder from 2-operation expressions to
         hidden loop bodies run longer than ever trained. The model may either execute the loop or find a shortcut —
-        both count. <a href={`${base}/progress/`}>See the scoreboard →</a>
+        both count. <a href={`${base}/results/`}>See the results →</a>
       </p>
     </li>
   </ol>
@@ -232,6 +232,42 @@ const phases = [
         carry scan.
       </p>
     </div>
+  </div>
+  <h2 id="experiments">Every experiment</h2>
+  <p>
+    Exact match on 1,024 fresh questions per relation (64 episodes × 16, seed 60000). "Trained" is the mean over the
+    relations each run trained on, so rows with different training sets are not directly comparable. Details in
+    <code>docs/findings.md</code>.
+  </p>
+  <div class="card table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>chapter</th>
+          <th>run</th>
+          <th class="num">trained</th>
+          <th class="num">hidden</th>
+          <th class="num">a*b</th>
+          <th class="num">a*b+a</th>
+          <th class="num">min</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          progress.experiments.map((e) => (
+            <tr>
+              <td class="muted small">{e.chapter}</td>
+              <td>{e.title}</td>
+              <td class="num">{pct(e.groups.train?.exact)}</td>
+              <td class="num">{pct(e.groups.hidden?.exact)}</td>
+              <td class="num">{pct(e.highlights['a*b'])}</td>
+              <td class="num">{pct(e.highlights['a*b+a'])}</td>
+              <td class="num">{pct(e.highlights.min)}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
   </div>
 </Layout>
 

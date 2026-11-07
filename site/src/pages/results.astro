@@ -20,8 +20,8 @@ const lengths = ['n15', 'n63', 'n255'];
 const cell = (e: Experiment | undefined, name: string) => e?.families[name]?.exact ?? null;
 ---
 
-<Layout title="Progress" description="Every experiment so far and the difficulty ladder the current model is measured on.">
-  <p class="eyebrow">Progress</p>
+<Layout title="Results" description="The current model on the difficulty ladder: unseen expressions, new operation types and loops.">
+  <p class="eyebrow">Results</p>
   <h1>The difficulty ladder</h1>
   <p class="lede">
     The goal: recognise the rule behind increasingly complex functions — including ones defined by loops — and get <strong>at least half</strong> of the never-seen ones exactly right, while staying honest about when it is sure.
@@ -177,42 +177,6 @@ const cell = (e: Experiment | undefined, name: string) => e?.families[name]?.exa
     )
   }
 
-  <h2>Every experiment</h2>
-  <p>
-    Exact match on 1,024 fresh questions per relation (64 episodes × 16, seed 60000). "Trained" is the mean over the
-    relations each run trained on, so rows with different training sets are not directly comparable. Details in
-    <code>docs/findings.md</code>.
-  </p>
-  <div class="card table-scroll">
-    <table>
-      <thead>
-        <tr>
-          <th>chapter</th>
-          <th>run</th>
-          <th class="num">trained</th>
-          <th class="num">hidden</th>
-          <th class="num">a*b</th>
-          <th class="num">a*b+a</th>
-          <th class="num">min</th>
-        </tr>
-      </thead>
-      <tbody>
-        {
-          progress.experiments.map((e) => (
-            <tr>
-              <td class="muted small">{e.chapter}</td>
-              <td>{e.title}</td>
-              <td class="num">{pct(e.groups.train?.exact)}</td>
-              <td class="num">{pct(e.groups.hidden?.exact)}</td>
-              <td class="num">{pct(e.highlights['a*b'])}</td>
-              <td class="num">{pct(e.highlights['a*b+a'])}</td>
-              <td class="num">{pct(e.highlights.min)}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </div>
 </Layout>
 
 <style>

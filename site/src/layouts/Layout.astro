@@ -10,11 +10,9 @@ const { title, description } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const pages = [
   { href: '/', label: 'Overview' },
-  { href: '/progress/', label: 'Progress' },
-  { href: '/journey/', label: 'Journey' },
   { href: '/model/', label: 'Model' },
-  { href: '/learning/', label: 'Learning' },
-  { href: '/benchmarks/', label: 'Benchmarks' },
+  { href: '/results/', label: 'Results' },
+  { href: '/changelog/', label: 'Changelog' },
 ];
 const current = Astro.url.pathname.replace(base, '') || '/';
 ---

@@ -27,7 +27,7 @@ const sureCorrect = sure.every((x) => x.r.sure_accuracy === 1);
 ---
 
 <Layout title="Benchmarks" description="Exact-match accuracy of Teenie against nearest-example and hand-written lookup baselines.">
-  <p class="eyebrow">Benchmarks</p>
+  <p class="eyebrow">Changelog · first model</p>
   <h1>How good is it, honestly?</h1>
   <p class="lede">
     Every method answers the <strong>same</strong> {questions.toLocaleString('en-US')} questions per relation
@@ -36,8 +36,9 @@ const sureCorrect = sure.every((x) => x.r.sure_accuracy === 1);
     A question counts only if all 8 bits are right.
   </p>
   <p class="first-model small">
-    This page covers the <strong>first, bit-by-bit model</strong>. The current model and every later experiment are on
-    <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/progress/`}>Progress</a>.
+    This page covers the <strong>first, bit-by-bit model</strong>, kept in the
+    <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/changelog/`}>changelog</a>. The current model is on the
+    <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/model/`}>Model</a> page.
   </p>
 
   <div class="card methods">

@@ -1,33 +1,41 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import BitStrip from '../components/BitStrip.astro';
-import traces from '../../public/data/traces.json';
-import { experimentById, ladderRuns } from '../lib/data';
-import { pct } from '../lib/format';
+import rounds from '../../public/data/rounds.json';
+import { current, experimentById } from '../lib/data';
+import { pct, thousands } from '../lib/format';
 
+type Trace = {
+  relation: string;
+  context: number[][];
+  examples: { a: number; b: number; target: number; prediction: number; rounds: { p: number[] }[] }[];
+};
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-const add = (traces as { relation: string; context: number[][]; examples: { a: number; b: number; target: number }[] }[])[0]!;
-const rows = add.context.slice(0, 4) as [number, number, number][];
-const question = add.examples[0]!;
+const product = (rounds as Trace[]).find((t) => t.relation === 'a*b')!;
+const rows = product.context.slice(0, 4) as [number, number, number][];
+const question = product.examples[0]!;
+const guesses = question.rounds.map((r) => r.p);
+const arch = current.architecture;
+const tiers = Object.keys(current.summary).filter((g) => g.startsWith('T'));
+const won = tiers.filter((t) => current.summary[t]?.won).length;
 const mix = experimentById('mix');
-const latest = ladderRuns().at(-1);
-const tiers = latest ? Object.keys(latest.groups).filter((g) => g.startsWith('T')) : [];
-const won = latest ? tiers.filter((t) => latest.groups[t]?.won).length : 0;
+const named = ['add', 'sub', 'b-a', 'xor', 'and', 'or', 'a+2b', '2a+b', 'max', 'a<<1', 'a+const', 'b^const'];
+const namedLow = Math.min(...named.map((n) => current.families[n] ?? 0));
 ---
 
-<Layout title="Teenie" description="A tiny model that reads 999 examples of a hidden bit relation and answers a new question exactly.">
+<Layout title="Teenie" description="A 467K-parameter model that reads 999 examples of a hidden relation and answers new questions exactly.">
   <section class="hero">
-    <p class="eyebrow">Teenie · bit-relation prototype</p>
+    <p class="eyebrow">Teenie · relation inference from examples</p>
     <h1>Show it 999 examples. It works out the rule.</h1>
     <p class="lede">
-      Each example is two 8-bit numbers <code>a</code>, <code>b</code> and an answer <code>c</code> produced by a hidden
-      relation — addition, multiplication, a random expression, even a loop. The model is never told the relation. It
-      reads the examples and must produce <strong>every bit</strong> of <code>c</code> for a new <code>(a, b)</code>.
-      Close doesn't count.
+      Each example is two 8-bit numbers <code>a</code>, <code>b</code> and an answer <code>c</code> from a hidden
+      relation — addition, multiplication, a random expression, even a loop. The model is never told which. It reads the
+      examples and must produce <strong>every bit</strong> of <code>c</code> for a new <code>(a, b)</code>; close
+      doesn't count.
     </p>
   </section>
 
-  <section class="demo card" id="demo" aria-label="Animated example: reading bits from least to most significant">
+  <section class="demo card" id="demo" data-guesses={JSON.stringify(guesses)} aria-label="The current model answering a multiplication question, round by round">
     <div class="demo-grid">
       <div>
         <p class="eyebrow">999 examples (4 shown) · relation hidden</p>
@@ -47,19 +55,20 @@ const won = latest ? tiers.filter((t) => latest.groups[t]?.won).length : 0;
         </div>
       </div>
       <div>
-        <p class="eyebrow">New question</p>
+        <p class="eyebrow">New question · <span data-role="round">round 1 of {guesses.length}</span></p>
         <div class="ex">
           <BitStrip value={question.a} />
           <span class="op">?</span>
           <BitStrip value={question.b} />
           <span class="op">→</span>
-          <div class="answer" data-target={question.target}>
-            <BitStrip value={question.target} />
+          <div class="answer">
+            <BitStrip value={0} probs={guesses[0]} />
           </div>
         </div>
-        <p class="small muted reveal-note">
-          The first model filled in the answer from the lowest bit up, checking at each step which examples are “in the
-          same situation”. This one is <code>add</code>: {question.a} + {question.b} = {question.target} (mod 256).
+        <p class="small muted note">
+          The real model, recorded. It guesses all 8 bits at once and corrects the guess every round by looking back at the
+          examples. Here the hidden relation is <code>a*b</code>: {`${question.a} × ${question.b} = ${question.target} (mod 256).`}
+          Blue = surely 1, pale = surely 0.
         </p>
       </div>
     </div>
@@ -67,71 +76,90 @@ const won = latest ? tiers.filter((t) => latest.groups[t]?.won).length : 0;
 
   <section class="stats grid-3">
     <div class="card stat">
-      <span class="label">8-bit multiplication, learned among other relations</span>
-      <span class="value">{pct(mix?.families['a*b']?.exact)}</span>
-      <span class="note">exact on fresh questions; the first models managed under 7%</span>
+      <span class="label">Model size</span>
+      <span class="value">{Math.round(arch.parameters / 1000)}K</span>
+      <span class="note">
+        {thousands(arch.parameters)} parameters · {arch.layers} look layers × {arch.rounds} rounds · width {arch.hidden}
+      </span>
     </div>
     <div class="card stat">
-      <span class="label">Never-generated compositions</span>
-      <span class="value">{pct(latest?.groups.hidden?.exact ?? mix?.groups.hidden?.exact)}</span>
-      <span class="note">e.g. (a+b)&gt;&gt;1, a*a, |a−b|; copying the closest example gets ~9%</span>
+      <span class="label">8-bit multiplication, current model</span>
+      <span class="value">{pct(current.families['a*b'])}</span>
+      <span class="note"
+        >{`An earlier run with fewer relation kinds reached ${pct(mix?.families['a*b']?.exact)}; now more kinds share the same training budget. The first models: under 7%.`}</span
+      >
     </div>
     <div class="card stat">
       <span class="label">Difficulty tiers won</span>
       <span class="value">{won} of {tiers.length}</span>
-      <span class="note">≥50% exact on unseen relations, sure answers right ≥95%</span>
+      <span class="note">≥50% exact on unseen relations with honest confidence</span>
     </div>
   </section>
 
-  <h2>Read the story</h2>
-  <div class="grid-2 links">
-    <a class="card link" href={`${base}/progress/`}>
-      <p class="eyebrow">Latest · Progress</p>
-      <h3>The difficulty ladder</h3>
-      <p>Where the current model stands on harder and harder unseen functions, including loops, and every run so far.</p>
-    </a>
-    <a class="card link" href={`${base}/journey/`}>
-      <p class="eyebrow">1 · Journey</p>
-      <h3>From fuzzy decimals to exact bits</h3>
-      <p>From float numbers to bits, multiplication, random expressions and loops — what worked and what didn't.</p>
-    </a>
+  <h2>What it does</h2>
+  <div class="grid-3">
+    <div class="card">
+      <h3>Finds the rule</h3>
+      <p class="small">
+        {`Every named relation it trained on is ${pct(namedLow)}–100% exact, and it multiplies 8-bit numbers — without an operation name, a formula menu or any retraining at answer time.`}
+      </p>
+    </div>
+    <div class="card">
+      <h3>Handles the unseen</h3>
+      <p class="small">
+        {`Combinations it was never shown average ${pct(current.summary.hidden?.exact)}; new operation types like division and conditionals ${pct(current.summary.T4?.exact)}. Copying the closest example gets about 9%.`}
+      </p>
+    </div>
+    <div class="card">
+      <h3>Knows when it knows</h3>
+      <p class="small">
+        {`Confidence is the certainty of its least certain bit. On unseen relations its sure answers were right ${pct(current.summary.hidden?.sure_accuracy)} of the time — and it rarely claims to be sure when it isn't.`}
+      </p>
+    </div>
+  </div>
+
+  <h2>Read more</h2>
+  <div class="grid-3 links">
     <a class="card link" href={`${base}/model/`}>
-      <p class="eyebrow">2 · Model</p>
+      <p class="eyebrow">Model</p>
       <h3>How it reasons</h3>
-      <p>The current model, and a replay of real predictions from the first, bit-by-bit model.</p>
+      <p>The architecture, where its {thousands(arch.parameters)} parameters are, and a replay of it thinking round by round.</p>
     </a>
-    <a class="card link" href={`${base}/learning/`}>
-      <p class="eyebrow">3 · Learning (first model)</p>
-      <h3>Watch it learn</h3>
-      <p>Training curves for every relation, and saved checkpoints replayed from random weights to the final model.</p>
+    <a class="card link" href={`${base}/results/`}>
+      <p class="eyebrow">Results</p>
+      <h3>The difficulty ladder</h3>
+      <p>Unseen expressions, new operation types and loops — scored against a 50% bar.</p>
     </a>
-    <a class="card link" href={`${base}/benchmarks/`}>
-      <p class="eyebrow">4 · Benchmarks (first model)</p>
-      <h3>How good is it, honestly?</h3>
-      <p>Model versus nearest-example and hand-written lookup on identical questions, including where it fails.</p>
+    <a class="card link" href={`${base}/changelog/`}>
+      <p class="eyebrow">Changelog</p>
+      <h3>How it got here</h3>
+      <p>Every experiment, from decimal regression to the first bit-by-bit model to multiplication and loops.</p>
     </a>
   </div>
 </Layout>
 
 <script>
-  // Reveal the answer bit by bit, lowest first, with the current column highlighted on every row.
+  // Replay the recorded guesses: all 8 bits update together, round after round.
   const demo = document.getElementById('demo');
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (demo && !reduce) {
-    const answer = demo.querySelector('.answer .cells')!;
-    const cells = Array.from(answer.children) as HTMLElement[];
-    const rows = Array.from(demo.querySelectorAll('.cells')) as HTMLElement[];
-    let step = 0;
-    const tick = () => {
-      const k = step % 10; // 8 bits, then a short pause
-      rows.forEach((r) =>
-        Array.from(r.children).forEach((c, i) => c.classList.toggle('scan', k < 8 && 7 - i === k)),
-      );
-      cells.forEach((c, i) => c.classList.toggle('hidden', k < 8 && 7 - i > k));
-      step += 1;
+  if (demo) {
+    const guesses = JSON.parse(demo.dataset.guesses ?? '[]') as number[][];
+    const cells = Array.from(demo.querySelectorAll<HTMLElement>('.answer .cell'));
+    const label = demo.querySelector('[data-role="round"]')!;
+    const show = (t: number) => {
+      const p = guesses[t]!;
+      cells.forEach((c, i) => c.style.setProperty('--p', String(p[7 - i])));
+      label.textContent = `round ${t + 1} of ${guesses.length}`;
     };
-    tick();
-    window.setInterval(tick, 700);
+    if (reduce) show(guesses.length - 1);
+    else {
+      let step = 0;
+      show(0);
+      window.setInterval(() => {
+        step = (step + 1) % (guesses.length + 3); // hold the final answer for a moment
+        show(Math.min(step, guesses.length - 1));
+      }, 700);
+    }
   }
 </script>
 
@@ -155,19 +183,12 @@ const won = latest ? tiers.filter((t) => latest.groups[t]?.won).length : 0;
     display: flex;
     align-items: center;
     gap: 0.4rem;
-  }
-
-  .rows,
-  .ex {
+    flex-wrap: nowrap;
     overflow-x: auto;
   }
 
   .ex :global(.strip .dec) {
     display: none;
-  }
-
-  .ex {
-    flex-wrap: nowrap;
   }
 
   .ex :global(.strip .cells) {
@@ -177,19 +198,12 @@ const won = latest ? tiers.filter((t) => latest.groups[t]?.won).length : 0;
   .ex :global(.strip .cell) {
     width: 13px;
     height: 20px;
-    border-radius: 3px;
     font-size: 0.7rem;
-    transition: box-shadow 0.2s;
+    border-radius: 3px;
   }
 
-  .ex :global(.strip .cell.scan) {
-    box-shadow: 0 0 0 2px var(--series-2);
-  }
-
-  .answer :global(.cell.hidden) {
-    background: transparent;
-    color: transparent;
-    box-shadow: inset 0 0 0 1px var(--axis);
+  .answer :global(.strip .cell) {
+    transition: background 0.35s;
   }
 
   .op {
@@ -203,7 +217,7 @@ const won = latest ? tiers.filter((t) => latest.groups[t]?.won).length : 0;
     padding-left: 0.25rem;
   }
 
-  .reveal-note {
+  .note {
     margin-top: 1rem;
   }
 

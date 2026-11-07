@@ -1,177 +1,160 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import StepDiagram from '../components/StepDiagram.astro';
-import TrustStrip from '../components/TrustStrip.astro';
-import Inspector from '../components/Inspector.astro';
-import { evaluation, model } from '../lib/data';
-import { thousands } from '../lib/format';
+import LoopDiagram from '../components/LoopDiagram.astro';
+import RoundsInspector from '../components/RoundsInspector.astro';
+import { current } from '../lib/data';
+import { pct, thousands } from '../lib/format';
 
-const order = ['add', 'sub', 'a+2b', 'a<<1', 'xor', 'and', 'max', 'transducer', 'a+b+1', '3a', 'a-2b', 'nand', 'min', 'a*b'];
-const heldout = new Set(model.families.heldout);
-const notes: Record<string, string> = {
-  min: `held out · ${Math.round((evaluation.results.heldout.min?.exact ?? 0) * 100)}% exact — never commits to one direction`,
-  max: 'carries a “which is bigger” decision from the top bit down',
-  xor: 'no carry at all: either direction works',
-};
-const trustRows = order.map((name) => ({
-  name: heldout.has(name) ? `${name} *` : name,
-  value: model.pass_trust[name] ?? 0,
-  note: notes[name],
-}));
+const arch = current.architecture;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const share = (n: number) => `${((100 * n) / arch.parameters).toFixed(1)}%`;
 ---
 
-<Layout title="Model" description="How the bit-serial in-context model reads 999 examples and predicts each bit.">
+<Layout title="Model" description="The current model: 999 examples encoded once, an 8-bit answer guess refined over rounds.">
   <p class="eyebrow">Model</p>
-  <h1>How it reasons</h1>
+  <h1>How the current model reasons</h1>
   <p class="lede">
-    The model never sees a formula and is never told which relation it is facing. It learns a <strong>general
-    procedure</strong> for finding the rule in 999 examples and applying it to a new question.
+    It is never told which relation it faces. It reads the 999 examples once, then <strong>guesses all 8 bits of the
+    answer and corrects the guess</strong>, round after round, by looking back at the examples. The same weights run
+    every round, so the loop is the reasoning.
   </p>
 
-  <h2>The current model: all bits at once, a loop on the answer</h2>
-  <ol class="flow">
-    <li class="card">
+  <div class="grid-3 stats">
+    <div class="card stat">
+      <span class="label">Parameters</span>
+      <span class="value">{thousands(arch.parameters)}</span>
+      <span class="note">about {Math.round(arch.parameters / 1000)}K — all of them reused every round</span>
+    </div>
+    <div class="card stat">
+      <span class="label">Layers per round · rounds</span>
+      <span class="value">{arch.layers} · {arch.rounds}</span>
+      <span class="note">
+        {arch.layers} look layers ({arch.heads} attention heads each), repeated for {arch.rounds} rounds
+      </span>
+    </div>
+    <div class="card stat">
+      <span class="label">Width</span>
+      <span class="value">{arch.hidden}</span>
+      <span class="note">hidden size; numbers are {arch.width}-bit, context fixed at 999 examples</span>
+    </div>
+  </div>
+
+  <h2>Architecture</h2>
+  <div class="card">
+    <LoopDiagram layers={arch.layers} rounds={arch.rounds} heads={arch.heads} />
+  </div>
+
+  <div class="grid-2 steps">
+    <div class="card">
       <p class="eyebrow">1 · Read the examples once</p>
       <p>
-        Each of the 999 examples becomes one vector from all 24 of its bits (<code>a</code>, <code>b</code>,
-        <code>c</code>). These stay fixed for the whole run — no reading order, no direction to choose.
+        Each example's 24 bits (<code>a</code>, <code>b</code>, <code>c</code>) go through a small encoder whose first
+        layer is <strong>bilinear</strong> — two projections multiplied together — and become one vector. The 999
+        vectors stay fixed for every round: no reading order, no direction to choose.
       </p>
-    </li>
-    <li class="card">
+    </div>
+    <div class="card">
       <p class="eyebrow">2 · Hold a guess</p>
       <p>
-        The question keeps a guess for all 8 bits of its answer (undecided at first) plus a memory. Bilinear input units
-        multiply its own bits with each other, so partial products like <code>a<sub>i</sub>·b<sub>j</sub></code> are one
-        step away.
-      </p>
-    </li>
-    <li class="card">
-      <p class="eyebrow">3 · Look and correct, round after round</p>
-      <p>
-        Each round the question attends to the examples with its current guess, passes the result through gated layers
-        that can multiply signals, updates its memory and rewrites the guess. The same weights run every round.
-      </p>
-    </li>
-    <li class="card">
-      <p class="eyebrow">4 · Answer, with an honest confidence</p>
-      <p>
-        After the last round each bit is rounded to 0 or 1. Its confidence is the certainty of its least certain bit —
-        on relations it has never seen it rarely claims to be sure, and when it does it is almost always right.
-      </p>
-    </li>
-  </ol>
-  <p class="small muted">
-    About 470K parameters (<code>src/teenie/bits/loop_model.py</code>, <code>--multiplicative</code>). Training draws
-    relations in proportion to how often they are still wrong. Experiments in progress add scratch slots for
-    intermediate results and a learned number of rounds — see <a href="../progress/">Progress</a>.
-  </p>
-
-  <h2>The first model: bit by bit</h2>
-  <p>
-    The first learned model walked through the bit positions, remembered a little about the bits so far, and at each bit
-    copied the answer from the examples in the same situation as the question. It is still the easiest to look inside,
-    so the replay below uses it.
-  </p>
-
-  <div class="grid-2 ideas">
-    <div class="card">
-      <p class="eyebrow">1 · Loop over bits</p>
-      <p>
-        A small recurrent network (GRU) reads <code>(a<sub>k</sub>, b<sub>k</sub>, c<sub>k</sub>)</code> one position at
-        a time, for <strong>every</strong> example and for the question. The same weights run at every position.
+        The question starts with all 8 answer bits undecided. Its input layer is bilinear too, so products of its own
+        bits such as <code>a<sub>i</sub>·b<sub>j</sub></code> — the pieces of a multiplication — are one step away.
       </p>
     </div>
     <div class="card">
-      <p class="eyebrow">2 · Remember what matters</p>
+      <p class="eyebrow">3 · Look and correct</p>
       <p>
-        Its memory has to hold just enough about the bits already read — a carry for <code>add</code>, a borrow for
-        <code>sub</code>, “a is already bigger” for <code>max</code>. Nobody tells it which; training does.
+        {`Each round the question, carrying its current guess and memory, attends to the 999 example vectors in ${arch.layers} look layers.`} Each is followed by a <strong>gated (SwiGLU) feed-forward</strong> layer, which can
+        multiply signals instead of only adding them. A GRU cell updates the memory and the readout writes a new guess.
       </p>
     </div>
     <div class="card">
-      <p class="eyebrow">3 · Look up similar situations</p>
+      <p class="eyebrow">4 · Answer honestly</p>
       <p>
-        At bit <code>k</code>, the question attends over the 999 examples. Examples whose current bits and memory match
-        get the attention; their known <code>c<sub>k</sub></code> becomes the vote. The question's own guess feeds back
-        into its memory for the next bit.
-      </p>
-    </div>
-    <div class="card">
-      <p class="eyebrow">4 · Check both directions</p>
-      <p>
-        One pass reads from the lowest bit, one from the highest. Each re-predicts 64 of the examples with that example
-        hidden from itself. The pass that explains them better gets more say in the final answer.
+        {`After round ${arch.rounds} every bit is rounded to 0 or 1. Confidence is the certainty of the least certain bit: on relations it has never seen it seldom claims to be sure, and when it does it is right ${pct(current.summary.hidden?.sure_accuracy)} of the time on hidden compositions.`}
       </p>
     </div>
   </div>
 
-  <h2>One bit step</h2>
-  <p>
-    This repeats 8 times per pass. During training the question's earlier bits are the true ones; when answering, they
-    are its own predictions. Weights never change when answering.
-  </p>
-  <div class="card">
-    <StepDiagram />
-  </div>
-
-  <h2>Inside real predictions</h2>
-  <p>
-    These are recordings from the trained model on fresh episodes. Pick a relation and step through the bits. On
-    <code>add</code>, low-bit-first, the attention gathers in the shaded intersection — examples whose bit
-    <code>k</code> of <em>a</em> and <em>b</em> match the question — and, within it, only those with the same carry.
-    Try <code>min</code> or <code>a*b</code> to see it fail.
-  </p>
-  <Inspector />
-
-  <h2>Which direction does it trust?</h2>
-  <p>
-    Average weight given to the high-bit-first pass over 16 episodes per relation. It picks low-first for carries,
-    high-first for <code>max</code>, and doesn't care for bitwise relations. On the held-out <code>min</code> it
-    hesitates — which is exactly where it fails. <span class="muted">* never seen in training.</span>
-  </p>
-  <div class="card">
-    <TrustStrip rows={trustRows} />
-  </div>
-
-  <h2>Size</h2>
-  <div class="table-scroll">
+  <h2>Where the parameters are</h2>
+  <div class="card table-scroll">
     <table>
+      <thead>
+        <tr>
+          <th>part</th>
+          <th>what it does</th>
+          <th class="num">parameters</th>
+          <th class="num">share</th>
+        </tr>
+      </thead>
       <tbody>
-        <tr><td>Parameters</td><td class="num">{thousands(model.parameters)}</td></tr>
-        <tr><td>Memory (GRU hidden size)</td><td class="num">{model.config.hidden}</td></tr>
-        <tr><td>Attention heads</td><td class="num">{model.config.heads}</td></tr>
-        <tr><td>Self-check examples per pass</td><td class="num">{model.config.probes}</td></tr>
-        <tr><td>Examples per question</td><td class="num">999 (fixed)</td></tr>
-        <tr><td>Bit width trained / supported</td><td class="num">8 / up to {model.config.max_width}</td></tr>
+        {
+          arch.parts.map((p) => (
+            <tr>
+              <td>
+                <b>{p.part}</b>
+              </td>
+              <td class="muted">{p.detail}</td>
+              <td class="num">{thousands(p.parameters)}</td>
+              <td class="num">{share(p.parameters)}</td>
+            </tr>
+          ))
+        }
+        <tr>
+          <td><b>Total</b></td>
+          <td></td>
+          <td class="num"><b>{thousands(arch.parameters)}</b></td>
+          <td class="num">100%</td>
+        </tr>
       </tbody>
     </table>
   </div>
-  <p class="small muted">Source: <code>src/teenie/bits/model.py</code>.</p>
+
+  <h2>Watch it think</h2>
+  <p>
+    Recorded from the current model on fresh episodes. Play through the rounds: the guess starts undecided and
+    sharpens as the question keeps looking back at the examples. <code>add</code> and <code>max</code> settle almost
+    immediately; <code>a*b</code> takes longer and is right only about half the time in this model;
+    <code>a*b+a</code> and the hidden sum loop show where it still fails.
+  </p>
+  <RoundsInspector />
+
+  <h2>How it is trained</h2>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Never the same problem twice</h3>
+      <p class="small">
+        Each step draws 8 fresh episodes: a random relation, 999 new examples and 16 new questions. Relations include
+        the named ones, <code>a*b</code>, random expressions of 1–5 operations, loops whose repeat count comes from
+        <code>b</code>, and bit loops. Certain operation combinations and loop bodies are never generated, so they can be
+        tested as truly unseen.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Effort where it is still wrong</h3>
+      <p class="small">
+        Every 500 updates the model is checked on each relation kind, and the next episodes are drawn in proportion to how
+        often it is still wrong. That alone took multiplication from 45% to 99.6% in an earlier mixed run.
+        {`This model: ${arch.updates?.toLocaleString('en-US')} updates on ${arch.train_set}, per-bit cross-entropy, AdamW.`}
+      </p>
+    </div>
+  </div>
+  <p class="small muted">
+    Source: <code>src/teenie/bits/loop_model.py</code> (<code>--architecture loop --multiplicative</code>). Results on
+    the difficulty ladder: <a href={`${base}/results/`}>Results</a>. How it got here, including the first bit-by-bit
+    model: <a href={`${base}/changelog/`}>Changelog</a>.
+  </p>
 </Layout>
 
 <style>
-  .ideas {
+  .stats {
     margin-top: 1.5rem;
   }
 
-  .flow {
-    list-style: none;
-    padding: 0;
-    margin: 1rem 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
-    gap: 1rem;
+  .steps {
+    margin-top: 1rem;
   }
 
-  .flow li p:last-child {
+  .steps p:last-child {
     margin-bottom: 0;
-  }
-
-  .ideas p:last-child {
-    margin-bottom: 0;
-  }
-
-  table {
-    max-width: 520px;
   }
 </style>

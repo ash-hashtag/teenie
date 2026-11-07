@@ -1,6 +1,7 @@
 // Shapes of the JSON written by `uv run python -m teenie.bits.export`.
 import evaluationJson from '../data/evaluation.json';
 import modelJson from '../data/model.json';
+import currentJson from '../data/current.json';
 import progressJson from '../data/progress.json';
 import trainingJson from '../data/training.json';
 
@@ -143,3 +144,28 @@ export const TIER_LABELS: Record<string, string> = {
   hidden: 'hidden compositions',
   near: 'product, then a step',
 };
+
+// Written by `uv run python -m teenie.bits.export_current`: the model the main pages describe.
+export type Current = {
+  name: string;
+  checkpoint: string;
+  architecture: {
+    hidden: number;
+    heads: number;
+    layers: number;
+    rounds: number;
+    probes: number;
+    width: number;
+    multiplicative: boolean;
+    scratch: number;
+    parameters: number;
+    parts: { part: string; detail: string; parameters: number }[];
+    train_set: string | null;
+    updates: number | null;
+    adaptive: boolean | null;
+  };
+  summary: Record<string, GroupSummary>;
+  families: Record<string, number | null>;
+};
+
+export const current = currentJson as unknown as Current;

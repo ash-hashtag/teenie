@@ -210,3 +210,6 @@ Loop training lifts hidden loop bodies at the trained length — sum of a..a+n�
 x→3x+1 16 → 22% — and the unseen bit loop `reverse(a^b)` reaches 93%. It does **not** carry over to longer loops
 (the sum: 9% at counts ≤ 63, 5% at ≤ 255): the model has neither learned the loop as a procedure nor found the
 closed form. T1–T3 hold steady although the combinations are now truly unseen.
+
+Cost of breadth: with many more relation kinds sharing the same 10,000 updates, `a*b` falls to **53.9%** in B
+(99.6% in the `mix` run). Named relations stay at 99.6–100%.

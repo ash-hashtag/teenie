@@ -11,7 +11,7 @@ training signal; weights never change at inference.
 """
 from dataclasses import dataclass
 import math
-from typing import NotRequired, TypedDict
+from typing import NotRequired, TypedDict, cast
 
 import torch
 from torch import Tensor, nn
@@ -100,6 +100,8 @@ class _Look(nn.Module):
         self.out = nn.Linear(hidden, hidden)
         self.feed: nn.Module = _Gated(hidden) if multiplicative else nn.Sequential(
             nn.LayerNorm(hidden), nn.Linear(hidden, 2 * hidden), nn.GELU(), nn.Linear(2 * hidden, hidden))
+        # When set to a list, forward appends head-averaged attention [B, Q + P, N] (inspection only).
+        self.attention: list[Tensor] | None = None
 
     def _split(self, x: Tensor) -> Tensor:
         batch, items, hidden = x.shape
@@ -107,8 +109,11 @@ class _Look(nn.Module):
 
     def forward(self, x: Tensor, context: Tensor, allowed: Tensor) -> Tensor:
         batch, items, hidden = x.shape
-        found = F.scaled_dot_product_attention(self._split(self.query(self.norm(x))), self._split(self.key(context)),
-                                               self._split(self.value(context)), attn_mask=allowed)
+        q, k = self._split(self.query(self.norm(x))), self._split(self.key(context))
+        found = F.scaled_dot_product_attention(q, k, self._split(self.value(context)), attn_mask=allowed)
+        if self.attention is not None:
+            scores = (q @ k.transpose(-1, -2) / math.sqrt(q.shape[-1])).masked_fill(~allowed, -math.inf)
+            self.attention.append(scores.softmax(-1).mean(1))
         x = x + self.out(found.transpose(1, 2).reshape(batch, items, hidden))
         result: Tensor = x + self.feed(x)
         return result
@@ -199,6 +204,13 @@ class LoopModel(nn.Module):
             outputs.append(logits)
             guess = torch.tanh(logits / 2)  # = 2 * sigmoid(logits) - 1
         return LoopPrediction(torch.stack(outputs), queries)
+
+    def record_attention(self, enabled: bool = True) -> list[list[Tensor]]:
+        """Toggle attention recording; returns per-layer lists the next forward fills, one entry per round."""
+        stores: list[list[Tensor]] = [[] for _ in self.looks]
+        for look, store in zip(self.looks, stores):
+            cast(_Look, look).attention = store if enabled else None
+        return stores
 
     def loss(self, prediction: LoopPrediction, context: Tensor, target: Tensor, width: int) -> Tensor:
         """Per-bit cross-entropy after every round, later rounds weighted more; queries and probes."""

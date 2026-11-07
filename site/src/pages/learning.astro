@@ -21,15 +21,16 @@ const last = training[training.length - 1]!;
 ---
 
 <Layout title="Learning" description="Training curves, per-relation progress and replayed checkpoints of the bit-serial model.">
-  <p class="eyebrow">Learning</p>
+  <p class="eyebrow">Changelog · first model</p>
   <h1>Watch it learn</h1>
   <p class="lede">
     Training never shows the same problem twice. Each step draws 8 new episodes: a random relation, 999 new examples
     and 16 new questions. The model learns a procedure that works for any relation, not answers for one.
   </p>
   <p class="first-model small">
-    This page covers the <strong>first, bit-by-bit model</strong>. The current model and every later experiment are on
-    <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/progress/`}>Progress</a>.
+    This page covers the <strong>first, bit-by-bit model</strong>, kept in the
+    <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/changelog/`}>changelog</a>. The current model is on the
+    <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/model/`}>Model</a> page.
   </p>
 
   <div class="grid-3 stats">

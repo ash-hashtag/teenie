@@ -1,0 +1,306 @@
+---
+// Replay of the current model's recorded predictions (rounds.json): the 8-bit guess after every round and where
+// the question looks among the 999 examples.
+---
+
+<section class="rounds card" id="rounds" aria-live="polite">
+  <div class="controls">
+    <div>
+      <p class="eyebrow">Relation (hidden from the model)</p>
+      <div class="chips" data-role="relations"></div>
+    </div>
+    <div>
+      <p class="eyebrow">Question</p>
+      <div class="chips" data-role="examples"></div>
+    </div>
+    <div class="roundrow">
+      <button class="chip" type="button" data-role="play" aria-label="Play through the rounds">▶ play</button>
+      <label class="slider">
+        <span class="small muted">after round <b data-role="round-label">1</b> of <span data-role="round-count">8</span></span>
+        <input type="range" min="1" max="8" value="1" step="1" data-role="round" aria-label="Round" />
+      </label>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <h3>The question</h3>
+      <div class="strips" data-role="question"></div>
+      <div class="verdict" data-role="verdict"></div>
+    </div>
+    <div class="panel">
+      <h3>The guess, round by round</h3>
+      <div class="evolution" data-role="evolution"></div>
+      <p class="small muted caption">
+        Rows are rounds, columns are answer bits (most significant on the left). The bluer, the surer the bit is 1; the
+        paler, the surer it is 0. Undecided bits stay in between.
+      </p>
+    </div>
+    <div class="panel">
+      <h3>Where it looks</h3>
+      <canvas data-role="plane" aria-label="The 999 examples on the a–b plane, shaded by attention"></canvas>
+      <p class="small muted caption">
+        Each dot is one of the 999 examples (a → right, b → up), sized and shaded by the question's attention in the last
+        look layer of this round (gray = no more than an even share). The ring is the question.
+      </p>
+    </div>
+  </div>
+  <details>
+    <summary>Most attended examples this round</summary>
+    <div data-role="top"></div>
+  </details>
+</section>
+
+<script>
+  import { dataUrl } from '../lib/data';
+  import { strip } from '../lib/bits-dom';
+  import { drawPlane, evenShares, hit } from '../lib/plane';
+
+  type Round = { p: number[]; attention: number[]; top: { i: number; w: number }[] };
+  type Example = { a: number; b: number; target: number; prediction: number; confidence: number; rounds: Round[] };
+  type Trace = { relation: string; context: [number, number, number][]; examples: Example[] };
+
+  const root = document.getElementById('rounds')!;
+  const q = <T extends Element>(role: string) => root.querySelector<T>(`[data-role="${role}"]`)!;
+  const state = { relation: 0, example: 0, round: 0 };
+  let traces: Trace[] = [];
+  let timer: number | undefined;
+
+  const chips = (role: string, labels: string[], selected: number, onPick: (i: number) => void) => {
+    const host = q<HTMLDivElement>(role);
+    host.innerHTML = labels
+      .map((l, i) => `<button type="button" class="chip" aria-pressed="${i === selected}" data-i="${i}">${l}</button>`)
+      .join('');
+    host.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.addEventListener('click', () => onPick(Number(b.dataset.i))));
+  };
+
+  function render(): void {
+    const trace = traces[state.relation]!;
+    const example = trace.examples[state.example]!;
+    const total = example.rounds.length;
+    state.round = Math.min(state.round, total - 1);
+    const round = example.rounds[state.round]!;
+
+    chips('relations', traces.map((t) => t.relation), state.relation, (i) => {
+      state.relation = i;
+      state.example = 0;
+      render();
+    });
+    chips('examples', trace.examples.map((e) => `${e.a}, ${e.b}`), state.example, (i) => {
+      state.example = i;
+      render();
+    });
+    const slider = q<HTMLInputElement>('round');
+    slider.max = String(total);
+    slider.value = String(state.round + 1);
+    q('round-label').textContent = String(state.round + 1);
+    q('round-count').textContent = String(total);
+
+    const right = example.prediction === example.target;
+    q('question').innerHTML = [
+      strip(example.a, { label: 'a' }),
+      strip(example.b, { label: 'b' }),
+      `<div class="sep small muted">guess after round ${state.round + 1}</div>`,
+      strip(0, { label: 'c?', probs: round.p }),
+      `<div class="sep small muted">answer after the last round</div>`,
+      strip(example.prediction, { label: 'ĉ', wrong: !right }),
+      strip(example.target, { label: 'c' }),
+    ].join('');
+    q('verdict').innerHTML = `<span class="${right ? 'ok' : 'bad'}">${right ? '✓ exact' : '✗ wrong'}</span>
+      <span class="muted small">confidence ${(example.confidence * 100).toFixed(1)}% (least certain bit)</span>`;
+
+    q('evolution').innerHTML = example.rounds
+      .map((r, t) => {
+        const cells = [...r.p].map((_, i) => r.p[7 - i]!)
+          .map((p, i) => `<span class="cell" style="--p:${p}" data-tip="round ${t + 1}, bit ${7 - i}: p(1) = ${p.toFixed(3)}"></span>`)
+          .join('');
+        return `<div class="erow${t === state.round ? ' now' : ''}"><span class="rlabel">${t + 1}</span>${cells}</div>`;
+      })
+      .join('') +
+      `<div class="erow truth"><span class="rlabel">c</span>${[...Array(8).keys()]
+        .map((i) => `<span class="cell${(example.target >> (7 - i)) & 1 ? ' on' : ''}"></span>`)
+        .join('')}</div>`;
+
+    drawPlane(q<HTMLCanvasElement>('plane'), { points: trace.context, weights: round.attention, query: [example.a, example.b] });
+    q('top').innerHTML =
+      `<table><thead><tr><th class="num">a</th><th class="num">b</th><th class="num">c</th><th class="num">attention</th></tr></thead><tbody>` +
+      round.top
+        .map(({ i, w }) => {
+          const [a, b, c] = trace.context[i]!;
+          return `<tr><td class="num">${a}</td><td class="num">${b}</td><td class="num">${c}</td><td class="num">${(w * 100).toFixed(1)}%</td></tr>`;
+        })
+        .join('') +
+      '</tbody></table>';
+  }
+
+  function stop(): void {
+    if (timer !== undefined) window.clearInterval(timer);
+    timer = undefined;
+    q('play').textContent = '▶ play';
+  }
+
+  q<HTMLInputElement>('round').addEventListener('input', (e) => {
+    stop();
+    state.round = Number((e.target as HTMLInputElement).value) - 1;
+    render();
+  });
+  q('play').addEventListener('click', () => {
+    if (timer !== undefined) return stop();
+    q('play').textContent = '❚❚ pause';
+    state.round = 0;
+    render();
+    timer = window.setInterval(() => {
+      const total = traces[state.relation]!.examples[state.example]!.rounds.length;
+      if (state.round >= total - 1) return stop();
+      state.round += 1;
+      render();
+    }, 800);
+  });
+  const canvas = q<HTMLCanvasElement>('plane');
+  canvas.addEventListener('pointermove', (e) => {
+    const trace = traces[state.relation];
+    if (!trace) return;
+    const box = canvas.getBoundingClientRect();
+    const i = hit(canvas, trace.context, e.clientX - box.left, e.clientY - box.top);
+    if (i < 0) return canvas.removeAttribute('data-tip');
+    const [a, b, c] = trace.context[i]!;
+    const w = trace.examples[state.example]!.rounds[state.round]!.attention[i]!;
+    canvas.setAttribute('data-tip', `example #${i}\na=${a}  b=${b}  c=${c}\n${w === 0 ? 'at most an even share' : `≈ ${evenShares(w).toFixed(1)}× an even share`}`);
+  });
+  window.addEventListener('themechange', () => traces.length && render());
+  window.addEventListener('resize', () => traces.length && render());
+
+  fetch(dataUrl('rounds.json'))
+    .then((r) => r.json() as Promise<Trace[]>)
+    .then((data) => {
+      traces = data;
+      render();
+    })
+    .catch(() => {
+      q('question').textContent = 'Could not load rounds.json.';
+    });
+</script>
+
+<style>
+  .rounds {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .controls {
+    display: grid;
+    gap: 0.9rem;
+  }
+
+  .roundrow {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .slider {
+    flex: 1;
+    display: grid;
+  }
+
+  .panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 1.25rem;
+  }
+
+  .panel h3 {
+    margin-top: 0;
+  }
+
+  [data-role='question'] {
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  [data-role='question'] :global(.sep) {
+    margin-top: 0.4rem;
+  }
+
+  [data-role='verdict'] {
+    margin-top: 0.75rem;
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+    flex-wrap: wrap;
+  }
+
+  [data-role='verdict'] :global(.ok) {
+    color: var(--good);
+    font-weight: 700;
+  }
+
+  [data-role='verdict'] :global(.bad) {
+    color: var(--bad);
+    font-weight: 700;
+  }
+
+  .evolution {
+    display: grid;
+    gap: 3px;
+    font-family: var(--mono);
+  }
+
+  .evolution :global(.erow) {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    border-radius: 4px;
+  }
+
+  .evolution :global(.erow.now) {
+    outline: 2px solid var(--series-2);
+    outline-offset: 1px;
+  }
+
+  .evolution :global(.erow.truth) {
+    margin-top: 6px;
+  }
+
+  .evolution :global(.rlabel) {
+    width: 1.4rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+    text-align: right;
+    margin-right: 4px;
+  }
+
+  .evolution :global(.cell) {
+    width: 24px;
+    height: 18px;
+    border-radius: 3px;
+    background: color-mix(in oklab, var(--series-1) calc(var(--p, 0) * 100%), var(--bit-off));
+  }
+
+  .evolution :global(.truth .cell) {
+    background: var(--bit-off);
+  }
+
+  .evolution :global(.truth .cell.on) {
+    background: var(--bit-on);
+  }
+
+  canvas {
+    width: 100%;
+    max-width: 340px;
+    aspect-ratio: 1;
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: crosshair;
+  }
+
+  .caption {
+    margin-top: 0.5rem;
+  }
+
+  details :global(table) {
+    max-width: 420px;
+    margin-top: 0.5rem;
+  }
+</style>

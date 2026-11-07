@@ -1,0 +1,180 @@
+{
+ "name": "Multiplicative loop",
+ "checkpoint": "checkpoints/mix3/mix3-mloop.pt",
+ "architecture": {
+  "hidden": 128,
+  "heads": 4,
+  "layers": 2,
+  "rounds": 8,
+  "probes": 64,
+  "width": 8,
+  "multiplicative": true,
+  "scratch": 0,
+  "parameters": 467336,
+  "parts": [
+   {
+    "part": "Example encoder",
+    "detail": "24 bits \u2192 bilinear layer \u2192 GELU \u2192 linear \u2192 norm (run once)",
+    "parameters": 26368
+   },
+   {
+    "part": "Question input",
+    "detail": "(a, b, current guess) \u2192 bilinear layer",
+    "parameters": 9600
+   },
+   {
+    "part": "Look layer 1",
+    "detail": "cross-attention to the examples (4 heads) + gated (SwiGLU) feed-forward",
+    "parameters": 165504
+   },
+   {
+    "part": "Look layer 2",
+    "detail": "cross-attention to the examples (4 heads) + gated (SwiGLU) feed-forward",
+    "parameters": 165504
+   },
+   {
+    "part": "Memory",
+    "detail": "GRU cell carrying the question\u2019s state between rounds",
+    "parameters": 99072
+   },
+   {
+    "part": "Readout",
+    "detail": "norm \u2192 linear \u2192 8 bit logits",
+    "parameters": 1288
+   }
+  ],
+  "train_set": "mix3",
+  "updates": 10000,
+  "adaptive": true
+ },
+ "summary": {
+  "train": {
+   "exact": 0.8769124348958334,
+   "sure_accuracy": 0.9995575204359747,
+   "won": true
+  },
+  "heldout": {
+   "exact": 0.9783203125,
+   "sure_accuracy": 1.0,
+   "won": true
+  },
+  "stress": {
+   "exact": 0.431640625,
+   "sure_accuracy": 0.9193547964096069,
+   "won": false
+  },
+  "near": {
+   "exact": 0.215087890625,
+   "sure_accuracy": 1.0,
+   "won": false
+  },
+  "hidden": {
+   "exact": 0.52783203125,
+   "sure_accuracy": 0.9944133928368212,
+   "won": true
+  },
+  "T1": {
+   "exact": 0.5986328125,
+   "sure_accuracy": 1.0,
+   "won": true
+  },
+  "T2": {
+   "exact": 0.4296875,
+   "sure_accuracy": 1.0,
+   "won": false
+  },
+  "T3": {
+   "exact": 0.4501953125,
+   "sure_accuracy": 0.9629629850387573,
+   "won": false
+  },
+  "T4": {
+   "exact": 0.6888950892857143,
+   "sure_accuracy": 0.9984512067542719,
+   "won": true
+  },
+  "T5": {
+   "exact": 0.4644775390625,
+   "sure_accuracy": 0.9889190488139842,
+   "won": false
+  }
+ },
+ "families": {
+  "add": 1.0,
+  "sub": 0.9990234375,
+  "b-a": 1.0,
+  "xor": 1.0,
+  "and": 1.0,
+  "or": 1.0,
+  "a+2b": 0.9970703125,
+  "2a+b": 0.9990234375,
+  "max": 0.99609375,
+  "a<<1": 1.0,
+  "a+const": 1.0,
+  "b^const": 1.0,
+  "transducer": 0.767578125,
+  "a*b": 0.5390625,
+  "steps1": 0.91015625,
+  "steps2": 0.8291015625,
+  "steps3": 0.7939453125,
+  "steps4": 0.7001953125,
+  "steps5": 0.6005859375,
+  "composed": 0.6767578125,
+  "accumulate n15": 0.7890625,
+  "repeat n15": 0.8427734375,
+  "recurrence n15": 0.77734375,
+  "bit loops": 0.828125,
+  "a+b+1": 1.0,
+  "a-2b": 0.9736328125,
+  "min": 0.94140625,
+  "nand": 1.0,
+  "3a": 0.9765625,
+  "a*(b&63)": 0.431640625,
+  "a*b+b": 0.2197265625,
+  "a*b+5": 0.197265625,
+  "a*b-a": 0.2119140625,
+  "(a*b)^a": 0.2314453125,
+  "a*b+a": 0.2314453125,
+  "a*a": 0.78515625,
+  "(a+1)*(b+1)": 0.181640625,
+  "(a^b)*3": 0.5869140625,
+  "|a-b|": 0.6953125,
+  "(a+b)>>1": 0.994140625,
+  "(a*b)^b": 0.2080078125,
+  "(a<<1)+(b>>1)": 0.5400390625,
+  "T1 2 ops": 0.5986328125,
+  "T2 3-4 ops": 0.4296875,
+  "T3 5-7 ops": 0.4501953125,
+  "a//b": 0.69921875,
+  "a%b": 0.552734375,
+  "rotl(a,1)": 1.0,
+  "rotl(a,b&7)": 0.3310546875,
+  "a>b?a-b:a+b": 0.71875,
+  "a>b?a*b:b": 0.5966796875,
+  "a<b?b^a:a&b": 0.923828125,
+  "sum a..a+n-1 n15": 0.3056640625,
+  "a^n n15": 0.6396484375,
+  "fib(a,a) n15": 0.3310546875,
+  "x->3x+1 n15": 0.220703125,
+  "acc=(acc<<1)^a n15": 0.623046875,
+  "sum a..a+n-1 n63": 0.08984375,
+  "a^n n63": 0.59765625,
+  "fib(a,a) n63": 0.0703125,
+  "x->3x+1 n63": 0.1591796875,
+  "acc=(acc<<1)^a n63": 0.8466796875,
+  "sum a..a+n-1 n255": 0.048828125,
+  "a^n n255": 0.6220703125,
+  "fib(a,a) n255": 0.0478515625,
+  "x->3x+1 n255": 0.1591796875,
+  "acc=(acc<<1)^a n255": 0.935546875,
+  "accumulate n63": 0.71484375,
+  "repeat n63": 0.798828125,
+  "recurrence n63": 0.5859375,
+  "accumulate n255": 0.71875,
+  "repeat n255": 0.7080078125,
+  "recurrence n255": 0.546875,
+  "popcount(a|b)": 0.3505859375,
+  "reverse(a^b)": 0.93359375,
+  "popcount(a)*b": 0.0927734375
+ }
+}

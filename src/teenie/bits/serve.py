@@ -28,6 +28,7 @@ import torch
 from ..config import CONTEXT_SIZE
 from .checkpoint import load_bit_model
 from .data import to_bits
+from .bit_token_model import BitTokenModel
 from .loop_model import LoopModel
 
 WIDTH = 8
@@ -117,8 +118,8 @@ def episode(function: Function, questions: int, rng: random.Random) -> tuple[lis
 class Relay:
     def __init__(self, checkpoint: str, device: str) -> None:
         model, metadata = load_bit_model(checkpoint, device)
-        if not isinstance(model, LoopModel):
-            raise SystemExit('teenie-serve expects a loop model checkpoint')
+        if not isinstance(model, (LoopModel, BitTokenModel)):
+            raise SystemExit('teenie-serve expects a loop or bit-token model checkpoint')
         self.model, self.metadata, self.device, self.checkpoint = model, metadata, device, checkpoint
         self.lock = threading.Lock()
 

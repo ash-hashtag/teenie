@@ -18,6 +18,8 @@ from torch import nn
 from .checkpoint import load_bit_model
 from .data import BitSampler, to_bits
 from .eval import summarise
+from .bit_token_model import BitTokenModel
+from .export_progress import bit_token_parts
 from .loop_model import LoopModel
 from .sets import ALL_NAMED
 
@@ -29,7 +31,11 @@ def count(module: nn.Module | None) -> int:
     return 0 if module is None else sum(p.numel() for p in module.parameters())
 
 
-def architecture(model: LoopModel, metadata: dict[str, object]) -> dict[str, object]:
+def architecture(model: LoopModel | BitTokenModel, metadata: dict[str, object]) -> dict[str, object]:
+    if isinstance(model, BitTokenModel):
+        return {'kind': 'bittoken', **bit_token_parts(model), 'probes': model.config['probes'], 'scratch': 0,
+                'multiplicative': True, 'train_set': metadata.get('train_set'), 'updates': metadata.get('update'),
+                'adaptive': metadata.get('adaptive')}
     config = model.config
     looks = list(model.looks)
     parts = [
@@ -45,7 +51,7 @@ def architecture(model: LoopModel, metadata: dict[str, object]) -> dict[str, obj
         parts.append({'part': f'{config["scratch"]} scratch slots',
                       'detail': 'slot identities, self-attention among the question’s tokens, slot GRU cell',
                       'parameters': count(model.within) + count(model.slot_cell) + model.slot_identity.numel()})
-    return {'hidden': config['hidden'], 'heads': config['heads'], 'layers': config['layers'],
+    return {'kind': 'loop', 'hidden': config['hidden'], 'heads': config['heads'], 'layers': config['layers'],
             'rounds': config['steps'], 'probes': config['probes'], 'width': config['width'],
             'multiplicative': config.get('multiplicative', False), 'scratch': config.get('scratch', 0),
             'parameters': count(model), 'parts': parts, 'train_set': metadata.get('train_set'),
@@ -59,7 +65,7 @@ def quantize(weights: torch.Tensor) -> list[int]:
 
 
 @torch.no_grad()
-def traces(model: LoopModel, device: str, queries: int = 2) -> list[dict[str, object]]:
+def traces(model: LoopModel | BitTokenModel, device: str, queries: int = 2) -> list[dict[str, object]]:
     result: list[dict[str, object]] = []
     for i, name in enumerate(TRACED):
         episode = BitSampler([ALL_NAMED[name]], WIDTH, 71000 + i).sample(1, queries).to(device)
@@ -92,8 +98,8 @@ def main() -> None:
     parser.add_argument('--device', default='cpu')
     args = parser.parse_args()
     model, metadata = load_bit_model(args.checkpoint, args.device)
-    if not isinstance(model, LoopModel):
-        raise SystemExit('the current-model export expects a loop model checkpoint')
+    if not isinstance(model, (LoopModel, BitTokenModel)):
+        raise SystemExit('the current-model export expects a loop or bit-token model checkpoint')
     evaluation = json.loads(Path(args.evaluation).read_text())
     summary = {group: summarise(reports) for group, reports in evaluation['results'].items()}
     families = {name: report.get('exact') for reports in evaluation['results'].values() for name, report in reports.items()}

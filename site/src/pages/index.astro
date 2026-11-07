@@ -79,7 +79,7 @@ const namedLow = Math.min(...named.map((n) => current.families[n] ?? 0));
       <span class="label">Model size</span>
       <span class="value">{Math.round(arch.parameters / 1000)}K</span>
       <span class="note">
-        {thousands(arch.parameters)} parameters · {arch.layers} look layers × {arch.rounds} rounds · width {arch.hidden}
+        {`${thousands(arch.parameters)} parameters · ${arch.layers} ${arch.kind === 'bittoken' ? 'bit' : 'look'} layers × ${arch.rounds} rounds · width ${arch.hidden}`}
       </span>
     </div>
     <div class="card stat">

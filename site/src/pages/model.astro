@@ -8,6 +8,8 @@ import { current, experimentById, progress } from '../lib/data';
 import { pct, thousands } from '../lib/format';
 
 const arch = current.architecture;
+const tokens = arch.kind === 'bittoken';
+const layerName = tokens ? 'bit layers' : 'look layers';
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const share = (n: number) => `${((100 * n) / arch.parameters).toFixed(1)}%`;
 const bitTokens = progress.architectures.bittoken;
@@ -39,7 +41,7 @@ const capacityExact = (id: string, name: string) => experimentById(id)?.families
       <span class="label">Layers per round · rounds</span>
       <span class="value">{arch.layers} · {arch.rounds}</span>
       <span class="note">
-        {arch.layers} look layers ({arch.heads} attention heads each), repeated for {arch.rounds} rounds
+        {`${arch.layers} ${layerName} (${arch.heads} attention heads each), repeated for ${arch.rounds} rounds`}
       </span>
     </div>
     <div class="card stat">
@@ -51,7 +53,13 @@ const capacityExact = (id: string, name: string) => experimentById(id)?.families
 
   <h2>Architecture</h2>
   <div class="card">
-    <LoopDiagram layers={arch.layers} rounds={arch.rounds} heads={arch.heads} scratch={arch.scratch} />
+    {
+      tokens ? (
+        <BitTokenDiagram layers={arch.layers} rounds={arch.rounds} heads={arch.heads} />
+      ) : (
+        <LoopDiagram layers={arch.layers} rounds={arch.rounds} heads={arch.heads} scratch={arch.scratch} />
+      )
+    }
   </div>
 
   <div class="grid-2 steps">
@@ -68,14 +76,17 @@ const capacityExact = (id: string, name: string) => experimentById(id)?.families
       <p>
         The question starts with all 8 answer bits undecided. Its input layer is bilinear too, so products of its own
         bits such as <code>a<sub>i</sub>·b<sub>j</sub></code> — the pieces of a multiplication — are one step away.
+        {tokens && ' The question is split into 8 tokens, one per answer bit, each knowing which bit it is.'}
       </p>
     </div>
     <div class="card">
       <p class="eyebrow">3 · Look and correct</p>
       <p>
-        {`Each round the question, carrying its current guess and memory, attends to the 999 example vectors in ${arch.layers} look layers.`}
-        {arch.scratch > 0 && ` It then exchanges information with its ${arch.scratch} scratch slots — private memory vectors carried between rounds and never scored as the answer, a place for intermediate results such as a partial product or a running total.`} Each is followed by a <strong>gated (SwiGLU) feed-forward</strong> layer, which can
-        multiply signals instead of only adding them. A GRU cell updates the memory and the readout writes a new guess.
+        {
+          tokens
+            ? `Each round, in each of ${arch.layers} bit layers, the bit tokens first attend to each other — so carries and partial products can move between bit positions — then each reads the 999 example vectors, then a gated (SwiGLU) layer that can multiply signals updates them. A memory per token carries to the next round, and each token writes its own bit of the new guess.`
+            : `Each round the question, carrying its current guess and memory, attends to the 999 example vectors in ${arch.layers} look layers, each followed by a gated (SwiGLU) layer that can multiply signals instead of only adding them.${arch.scratch > 0 ? ` It then exchanges information with its ${arch.scratch} scratch slots — memory carried between rounds and never scored, for intermediate results.` : ''} A GRU cell updates the memory and the readout writes a new guess.`
+        }
       </p>
     </div>
     <div class="card">
@@ -130,7 +141,7 @@ const capacityExact = (id: string, name: string) => experimentById(id)?.families
   <RoundsInspector />
 
   {
-    bitTokens && (
+    bitTokens && !tokens && (
       <section class="next">
         <h2>In testing: bit tokens</h2>
         <p>
@@ -206,6 +217,31 @@ const capacityExact = (id: string, name: string) => experimentById(id)?.families
     )
   }
 
+  {
+    tokens && (
+      <section class="next">
+        <h2>Why one token per answer bit</h2>
+        <p>
+          The previous model held each question as one vector. It could multiply and it could add, but not one after the
+          other: a product followed by another step needs carries to move between bit positions through an intermediate
+          result. Trained on nothing but such relations, each design reached:
+        </p>
+        <div class="card">
+          <DotPlot
+            title="Exact match after training only on product-then-step relations"
+            reference={0.5}
+            labelWidth={150}
+            methods={capacityRuns.map((r) => ({ name: r.name, color: r.color }))}
+            rows={capacityRelations.map((name) => ({
+              name: name === 'a*b+a' ? 'a*b+a (unseen)' : name,
+              values: capacityRuns.map((r) => capacityExact(r.id, name)),
+            }))}
+          />
+        </div>
+      </section>
+    )
+  }
+
   <h2>How it is trained</h2>
   <div class="grid-2">
     <div class="card">
@@ -227,7 +263,7 @@ const capacityExact = (id: string, name: string) => experimentById(id)?.families
     </div>
   </div>
   <p class="small muted">
-    Source: <code>src/teenie/bits/loop_model.py</code> (<code>--architecture loop --multiplicative</code>). Results on
+    {tokens ? 'Source: src/teenie/bits/bit_token_model.py (--architecture bittoken).' : 'Source: src/teenie/bits/loop_model.py (--architecture loop --multiplicative).'} Results on
     the difficulty ladder: <a href={`${base}/results/`}>Results</a>. How it got here, including the first bit-by-bit
     model: <a href={`${base}/changelog/`}>Changelog</a>.
   </p>

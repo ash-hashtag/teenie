@@ -12,7 +12,7 @@ A GRU cell per token carries its state; a shared readout turns each token into i
 give depth: one step's carries can settle before the next step uses them. Probe questions (the first examples,
 masked from themselves) are answered too, for extra training signal, exactly as in the loop model.
 """
-from typing import NotRequired, TypedDict
+from typing import NotRequired, TypedDict, cast
 
 import torch
 from torch import Tensor, nn
@@ -53,6 +53,9 @@ class _BitLayer(nn.Module):
         self.offsets: Tensor  # [W, W] index into `distance` for each pair of bit positions
         self.register_buffer('offsets', torch.arange(width)[:, None] - torch.arange(width)[None, :] + width - 1,
                              persistent=False)
+        # When set to a list, forward appends attention to the examples [B, Q + P, N], averaged over heads and over
+        # the question's bit tokens (inspection only).
+        self.attention: list[Tensor] | None = None
 
     def forward(self, x: Tensor, keys: Tensor, values: Tensor, allowed: Tensor) -> Tensor:
         batch, items, width, hidden = x.shape
@@ -65,6 +68,10 @@ class _BitLayer(nn.Module):
         # 2. Every bit token reads the examples.
         q = self.query(self.norm_cross(x)).view(batch, items * width, self.heads, d).transpose(1, 2)
         found = F.scaled_dot_product_attention(q, keys, values, attn_mask=allowed)
+        if self.attention is not None:
+            scores = (q @ keys.transpose(-1, -2) / d ** .5).masked_fill(~allowed, float('-inf'))
+            weights = scores.softmax(-1).mean(1)  # [B, items * W, N]
+            self.attention.append(weights.view(batch, items, width, -1).mean(2))
         x = x + self.out_cross(found.transpose(1, 2).reshape(batch, items, width, hidden))
         # 3. Gated feed-forward.
         result: Tensor = x + self.feed(x)
@@ -151,6 +158,13 @@ class BitTokenModel(nn.Module):
         state = self.cell(x.reshape(-1, hidden), state)
         logits = self.readout(state).view(batch, items, width)
         return state, logits
+
+    def record_attention(self, enabled: bool = True) -> list[list[Tensor]]:
+        """Toggle attention recording; returns per-layer lists the next forward fills, one entry per round."""
+        stores: list[list[Tensor]] = [[] for _ in self.layers]
+        for layer, store in zip(self.layers, stores):
+            cast(_BitLayer, layer).attention = store if enabled else None
+        return stores
 
     def loss(self, prediction: LoopPrediction, context: Tensor, target: Tensor, width: int,
              steps: Tensor | None = None, step_counts: Tensor | None = None) -> Tensor:

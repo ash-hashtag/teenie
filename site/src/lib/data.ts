@@ -167,6 +167,7 @@ export type Current = {
   name: string;
   checkpoint: string;
   architecture: {
+    kind?: 'loop' | 'bittoken';
     hidden: number;
     heads: number;
     layers: number;

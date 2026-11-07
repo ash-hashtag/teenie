@@ -1,0 +1,52 @@
+{
+  "checkpoint": "checkpoints/arch/nearonly-scratch4.pt",
+  "train_set": "near-only",
+  "tests": null,
+  "width": 8,
+  "episodes": 64,
+  "queries": 16,
+  "seed": 60000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {
+    "selected": {
+      "exact": 0.382421875,
+      "sure_accuracy": null,
+      "won": false
+    }
+  },
+  "results": {
+    "selected": {
+      "a*b+b": {
+        "exact": 0.462890625,
+        "bit": 0.9276123046875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*b+5": {
+        "exact": 0.4677734375,
+        "bit": 0.9248046875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*b-a": {
+        "exact": 0.4345703125,
+        "bit": 0.9173583984375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*b)^a": {
+        "exact": 0.4765625,
+        "bit": 0.9263916015625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*b+a": {
+        "exact": 0.0703125,
+        "bit": 0.619384765625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      }
+    }
+  }
+}

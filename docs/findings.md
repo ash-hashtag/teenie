@@ -238,3 +238,25 @@ every round; `/api/evaluate` answers 1,000 fresh questions over 10 different exa
 Expressions are checked against a whitelist (arithmetic, bit operations, comparisons, conditionals,
 min/max/abs, one `sum(... for i in range(n))` loop of ≤ 256 steps, popcount/reverse/rotl). With B: `a + b`
 99.8%, `max(a,b) − min(a,b)` 67.5%, the sum loop 31.9%, `a*b + a` 24.9%.
+
+## 10. What actually limits "product, then a step" (`experiments/arch/`)
+
+Training data: only ~5% of `mix3` episodes contain a product followed by another operation (2–5 operation
+expressions: 12 / 23 / 33 / 41% of draws). But the capacity check — training on **nothing but** `a*b+b`,
+`a*b+5`, `a*b−a`, `(a*b)^a` for 3,000 updates — separates data from architecture:
+
+| architecture | those four | `a*b+a` (never shown) |
+|---|---|---|
+| loop (467K) | 37.6–39.8% | 6.0% |
+| loop + 4 scratch slots (732K) | 43.5–47.7% | 7.0% |
+| **bit tokens** (666K; one token per answer bit) | **99.3–100%** | 12.3% (sure 90%, right 13%) |
+
+Parameters were never the limit: carries have to move between bit positions through an intermediate result,
+and a single question vector has no structure for that. Giving each answer bit its own token — attending to
+the other bits and to the examples every round — solves it. The narrowly trained model forces the unseen
+`a*b+a` into a known relation, confidently; generalisation needs broad training (next section).
+
+The bit-token model is ~5× slower per update (8 tokens per question read the examples). Next: bit tokens
+and the loop model both with step-by-step training (`--stepwise`: round t scored against intermediate
+step t, plus a "done" signal), width 96, 64 questions per context, on `mix4` (adds a product-then-step
+family), tested on the ladder and on loops 4–16× longer than trained.

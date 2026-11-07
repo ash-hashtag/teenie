@@ -16,6 +16,7 @@ from ..train import select_device
 from .checkpoint import AnyBitModel, load_bit_model, save_bit_model
 from .data import BitSampler
 from .eval import evaluate
+from .bit_token_model import BitTokenModel
 from .loop_model import LoopModel
 from .model import BitModel
 from .sets import TRAIN_SETS, test_groups
@@ -28,7 +29,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
           seed: int = 0, log_every: int = 250, validation_episodes: int = 8,
           save: str | Path = 'checkpoints/bits.pt', log: str | Path | None = None,
           snapshots: str | Path | None = None,
-          architecture: Literal['serial', 'loop', 'think', 'program'] = 'serial',
+          architecture: Literal['serial', 'loop', 'think', 'program', 'bittoken'] = 'serial',
           layers: int = 2, steps: int = 8, train_set: str = 'base', channels: int = 16,
           informed: bool = True, multiplicative: bool = False, clock: bool = False,
           adaptive: bool = False, init: str | Path | None = None, resume: bool = False,
@@ -46,7 +47,9 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
     # Everything not trained on is only watched: never used to select checkpoints.
     watched = tuple(f for name, group in test_groups(train_set).items() if name != 'train' for f in group)
     model: AnyBitModel
-    if architecture == 'program':
+    if architecture == 'bittoken':
+        model = BitTokenModel(hidden, heads, layers, width, probes, steps).to(selected)
+    elif architecture == 'program':
         model = ProgramModel(hidden, channels, width, steps, informed).to(selected)
     elif architecture == 'think':
         model = ThinkModel(hidden, heads, layers, width, steps).to(selected)
@@ -101,7 +104,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
         if isinstance(model, ProgramModel):
             planned = model.forward(episode.context, episode.query, width)
             loss = model.loss(planned, episode.context, episode.target, width)
-        elif isinstance(model, (LoopModel, ThinkModel)):
+        elif isinstance(model, (LoopModel, ThinkModel, BitTokenModel)):
             looped = model.forward(episode.context, episode.query, width)
             loss = model.loss(looped, episode.context, episode.target, width)
         else:
@@ -169,7 +172,8 @@ def main() -> None:
     parser.add_argument('--log-every', type=int, default=250)
     parser.add_argument('--save', default='checkpoints/bits.pt')
     parser.add_argument('--log')
-    parser.add_argument('--architecture', choices=['serial', 'loop', 'think', 'program'], default='serial')
+    parser.add_argument('--architecture', choices=['serial', 'loop', 'think', 'program', 'bittoken'],
+                        default='serial')
     parser.add_argument('--channels', type=int, default=16, help='program: calculator channels per kind')
     parser.add_argument('--multiplicative', action='store_true',
                         help='loop: bilinear inputs and gated feed-forward layers')

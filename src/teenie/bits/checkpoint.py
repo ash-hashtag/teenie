@@ -5,6 +5,7 @@ from typing import cast
 import torch
 
 from ..config import CONTEXT_SIZE
+from .bit_token_model import BitTokenConfig, BitTokenModel
 from .loop_model import LoopConfig, LoopModel
 from .model import BitConfig, BitModel
 from .program_model import ProgramConfig, ProgramModel
@@ -15,9 +16,10 @@ FORMAT = 'teenie-bits-v1-fixed999'  # bit-serial model
 LOOP_FORMAT = 'teenie-bits-loop-v1-fixed999'  # all-at-once context + answer refinement loop
 THINK_FORMAT = 'teenie-bits-think-v1-fixed999'  # tokens rewritten in place by one shared block per round
 PROGRAM_FORMAT = 'teenie-bits-program-v1-fixed999'  # infers a small calculator from the examples
-AnyBitModel = BitModel | LoopModel | ThinkModel | ProgramModel
+BIT_TOKEN_FORMAT = 'teenie-bits-bittoken-v1-fixed999'  # one token per answer bit, refined over rounds
+AnyBitModel = BitModel | LoopModel | ThinkModel | ProgramModel | BitTokenModel
 FORMATS: dict[type, str] = {BitModel: FORMAT, LoopModel: LOOP_FORMAT, ThinkModel: THINK_FORMAT,
-                            ProgramModel: PROGRAM_FORMAT}
+                            ProgramModel: PROGRAM_FORMAT, BitTokenModel: BIT_TOKEN_FORMAT}
 
 
 def save_bit_model(path: str | Path, model: AnyBitModel, metadata: Metadata | None = None) -> None:
@@ -38,6 +40,8 @@ def load_bit_model(path: str | Path, device: str | torch.device = 'cpu') -> tupl
     model: AnyBitModel
     if payload['format'] == LOOP_FORMAT:
         model = LoopModel(**cast(LoopConfig, payload['config']))
+    elif payload['format'] == BIT_TOKEN_FORMAT:
+        model = BitTokenModel(**cast(BitTokenConfig, payload['config']))
     elif payload['format'] == PROGRAM_FORMAT:
         model = ProgramModel(**cast(ProgramConfig, payload['config']))
     elif payload['format'] == THINK_FORMAT:

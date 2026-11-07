@@ -254,3 +254,30 @@ def test_serve_functions_are_checked_and_episodes_are_distinct():
     pairs = {(a, b) for a, b, _ in context + questions}
     assert len(context) == 999 and len(questions) == 5 and len(pairs) == 1004
     assert all(c == a ^ b for a, b, c in context)
+
+
+def test_bit_token_model_rounds_probe_masking_and_checkpoint(tmp_path):
+    from teenie.bits.bit_token_model import BitTokenModel
+
+    torch.manual_seed(0)
+    model = BitTokenModel(hidden=16, heads=2, layers=1, probes=8, steps=3)
+    episode = BitSampler(seed=0).sample(2, queries=3)
+    model.train()
+    prediction = model.forward(episode.context, episode.query, 8)
+    assert prediction.logits.shape == (3, 2, 3 + 8, 8)
+    model.loss(prediction, episode.context, episode.target, 8).backward()
+    model.eval()
+    with torch.no_grad():
+        # A probe never sees its own example, so its own label cannot reach its prediction.
+        base = model.forward(episode.context, episode.query, 8).logits[:, 0, 3]
+        changed = episode.context.clone()
+        changed[0, 0, 2] ^= 255
+        torch.testing.assert_close(base, model.forward(changed, episode.query, 8).logits[:, 0, 3])
+        # Questions never see each other.
+        other = episode.query.clone()
+        other[:, 1] = (other[:, 1] + 1) % 256
+        torch.testing.assert_close(model.forward(episode.context, episode.query, 8).logits[:, :, 0],
+                                   model.forward(episode.context, other, 8).logits[:, :, 0])
+    save_bit_model(tmp_path / 'bt.pt', model, {'width': 8})
+    loaded, _ = load_bit_model(tmp_path / 'bt.pt')
+    assert isinstance(loaded, BitTokenModel) and loaded.config['steps'] == 3

@@ -210,3 +210,28 @@ def _banned(forbidden: tuple[Family, ...], width: int) -> frozenset[tuple[int, .
         _banned_cache[key] = frozenset(fingerprint(f.make(torch.Generator().manual_seed(0), width), width)
                                        for f in forbidden)
     return _banned_cache[key]
+
+
+def product_step_family(forbidden: tuple[Family, ...], banned_pairs: frozenset[Pair] = frozenset(),
+                        name: str = 'product-step') -> Family:
+    """A product of two parts that use a or b, followed by one more step: (x*y) op z, z op (x*y), or a shift
+    or not of the product — the shape the model finds hardest. Hidden relations and held-out combinations
+    stay excluded."""
+    def piece(generator: torch.Generator, width: int, variable: bool) -> Tree:
+        while True:
+            tree = random_tree(int(torch.randint(0, 2, (), generator=generator)), generator, width, 1.)
+            if not variable or has_variable(tree):
+                return tree
+
+    def draw(generator: torch.Generator, width: int) -> Tree:
+        product = ('*', piece(generator, width, True), piece(generator, width, True))
+        roll = int(torch.randint(0, 5, (), generator=generator))
+        if roll == 4:
+            return (list(UNARY)[int(torch.randint(0, len(UNARY), (), generator=generator))], product)
+        op = list(BINARY)[int(torch.randint(0, len(BINARY), (), generator=generator))]
+        other = piece(generator, width, False)
+        return (op, product, other) if roll < 2 else (op, other, product)
+
+    def make(generator: torch.Generator, width: int) -> Relation:
+        return _draw(draw, forbidden, generator, width, banned_pairs)
+    return Family(name, make)

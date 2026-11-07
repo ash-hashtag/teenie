@@ -1,5 +1,6 @@
 """Named training sets and the test groups that go with them."""
-from .expressions import HIDDEN_FAMILIES, NEAR_FAMILIES, Pair, composed_family, expression_family
+from .expressions import (HIDDEN_FAMILIES, NEAR_FAMILIES, Pair, composed_family, expression_family,
+                          product_step_family)
 from .loops import NEW_OPERATIONS, bit_loop_family, hidden_bit_loops, hidden_loops, loop_family
 from .relations import (BLOCK_FAMILIES, HELDOUT_FAMILIES, MULTIPLY, NAMED, STRESS_FAMILIES, TRAIN_FAMILIES,
                         Family)
@@ -20,6 +21,8 @@ STEPS3: tuple[Family, ...] = tuple(expression_family(n, FORBIDDEN, f'steps{n}', 
                                    for n in range(1, 6)) + (composed_family(FORBIDDEN, 2., HELD_PAIRS),)
 LOOPS: tuple[Family, ...] = tuple(loop_family(kind, 4, LOOP_FORBIDDEN)
                                   for kind in ('accumulate', 'repeat', 'recurrence')) + (bit_loop_family(),)
+# `mix4`: mix3 plus a family aimed at the weakest shape, a product followed by another step.
+PRODUCT_STEP: Family = product_step_family(FORBIDDEN, HELD_PAIRS)
 # The difficulty ladder (see docs/findings.md): T1-T3 always contain a held-out combination.
 TIERS: dict[str, tuple[Family, ...]] = {
     'T1': (expression_family(2, FORBIDDEN, 'T1 2 ops', 2., HELD_PAIRS, require_pair=True),),
@@ -41,11 +44,12 @@ TRAIN_SETS: dict[str, tuple[Family, ...]] = {
     'mix': TRAIN_FAMILIES + (MULTIPLY,) + EXPRESSIONS,
     'mix2': TRAIN_FAMILIES + (MULTIPLY,) + STEPS,
     'mix3': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS,
+    'mix4': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + (PRODUCT_STEP,),
     'near-only': NEAR_FAMILIES,  # diagnostic: can the model compute "a product, then another step" at all?
 }
 
 ALL_NAMED: dict[str, Family] = {**NAMED, **{f.name: f for f in HIDDEN_FAMILIES + NEAR_FAMILIES + EXPRESSIONS + DEEPER
-                                              + STEPS + DEEPER2 + LOOPS
+                                              + STEPS + DEEPER2 + LOOPS + (PRODUCT_STEP,)
                                               + tuple(f for tier in TIERS.values() for f in tier)}}
 
 
@@ -58,6 +62,6 @@ def test_groups(train_set: str) -> dict[str, tuple[Family, ...]]:
         groups |= {'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER}
     if train_set == 'mix2':
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER2}
-    if train_set == 'mix3':
+    if train_set in ('mix3', 'mix4'):
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES} | TIERS
     return groups

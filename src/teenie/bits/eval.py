@@ -9,6 +9,7 @@ import torch
 from .baselines import nearest, window_lookup
 from .checkpoint import AnyBitModel, load_bit_model
 from .data import BitSampler, to_bits
+from .bit_token_model import BitTokenModel
 from .loop_model import LoopModel
 from .relations import Family
 from .sets import ALL_NAMED, test_groups
@@ -31,7 +32,7 @@ def evaluate_family(model: AnyBitModel | None, family: Family, *, width: int = 8
         episode = sampler.sample(1, queries).to(device)
         if model is not None:
             prediction = (model.forward(episode.context, episode.query, width, steps=steps)
-                          if isinstance(model, (LoopModel, ThinkModel, ProgramModel)) else model.forward(episode.context, episode.query, width))
+                          if isinstance(model, (LoopModel, ThinkModel, ProgramModel, BitTokenModel)) else model.forward(episode.context, episode.query, width))
             correct = prediction.values() == episode.target
             sure = prediction.confidence() >= SURE
             bits = (prediction.probabilities() > .5).float() == to_bits(episode.target, width)

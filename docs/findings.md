@@ -78,7 +78,7 @@ Dead ends, kept for the record:
   65,536 pairs) but does not train — the cosine over values up to 65,025 makes gradients effectively
   random (loss rose 2.9 → 3.7). `experiments/mul/stopped/`.
 
-## 6. Procedurally generated relations (`--train-set mix`) — in progress
+## 6. Procedurally generated relations (`--train-set mix`) — paused at update 6,500 of 10,000
 
 Training adds random expression trees with 1–3 operations (`+ − × xor and or min max`, `<<1 >>1 not`,
 constants) to the named relations and `a*b`. Eight **hidden** compositions are never generated —
@@ -86,3 +86,17 @@ checked by behaviour on fixed probe inputs, so rewrites are caught too: `a*b+a`,
 `(a^b)*3`, `|a−b|`, `(a+b)>>1`, `(a*b)^b`, `(a<<1)+(b>>1)`. The old held-out relations are excluded the
 same way. `deeper` tests fresh 5-operation expressions. Multiplicative loop, adaptive sampling,
 10,000 updates.
+
+Validation at update 6,500 (128 questions per relation; not yet the full 1,024-question evaluation):
+
+- **Adaptive sampling fixes the starvation**: `a*b` 52% at update 2,000, 98% at 3,000, 100% at 6,500,
+  while every named relation stays at 98–100%. Random expressions: 1 op 99%, 2 ops 86%, 3 ops 95%;
+  random state machines 86%.
+- **Old weak spots recover**: `min` 95% (≈45% in all earlier models), `a−2b` 98%, `3a` 99%.
+- **Hidden compositions** (mean 48%): `(a+b)>>1` 92%, `(a^b)*3` 77%, `a*a` 67%, `|a−b|` 53%,
+  `(a<<1)+(b>>1)` 45%, but multiplication combined with something else stays low: `a*b+a` 20%,
+  `(a*b)^b` 16%, `(a+1)*(b+1)` 14%. Fresh 5-operation expressions: 70%.
+- Sampling share at the end went mostly to state machines and 2-operation expressions.
+
+The run was paused by request. Weights at update 6,500 are in `checkpoints/mix/mix-mloop.pt`; the
+optimizer state is not saved, so continuing restarts the learning-rate schedule from those weights.

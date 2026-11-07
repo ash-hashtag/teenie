@@ -193,3 +193,20 @@ training: `a//b` 72%, `a%b` 59%, conditionals 66–93%, `rotl(a,1)` 100% (`rotl(
 split: `acc=(acc<<1)^a` (53–94%) and `aⁿ` (53–61%) collapse to simple patterns modulo 256; the sum of a
 sequence (7–20%), Fibonacci-like (4–16%) and x→3x+1 (13–16%) do not. Random loops at longer lengths reach
 52–77% partly because many settle into fixed points (closest example: 28–50%).
+
+**B — the same architecture trained on `mix3`** (multiplicative loop, 8 rounds, adaptive sampling, 10,000 updates;
+`mix3-mloop-*`): trained relations 87.7%, trained loop kinds 78–84%, bit loops 83%.
+
+| tier | `mix2` model | B (`mix3`) |
+|---|---|---|
+| T1 | 58.8% won | 59.9% won |
+| T2 | 44.6% | 43.0% |
+| T3 | 47.0% | 45.0% |
+| T4 | 69.9% won | 68.9% won |
+| T5 | 40.3% | **46.4%** |
+| hidden | 53.5% | 52.8% |
+
+Loop training lifts hidden loop bodies at the trained length — sum of a..a+n−1 20 → 31%, Fibonacci-like 16 → 33%,
+x→3x+1 16 → 22% — and the unseen bit loop `reverse(a^b)` reaches 93%. It does **not** carry over to longer loops
+(the sum: 9% at counts ≤ 63, 5% at ≤ 255): the model has neither learned the loop as a procedure nor found the
+closed form. T1–T3 hold steady although the combinations are now truly unseen.

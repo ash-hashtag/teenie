@@ -2,27 +2,28 @@
 import Layout from '../layouts/Layout.astro';
 import BitStrip from '../components/BitStrip.astro';
 import traces from '../../public/data/traces.json';
-import { evaluation, model } from '../lib/data';
-import { thousands } from '../lib/format';
+import { experimentById, ladderRuns } from '../lib/data';
+import { pct } from '../lib/format';
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const add = (traces as { relation: string; context: number[][]; examples: { a: number; b: number; target: number }[] }[])[0]!;
 const rows = add.context.slice(0, 4) as [number, number, number][];
 const question = add.examples[0]!;
-const trained = Object.values(evaluation.results.train);
-const perfect = trained.filter((r) => r.exact === 1).length;
-const heldout = Object.values(evaluation.results.heldout);
-const heldPerfect = heldout.filter((r) => r.exact === 1).length;
+const mix = experimentById('mix');
+const latest = ladderRuns().at(-1);
+const tiers = latest ? Object.keys(latest.groups).filter((g) => g.startsWith('T')) : [];
+const won = latest ? tiers.filter((t) => latest.groups[t]?.won).length : 0;
 ---
 
 <Layout title="Teenie" description="A tiny model that reads 999 examples of a hidden bit relation and answers a new question exactly.">
   <section class="hero">
     <p class="eyebrow">Teenie · bit-relation prototype</p>
-    <h1>Show it 999 examples. It works out the rule, one bit at a time.</h1>
+    <h1>Show it 999 examples. It works out the rule.</h1>
     <p class="lede">
       Each example is two 8-bit numbers <code>a</code>, <code>b</code> and an answer <code>c</code> produced by a hidden
-      relation — addition, max, xor, or a random rule. The model is never told the relation. It reads the examples and
-      must produce <strong>every bit</strong> of <code>c</code> for a new <code>(a, b)</code>. Close doesn't count.
+      relation — addition, multiplication, a random expression, even a loop. The model is never told the relation. It
+      reads the examples and must produce <strong>every bit</strong> of <code>c</code> for a new <code>(a, b)</code>.
+      Close doesn't count.
     </p>
   </section>
 
@@ -57,8 +58,8 @@ const heldPerfect = heldout.filter((r) => r.exact === 1).length;
           </div>
         </div>
         <p class="small muted reveal-note">
-          It fills in the answer from the lowest bit up, checking at each step which examples are “in the same situation”.
-          This one is <code>add</code>: {question.a} + {question.b} = {question.target} (mod 256).
+          The first model filled in the answer from the lowest bit up, checking at each step which examples are “in the
+          same situation”. This one is <code>add</code>: {question.a} + {question.b} = {question.target} (mod 256).
         </p>
       </div>
     </div>
@@ -66,41 +67,46 @@ const heldPerfect = heldout.filter((r) => r.exact === 1).length;
 
   <section class="stats grid-3">
     <div class="card stat">
-      <span class="label">Trained relations answered exactly</span>
-      <span class="value">{perfect} of {trained.length}</span>
-      <span class="note">all 12 named relations at 100%; random rules at 74%</span>
+      <span class="label">8-bit multiplication, learned among other relations</span>
+      <span class="value">{pct(mix?.families['a*b']?.exact)}</span>
+      <span class="note">exact on fresh questions; the first models managed under 7%</span>
     </div>
     <div class="card stat">
-      <span class="label">Never-seen relations answered exactly</span>
-      <span class="value">{heldPerfect} of {heldout.length}</span>
-      <span class="note">a+b+1 and nand at 100%; 3a, a−2b, min not yet</span>
+      <span class="label">Never-generated compositions</span>
+      <span class="value">{pct(latest?.groups.hidden?.exact ?? mix?.groups.hidden?.exact)}</span>
+      <span class="note">e.g. (a+b)&gt;&gt;1, a*a, |a−b|; copying the closest example gets ~9%</span>
     </div>
     <div class="card stat">
-      <span class="label">Model size · training</span>
-      <span class="value">{Math.round(model.parameters / 1000)}K</span>
-      <span class="note">{thousands(model.parameters)} parameters · ~8 min on a laptop RTX 3050</span>
+      <span class="label">Difficulty tiers won</span>
+      <span class="value">{won} of {tiers.length}</span>
+      <span class="note">≥50% exact on unseen relations, sure answers right ≥95%</span>
     </div>
   </section>
 
   <h2>Read the story</h2>
   <div class="grid-2 links">
+    <a class="card link" href={`${base}/progress/`}>
+      <p class="eyebrow">Latest · Progress</p>
+      <h3>The difficulty ladder</h3>
+      <p>Where the current model stands on harder and harder unseen functions, including loops, and every run so far.</p>
+    </a>
     <a class="card link" href={`${base}/journey/`}>
       <p class="eyebrow">1 · Journey</p>
       <h3>From fuzzy decimals to exact bits</h3>
-      <p>Three float-number attempts, why they stalled, and the quick test that led to bits.</p>
+      <p>From float numbers to bits, multiplication, random expressions and loops — what worked and what didn't.</p>
     </a>
     <a class="card link" href={`${base}/model/`}>
       <p class="eyebrow">2 · Model</p>
-      <h3>How it reasons, step by step</h3>
-      <p>The bit-by-bit loop, the attention lookup, the two passes, and a replay of real predictions.</p>
+      <h3>How it reasons</h3>
+      <p>The current model, and a replay of real predictions from the first, bit-by-bit model.</p>
     </a>
     <a class="card link" href={`${base}/learning/`}>
-      <p class="eyebrow">3 · Learning</p>
+      <p class="eyebrow">3 · Learning (first model)</p>
       <h3>Watch it learn</h3>
       <p>Training curves for every relation, and saved checkpoints replayed from random weights to the final model.</p>
     </a>
     <a class="card link" href={`${base}/benchmarks/`}>
-      <p class="eyebrow">4 · Benchmarks</p>
+      <p class="eyebrow">4 · Benchmarks (first model)</p>
       <h3>How good is it, honestly?</h3>
       <p>Model versus nearest-example and hand-written lookup on identical questions, including where it fails.</p>
     </a>

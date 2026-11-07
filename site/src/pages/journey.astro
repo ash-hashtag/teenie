@@ -1,7 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { evaluation } from '../lib/data';
+import { evaluation, experimentById } from '../lib/data';
 import { pct } from '../lib/format';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const fam = (id: string, name: string) => experimentById(id)?.families[name]?.exact ?? null;
+const grp = (id: string, group: string) => experimentById(id)?.groups[group]?.exact ?? null;
 
 const train = evaluation.results.train;
 
@@ -132,17 +136,75 @@ const phases = [
       </p>
     </li>
 
-    <li class="card result">
-      <p class="eyebrow">Now · bit-serial model</p>
+    <li class="card">
+      <p class="eyebrow">Bit-serial model · first learned model</p>
       <h3>A learned loop over bit positions, plus a lookup over the examples</h3>
       <p>
-        One shared recurrent network reads every example one bit at a time. At each bit the question looks up the
-        examples in the same situation. One pass runs from the lowest bit and one from the highest; the model checks
-        both against examples it holds out from itself and trusts whichever explains them better.
+        One shared recurrent network reads every example one bit at a time; at each bit the question looks up the
+        examples in the same situation; one pass runs from the lowest bit, one from the highest. 100% exact on all 12
+        named relations it trained on — but only {pct(fam('serial', 'min'))} on <code>min</code>, the mirror of a trained
+        idea, because it could not decide which direction to read. <a href={`${base}/model/`}>Inside this model →</a>
       </p>
+    </li>
+
+    <li class="card">
+      <p class="eyebrow">All bits at once · loop on the answer</p>
+      <h3>Drop the reading order, keep a loop on the answer</h3>
       <p>
-        <strong>Result:</strong> 100% exact on all 12 named relations it trained on and on 2 of the 5 relations it never
-        saw, after ~8 minutes of training. <a href="../model/">See how it works →</a>
+        Each example becomes one vector from all 24 of its bits, fixed for the whole run. The question keeps a guess of
+        all 8 answer bits and corrects it every round. Never-seen relations improved: <code>3a</code>
+        {pct(fam('serial', '3a'))} → {pct(fam('loop', '3a'))},
+        <code>min</code> {`${pct(fam('serial', 'min'))} → ${pct(fam('loop', 'min'))}`}, and confidence became far more
+        useful.
+      </p>
+    </li>
+
+    <li class="card">
+      <p class="eyebrow">Multiplication · multiplicative units</p>
+      <h3>Networks mostly add; give them a way to multiply</h3>
+      <p>
+        Trained on <code>a*b</code> alone, the plain loop stalls at {pct(fam('mulonly-loop', 'a*b'))}. Adding bilinear
+        inputs (two projections multiplied) and gated feed-forward layers lifts it to <strong
+          >{pct(fam('mulonly-mloop', 'a*b'))}</strong
+        >. Among 14 relations, though, multiplication got only 1/14 of
+        training and reached {pct(fam('mul-mloop', 'a*b'))}. Two other designs were dead ends: letting the 999 example
+        tokens act as working memory was too slow on a 4 GB GPU, and inferring the weights of a tiny calculator with a
+        periodic (cosine) readout could represent multiplication exactly but could not be trained.
+      </p>
+    </li>
+
+    <li class="card">
+      <p class="eyebrow">Adaptive sampling · random expressions</p>
+      <h3>Spend training where the model is still wrong</h3>
+      <p>
+        Drawing relations in proportion to how often they are still wrong fixed the starvation: <code>a*b</code>
+        {pct(fam('mix', 'a*b'))} inside mixed training, every earlier relation 98–100% (<code>min</code>
+        {pct(fam('mix', 'min'))}). Random 1–3 operation expressions joined training, with eight compositions never
+        generated — checked by behaviour, so rewrites cannot leak. Those hidden compositions reached
+        <strong>{pct(grp('mix', 'hidden'))}</strong> on average (copying the closest example: about 9%).
+      </p>
+    </li>
+
+    <li class="card">
+      <p class="eyebrow">Product, then another step · a computation limit</p>
+      <h3>It multiplies, it adds — but not one after the other</h3>
+      <p>
+        <code>a*b+a</code> stayed near {pct(fam('mix2', 'a*b+a'))}: the low four bits right, the high bits wrong —
+        carries through an intermediate result. More multi-step training data lifted hidden compositions to
+        {pct(grp('mix2', 'hidden'))} but not this; a round counter did not help either. Trained on nothing but four such
+        relations, the model still reached only {pct(fam('nearonly', 'a*b+b'))}: the loop has no place to hold an
+        intermediate result.
+      </p>
+    </li>
+
+    <li class="card result">
+      <p class="eyebrow">Now · loops and the difficulty ladder</p>
+      <h3>Functions defined by loops, measured on a ladder</h3>
+      <p>
+        Training now includes loops whose repeat count comes from <code>b</code> (sums of sequences, repeated
+        application, Fibonacci-like recurrences, bit counting), and the tests are a ladder from 2-operation expressions to
+        hidden loop bodies run longer than ever trained. The model may either execute the loop or find a shortcut —
+        both count. <a href={`${base}/progress/`}>See the scoreboard →</a>
       </p>
     </li>
   </ol>
@@ -150,24 +212,24 @@ const phases = [
   <h2>Where it goes next</h2>
   <div class="grid-3">
     <div class="card">
-      <h3>Commit to one direction</h3>
+      <h3>Scratch slots</h3>
       <p class="small">
-        On <code>min</code> the model splits its trust 63/37 between the passes and gets 32% exact. Sharper trust should
-        fix this and raise how often it is confident.
+        A few memory vectors per question, carried between rounds and never scored — somewhere to keep <code>a*b</code>
+        while adding <code>a</code>, or a running total and a counter.
       </p>
     </div>
     <div class="card">
-      <h3>New carry patterns</h3>
+      <h3>Choose its own number of rounds</h3>
       <p class="small">
-        <code>3a</code> and <code>a−2b</code> need a carry it has never seen (72–76%). More varied random rules, and
-        training on its own predicted bits, should help.
+        A learned "done" signal: one round when one pass is enough, many when a relation is loop-shaped, with an external
+        cap. Rounds used per question will show whether it loops or found a formula.
       </p>
     </div>
     <div class="card">
-      <h3>Wider numbers</h3>
+      <h3>Attention between bits</h3>
       <p class="small">
-        The weights don't depend on how many bits there are (positions up to 64 are supported), so 16 bits and beyond
-        is the next scale test. Multiplication is a separate, harder problem.
+        Inside each round, let the 8 bit positions talk to each other (low to high, like carries), compared against a
+        carry scan.
       </p>
     </div>
   </div>

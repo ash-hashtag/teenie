@@ -7,9 +7,11 @@ interface Props {
   /** Drawn in reverse order so the first method sits on top; `ring` methods are hollow (reference values). */
   methods: { name: string; color: string; ring?: boolean }[];
   title: string;
+  /** Optional vertical reference line, e.g. the 50% bar. */
+  reference?: number;
 }
 
-const { rows, methods, title } = Astro.props;
+const { rows, methods, title, reference } = Astro.props;
 const W = 720;
 const label = 110;
 const right = 16;
@@ -31,6 +33,7 @@ const ticks = [0, 0.25, 0.5, 0.75, 1];
       ))
     }
   </div>
+  <div class="scroll">
   <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={title}>
     {
       ticks.map((t) => (
@@ -41,6 +44,9 @@ const ticks = [0, 0.25, 0.5, 0.75, 1];
           </text>
         </g>
       ))
+    }
+    {
+      reference !== undefined && <line x1={sx(reference)} x2={sx(reference)} y1={top} y2={H - 26} class="ref" />
     }
     {
       rows.map((r, i) => {
@@ -69,6 +75,7 @@ const ticks = [0, 0.25, 0.5, 0.75, 1];
       })
     }
   </svg>
+  </div>
 </figure>
 
 <style>
@@ -76,7 +83,12 @@ const ticks = [0, 0.25, 0.5, 0.75, 1];
     margin: 0;
   }
 
+  .scroll {
+    overflow-x: auto;
+  }
+
   svg {
+    min-width: 520px;
     width: 100%;
     height: auto;
     display: block;
@@ -94,6 +106,12 @@ const ticks = [0, 0.25, 0.5, 0.75, 1];
   .tick {
     fill: var(--muted);
     font-size: 12px;
+  }
+
+  .ref {
+    stroke: var(--ink-2);
+    stroke-width: 1.5;
+    opacity: 0.55;
   }
 
   .name {

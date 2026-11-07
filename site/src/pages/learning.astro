@@ -27,6 +27,10 @@ const last = training[training.length - 1]!;
     Training never shows the same problem twice. Each step draws 8 new episodes: a random relation, 999 new examples
     and 16 new questions. The model learns a procedure that works for any relation, not answers for one.
   </p>
+  <p class="first-model small">
+    This page covers the <strong>first, bit-by-bit model</strong>. The current model and every later experiment are on
+    <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/progress/`}>Progress</a>.
+  </p>
 
   <div class="grid-3 stats">
     <div class="card stat">
@@ -121,6 +125,11 @@ const last = training[training.length - 1]!;
 </Layout>
 
 <style>
+  .first-model {
+    border-left: 3px solid var(--series-2);
+    padding-left: 0.75rem;
+  }
+
   .stats {
     margin: 1.5rem 0 0;
   }

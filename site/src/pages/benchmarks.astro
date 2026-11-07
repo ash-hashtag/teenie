@@ -35,6 +35,10 @@ const sureCorrect = sure.every((x) => x.r.sure_accuracy === 1);
     training or checkpoint selection).
     A question counts only if all 8 bits are right.
   </p>
+  <p class="first-model small">
+    This page covers the <strong>first, bit-by-bit model</strong>. The current model and every later experiment are on
+    <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/progress/`}>Progress</a>.
+  </p>
 
   <div class="card methods">
     <ul>
@@ -133,6 +137,11 @@ cd site && pnpm install && pnpm build</pre>
 </Layout>
 
 <style>
+  .first-model {
+    border-left: 3px solid var(--series-2);
+    padding-left: 0.75rem;
+  }
+
   .methods ul {
     margin: 0;
     padding-left: 1.2rem;

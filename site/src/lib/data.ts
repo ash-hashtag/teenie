@@ -1,6 +1,7 @@
 // Shapes of the JSON written by `uv run python -m teenie.bits.export`.
 import evaluationJson from '../data/evaluation.json';
 import modelJson from '../data/model.json';
+import progressJson from '../data/progress.json';
 import trainingJson from '../data/training.json';
 
 export type Report = {
@@ -102,3 +103,43 @@ export function bestWindow(r: Report): number {
 export function dataUrl(file: string): string {
   return `${import.meta.env.BASE_URL.replace(/\/$/, '')}/data/${file}`;
 }
+
+// Written by `uv run python -m teenie.bits.export_progress`: every experiment so far.
+export type GroupSummary = { exact: number | null; sure_accuracy: number | null; won: boolean };
+
+export type CurvePoint = { update: number; known: number } & Record<string, number>;
+
+export type Experiment = {
+  id: string;
+  chapter: string;
+  title: string;
+  train_set: string | null;
+  tests: string | null;
+  groups: Record<string, GroupSummary>;
+  highlights: Record<string, number | null>;
+  families: Record<string, { exact: number | null; bit: number | null; sure_coverage: number | null; sure_accuracy: number | null }>;
+  curve: CurvePoint[];
+};
+
+export type Progress = { ladder: string[]; tiers: Record<string, string[]>; experiments: Experiment[] };
+
+export const progress = progressJson as unknown as Progress;
+
+export function experimentById(id: string): Experiment | undefined {
+  return progress.experiments.find((e) => e.id === id);
+}
+
+/** Runs evaluated on the difficulty ladder, oldest first. */
+export function ladderRuns(): Experiment[] {
+  return progress.experiments.filter((e) => 'T1' in e.groups);
+}
+
+export const TIER_LABELS: Record<string, string> = {
+  T1: 'T1 · 2 operations',
+  T2: 'T2 · 3–4 operations',
+  T3: 'T3 · 5–7 operations',
+  T4: 'T4 · new operation types',
+  T5: 'T5 · loops',
+  hidden: 'hidden compositions',
+  near: 'product, then a step',
+};

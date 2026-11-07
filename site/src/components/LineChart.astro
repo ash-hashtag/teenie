@@ -14,26 +14,36 @@ interface Props {
   xLabel: string;
   title: string;
   height?: number;
+  /** Optional horizontal reference line, e.g. a 50% target. */
+  reference?: number;
 }
 
-const { series, yMax = 1, yTicks = [0, 0.25, 0.5, 0.75, 1], yFormat = 'pct', xLabel, title, height = 260 } = Astro.props;
+const { series, yMax = 1, yTicks = [0, 0.25, 0.5, 0.75, 1], yFormat = 'pct', xLabel, title, height = 260, reference } =
+  Astro.props;
 const W = 720;
 const H = height;
 const m = { l: 46, r: 92, t: 12, b: 36 };
-const xs = series[0]?.points.map((p) => p.x) ?? [];
+const xs = [...new Set(series.flatMap((s) => s.points.map((p) => p.x)))].sort((p, q) => p - q);
 const xMax = Math.max(...xs);
 const xMin = Math.min(...xs, 0);
 const sx = (x: number) => m.l + ((x - xMin) / (xMax - xMin)) * (W - m.l - m.r);
 const sy = (y: number) => m.t + (1 - y / yMax) * (H - m.t - m.b);
 const fmt = (y: number) => (yFormat === 'pct' ? `${Math.round(y * 1000) / 10}%` : y.toFixed(3));
-const step = xMax > 2000 ? 500 : xMax > 500 ? 250 : 100;
+const step = xMax > 6000 ? 2000 : xMax > 2000 ? 500 : xMax > 500 ? 250 : 100;
 const xTicks = Array.from({ length: Math.floor(xMax / step) + 1 }, (_, i) => i * step);
 const path = (s: Series) => s.points.map((p, i) => `${i ? 'L' : 'M'}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join('');
 const columns = xs.map((x, i) => ({
   x,
   left: i === 0 ? m.l : (sx(xs[i - 1]!) + sx(x)) / 2,
   right: i === xs.length - 1 ? W - m.r : (sx(x) + sx(xs[i + 1]!)) / 2,
-  tip: `update ${x}\n` + series.map((s) => `${s.name}: ${fmt(s.points[i]!.y)}`).join('\n'),
+  tip: `update ${x}\n` + series.map((s) => {
+    const point = s.points.find((p) => p.x === x);
+    return `${s.name}: ${point ? fmt(point.y) : '—'}`;
+  }).join('\n'),
+  marks: series.flatMap((s) => {
+    const point = s.points.find((p) => p.x === x);
+    return point ? [{ color: s.color, y: point.y }] : [];
+  }),
 }));
 ---
 
@@ -70,6 +80,14 @@ const columns = xs.map((x, i) => ({
       ))
     }
     <text x={(m.l + W - m.r) / 2} y={H - 2} text-anchor="middle" class="axis-label">{xLabel}</text>
+    {
+      reference !== undefined && (
+        <g>
+          <line x1={m.l} x2={W - m.r} y1={sy(reference)} y2={sy(reference)} class="ref" />
+          <text x={W - m.r + 6} y={sy(reference) + 4} class="tick">{fmt(reference)}</text>
+        </g>
+      )
+    }
     {series.map((s) => <path d={path(s)} fill="none" stroke={s.color} stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />)}
     {
       series.map((s) => {
@@ -85,12 +103,12 @@ const columns = xs.map((x, i) => ({
       })
     }
     {
-      columns.map((c, i) => (
+      columns.map((c) => (
         <g class="col" data-tip={c.tip}>
           <rect x={c.left} y={m.t} width={Math.max(1, c.right - c.left)} height={H - m.t - m.b} fill="transparent" />
           <line x1={sx(c.x)} x2={sx(c.x)} y1={m.t} y2={H - m.b} class="cross" />
-          {series.map((s) => (
-            <circle cx={sx(c.x)} cy={sy(s.points[i]!.y)} r="4" fill={s.color} stroke="var(--surface)" stroke-width="2" class="cross" />
+          {c.marks.map((m) => (
+            <circle cx={sx(c.x)} cy={sy(m.y)} r="4" fill={m.color} stroke="var(--surface)" stroke-width="2" class="cross" />
           ))}
         </g>
       ))
@@ -131,6 +149,12 @@ const columns = xs.map((x, i) => ({
     fill: var(--ink-2);
     font-size: 12px;
     font-weight: 600;
+  }
+
+  .ref {
+    stroke: var(--ink-2);
+    stroke-width: 1;
+    opacity: 0.5;
   }
 
   .cross {

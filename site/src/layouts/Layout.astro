@@ -10,6 +10,7 @@ const { title, description } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const pages = [
   { href: '/', label: 'Overview' },
+  { href: '/progress/', label: 'Progress' },
   { href: '/journey/', label: 'Journey' },
   { href: '/model/', label: 'Model' },
   { href: '/learning/', label: 'Learning' },
@@ -63,8 +64,9 @@ const current = Astro.url.pathname.replace(base, '') || '/';
     </main>
     <footer class="wrap footer">
       <p class="small muted">
-        Teenie — every number on this site was exported from the trained checkpoint and its evaluation files
-        (<code>uv run python -m teenie.bits.export</code>). Seed 0, one training run.
+        Teenie — every number on this site comes from the experiment files in <code>experiments/</code>
+        (<code>uv run python -m teenie.bits.export_progress</code>, and <code>teenie.bits.export</code> for the
+        bit-by-bit model's recordings). One training seed per run.
       </p>
     </footer>
     <div id="tooltip" role="tooltip"></div>

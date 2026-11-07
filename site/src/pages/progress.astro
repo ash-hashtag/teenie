@@ -1,0 +1,227 @@
+---
+import Layout from '../layouts/Layout.astro';
+import DotPlot from '../components/DotPlot.astro';
+import LineChart from '../components/LineChart.astro';
+import { ladderRuns, progress, TIER_LABELS, type Experiment } from '../lib/data';
+import { pct } from '../lib/format';
+
+// Colour follows the run, in the order runs were added (at most four on one chart).
+const runs = ladderRuns().slice(-4);
+const colors = ['var(--series-2)', 'var(--series-1)', 'var(--series-3)', 'var(--series-4)'];
+const colorOf = (e: Experiment) => colors[runs.indexOf(e)] ?? 'var(--muted)';
+const latest = runs[runs.length - 1];
+const ladder = progress.ladder;
+const won = latest ? ladder.filter((t) => t.startsWith('T') && latest.groups[t]?.won).length : 0;
+const tiersTotal = ladder.filter((t) => t.startsWith('T')).length;
+const withCurves = runs.filter((e) => e.curve.length > 0);
+const loopBodies = ['sum a..a+n-1', 'a^n', 'fib(a,a)', 'x->3x+1', 'acc=(acc<<1)^a'];
+const loopKinds = ['accumulate', 'repeat', 'recurrence'];
+const lengths = ['n15', 'n63', 'n255'];
+const cell = (e: Experiment | undefined, name: string) => e?.families[name]?.exact ?? null;
+---
+
+<Layout title="Progress" description="Every experiment so far and the difficulty ladder the current model is measured on.">
+  <p class="eyebrow">Progress</p>
+  <h1>The difficulty ladder</h1>
+  <p class="lede">
+    The goal: recognise the rule behind increasingly complex functions — including ones defined by loops — and get <strong>at least half</strong> of the never-seen ones exactly right, while staying honest about when it is sure.
+    A tier is <strong>won</strong> at ≥50% exact with its sure answers right ≥95% of the time.
+  </p>
+
+  {
+    latest && (
+      <div class="grid-3 stats">
+        <div class="card stat">
+          <span class="label">Tiers won by the latest run</span>
+          <span class="value">
+            {won} of {tiersTotal}
+          </span>
+          <span class="note">{latest.title}</span>
+        </div>
+        <div class="card stat">
+          <span class="label">Hidden compositions</span>
+          <span class="value">{pct(latest.groups.hidden?.exact)}</span>
+          <span class="note">never generated for training</span>
+        </div>
+        <div class="card stat">
+          <span class="label">Loops (T5)</span>
+          <span class="value">{pct(latest.groups.T5?.exact)}</span>
+          <span class="note">hidden bodies and longer loops than trained</span>
+        </div>
+      </div>
+    )
+  }
+
+  <h2>Scoreboard</h2>
+  <div class="card">
+    <DotPlot
+      title="Exact match per tier"
+      reference={0.5}
+      methods={runs.map((e) => ({ name: e.title, color: colorOf(e) }))}
+      rows={ladder.map((t) => ({
+        name: t,
+        values: runs.map((e) => e.groups[t]?.exact ?? null),
+        note: TIER_LABELS[t],
+      }))}
+    />
+    <details>
+      <summary>Table view</summary>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>tier</th>
+              {runs.map((e) => <th class="num">{e.title}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {
+              ladder.map((t) => (
+                <tr>
+                  <td>{TIER_LABELS[t]}</td>
+                  {runs.map((e) => {
+                    const g = e.groups[t];
+                    return (
+                      <td class="num">
+                        <b>{pct(g?.exact)}</b> {g?.won ? '✓' : ''}
+                        <span class="small muted"> sure-right {pct(g?.sure_accuracy)}</span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </div>
+  <div class="tiers small muted">
+    <p>
+      <b>T1–T3</b>: random expressions of 2, 3–4 and 5–7 operations that always contain a combination never shown in
+      training (a xor of a product, a product of a difference, a min of a sum, a shift of a xor). <b>T4</b>: operation
+      types never trained — division, modulo, rotations, conditionals. <b>T5</b>: loops whose
+      repeat count comes from b — five hidden loop bodies at counts up to 15, 63 and 255, trained loop kinds run longer
+      than in training, and hidden bit loops. <b>Product, then a step</b>: a*b+b, a*b+5, a*b−a, (a*b)^a.
+    </p>
+  </div>
+
+  {
+    withCurves.length > 0 && (
+      <>
+        <h2>During training</h2>
+        <p>Mean exact match per tier on fixed validation episodes (128 questions per relation), every 500 updates.</p>
+        <div class="grid-2">
+          {ladder.map((t) => (
+            <div class="card">
+              <p class="eyebrow">{TIER_LABELS[t]}</p>
+              <LineChart
+                title={`${t} during training`}
+                xLabel="training updates"
+                height={180}
+                reference={0.5}
+                series={withCurves.map((e) => ({
+                  name: e.title,
+                  color: colorOf(e),
+                  points: e.curve.filter((p) => typeof p[t] === 'number').map((p) => ({ x: p.update, y: p[t]! })),
+                }))}
+              />
+            </div>
+          ))}
+        </div>
+      </>
+    )
+  }
+
+  {
+    latest && (
+      <>
+        <h2>Loops in detail</h2>
+        <p>
+          Latest run, exact match. Training only ever used repeat counts up to 15; 63 and 255 are longer loops. Some loops
+          have short closed forms (the sum is a·n + n(n−1)/2) — finding either a procedure or a shortcut counts.
+        </p>
+        <div class="card table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>loop</th>
+                {lengths.map((l) => <th class="num">count ≤ {l.slice(1)}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {loopBodies.map((body) => (
+                <tr>
+                  <td>
+                    <code>{body}</code> <span class="small muted">hidden body</span>
+                  </td>
+                  {lengths.map((l) => (
+                    <td class="num">{pct(cell(latest, `${body} ${l}`))}</td>
+                  ))}
+                </tr>
+              ))}
+              {loopKinds.map((kind) => (
+                <tr>
+                  <td>
+                    <code>{kind}</code> <span class="small muted">random bodies</span>
+                  </td>
+                  {lengths.map((l) => (
+                    <td class="num">{pct(cell(latest, `${kind} ${l}`))}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </>
+    )
+  }
+
+  <h2>Every experiment</h2>
+  <p>
+    Exact match on 1,024 fresh questions per relation (64 episodes × 16, seed 60000). "Trained" is the mean over the
+    relations each run trained on, so rows with different training sets are not directly comparable. Details in
+    <code>docs/findings.md</code>.
+  </p>
+  <div class="card table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>chapter</th>
+          <th>run</th>
+          <th class="num">trained</th>
+          <th class="num">hidden</th>
+          <th class="num">a*b</th>
+          <th class="num">a*b+a</th>
+          <th class="num">min</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          progress.experiments.map((e) => (
+            <tr>
+              <td class="muted small">{e.chapter}</td>
+              <td>{e.title}</td>
+              <td class="num">{pct(e.groups.train?.exact)}</td>
+              <td class="num">{pct(e.groups.hidden?.exact)}</td>
+              <td class="num">{pct(e.highlights['a*b'])}</td>
+              <td class="num">{pct(e.highlights['a*b+a'])}</td>
+              <td class="num">{pct(e.highlights.min)}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+</Layout>
+
+<style>
+  .stats {
+    margin-top: 1.5rem;
+  }
+
+  .tiers p {
+    max-width: none;
+    margin-top: 0.75rem;
+  }
+</style>

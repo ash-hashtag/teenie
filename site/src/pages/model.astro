@@ -22,11 +22,55 @@ const trustRows = order.map((name) => ({
 
 <Layout title="Model" description="How the bit-serial in-context model reads 999 examples and predicts each bit.">
   <p class="eyebrow">Model</p>
-  <h1>How it reasons, step by step</h1>
+  <h1>How it reasons</h1>
   <p class="lede">
-    The model never sees a formula. It learns a <strong>general procedure</strong>: walk through the bit positions,
-    remember a little about the bits so far, and at each bit copy the answer from the examples that are in the same
-    situation as the question.
+    The model never sees a formula and is never told which relation it is facing. It learns a <strong>general
+    procedure</strong> for finding the rule in 999 examples and applying it to a new question.
+  </p>
+
+  <h2>The current model: all bits at once, a loop on the answer</h2>
+  <ol class="flow">
+    <li class="card">
+      <p class="eyebrow">1 · Read the examples once</p>
+      <p>
+        Each of the 999 examples becomes one vector from all 24 of its bits (<code>a</code>, <code>b</code>,
+        <code>c</code>). These stay fixed for the whole run — no reading order, no direction to choose.
+      </p>
+    </li>
+    <li class="card">
+      <p class="eyebrow">2 · Hold a guess</p>
+      <p>
+        The question keeps a guess for all 8 bits of its answer (undecided at first) plus a memory. Bilinear input units
+        multiply its own bits with each other, so partial products like <code>a<sub>i</sub>·b<sub>j</sub></code> are one
+        step away.
+      </p>
+    </li>
+    <li class="card">
+      <p class="eyebrow">3 · Look and correct, round after round</p>
+      <p>
+        Each round the question attends to the examples with its current guess, passes the result through gated layers
+        that can multiply signals, updates its memory and rewrites the guess. The same weights run every round.
+      </p>
+    </li>
+    <li class="card">
+      <p class="eyebrow">4 · Answer, with an honest confidence</p>
+      <p>
+        After the last round each bit is rounded to 0 or 1. Its confidence is the certainty of its least certain bit —
+        on relations it has never seen it rarely claims to be sure, and when it does it is almost always right.
+      </p>
+    </li>
+  </ol>
+  <p class="small muted">
+    About 470K parameters (<code>src/teenie/bits/loop_model.py</code>, <code>--multiplicative</code>). Training draws
+    relations in proportion to how often they are still wrong. Experiments in progress add scratch slots for
+    intermediate results and a learned number of rounds — see <a href="../progress/">Progress</a>.
+  </p>
+
+  <h2>The first model: bit by bit</h2>
+  <p>
+    The first learned model walked through the bit positions, remembered a little about the bits so far, and at each bit
+    copied the answer from the examples in the same situation as the question. It is still the easiest to look inside,
+    so the replay below uses it.
   </p>
 
   <div class="grid-2 ideas">
@@ -108,6 +152,19 @@ const trustRows = order.map((name) => ({
 <style>
   .ideas {
     margin-top: 1.5rem;
+  }
+
+  .flow {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+    gap: 1rem;
+  }
+
+  .flow li p:last-child {
+    margin-bottom: 0;
   }
 
   .ideas p:last-child {

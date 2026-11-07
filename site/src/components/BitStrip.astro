@@ -1,0 +1,40 @@
+---
+// An 8-bit number drawn as cells, most significant bit on the left.
+interface Props {
+  value: number;
+  label?: string;
+  width?: number;
+  /** Bit index (0 = least significant) to outline. */
+  highlight?: number;
+  /** Per-bit probability of 1 (index order); renders a soft prediction instead of hard bits. */
+  probs?: number[];
+  unknown?: boolean;
+  showIndex?: boolean;
+}
+
+const { value, label, width = 8, highlight, probs, unknown = false, showIndex = false } = Astro.props;
+const bits = Array.from({ length: width }, (_, i) => width - 1 - i);
+---
+
+<div class="strip">
+  {label && <span class="label">{label}</span>}
+  <span class="cells" role="img" aria-label={`${label ?? 'value'} ${unknown ? 'unknown' : value}`}>
+    {
+      bits.map((k) => {
+        const on = (value >> k) & 1;
+        const p = probs?.[k];
+        const style = p === undefined ? undefined : `--p:${p}`;
+        return (
+          <span
+            class:list={['cell', { on: !unknown && p === undefined && on, soft: p !== undefined, unknown, hi: highlight === k }]}
+            style={style}
+          >
+            {showIndex && <small>{k}</small>}
+            {unknown ? '?' : p === undefined ? on : ''}
+          </span>
+        );
+      })
+    }
+  </span>
+  {!unknown && probs === undefined && <span class="dec num">{value}</span>}
+</div>

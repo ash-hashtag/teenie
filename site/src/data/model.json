@@ -1,0 +1,63 @@
+{
+ "parameters": 447491,
+ "config": {
+  "hidden": 128,
+  "heads": 4,
+  "max_width": 64,
+  "probes": 64
+ },
+ "metadata": {
+  "width": 8,
+  "update": 3000,
+  "seed": 0,
+  "known_exact": 0.9813701923076923
+ },
+ "pass_trust": {
+  "add": 0.0,
+  "sub": 0.0,
+  "b-a": 0.0,
+  "xor": 0.4963,
+  "and": 0.4985,
+  "or": 0.4998,
+  "a+2b": 0.0,
+  "2a+b": 0.0,
+  "max": 0.9439,
+  "a<<1": 0.0,
+  "a+const": 0.0065,
+  "b^const": 0.4955,
+  "transducer": 0.4355,
+  "a+b+1": 0.0,
+  "a-2b": 0.0,
+  "min": 0.3714,
+  "nand": 0.4909,
+  "3a": 0.0,
+  "a*b": 0.0748
+ },
+ "families": {
+  "train": [
+   "add",
+   "sub",
+   "b-a",
+   "xor",
+   "and",
+   "or",
+   "a+2b",
+   "2a+b",
+   "max",
+   "a<<1",
+   "a+const",
+   "b^const",
+   "transducer"
+  ],
+  "heldout": [
+   "a+b+1",
+   "a-2b",
+   "min",
+   "nand",
+   "3a"
+  ],
+  "stress": [
+   "a*b"
+  ]
+ }
+}

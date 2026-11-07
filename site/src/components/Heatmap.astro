@@ -1,0 +1,108 @@
+---
+// Relations × training updates, cell shade = exact-match accuracy (one hue, light → dark).
+import { pct } from '../lib/format';
+
+interface Props {
+  rows: { name: string; group: string; values: number[] }[];
+  columns: number[];
+  title: string;
+}
+
+const { rows, columns, title } = Astro.props;
+const label = 92;
+const cell = 18;
+const gap = 2;
+const W = label + columns.length * (cell + gap);
+const groupGap = 10;
+let y = 0;
+let previous = rows[0]?.group;
+const placed = rows.map((r) => {
+  if (r.group !== previous) {
+    y += groupGap;
+    previous = r.group;
+  }
+  const at = y;
+  y += cell + gap;
+  return { ...r, y: at };
+});
+const H = y + 24;
+---
+
+<figure class="heat">
+  <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={title}>
+    {
+      placed.map((r) => (
+        <g>
+          <text x={label - 8} y={r.y + cell / 2 + 4} text-anchor="end" class="row">
+            {r.name}
+          </text>
+          {r.values.map((v, i) => (
+            <rect
+              x={label + i * (cell + gap)}
+              y={r.y}
+              width={cell}
+              height={cell}
+              rx="3"
+              style={`fill:color-mix(in oklab, var(--seq-1) ${Math.round(v * 100)}%, var(--seq-0))`}
+              data-tip={`${r.name} (${r.group})\nupdate ${columns[i]}: ${pct(v)} exact`}
+            />
+          ))}
+        </g>
+      ))
+    }
+    {
+      columns.map((c, i) =>
+        c % 500 === 0 ? (
+          <text x={label + i * (cell + gap) + cell / 2} y={H - 6} text-anchor="middle" class="tick">
+            {c}
+          </text>
+        ) : null,
+      )
+    }
+  </svg>
+  <div class="scale small muted">
+    <span>0%</span><i></i><span>100% exact</span>
+  </div>
+</figure>
+
+<style>
+  .heat {
+    margin: 0;
+  }
+
+  svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .row {
+    fill: var(--ink-2);
+    font-size: 11px;
+    font-family: var(--mono);
+  }
+
+  .tick {
+    fill: var(--muted);
+    font-size: 10px;
+  }
+
+  rect:hover {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+  }
+
+  .scale {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .scale i {
+    width: 120px;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--seq-0), var(--seq-1));
+  }
+</style>

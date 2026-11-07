@@ -1,0 +1,124 @@
+---
+// What happens at one bit position k, for one pass. Same weights for every k and every example.
+const box = [
+  { id: 'q', x: 40, y: 24, w: 200, h: 58, t: ["Question's memory", 'bits read so far'] },
+  { id: 'e', x: 40, y: 132, w: 200, h: 58, t: ["999 examples' memories", 'bits read so far'] },
+  { id: 'c', x: 40, y: 240, w: 200, h: 58, t: ["Examples' bit c_k", 'their known answers'] },
+  { id: 'dq', x: 290, y: 24, w: 160, h: 58, t: ['describe', 'memory + a_k, b_k'] },
+  { id: 'de', x: 290, y: 132, w: 160, h: 58, t: ['describe', 'memory + a_k, b_k'] },
+  { id: 'att', x: 510, y: 104, w: 170, h: 114, t: ['attention', 'which examples are in', 'the same situation?'] },
+  { id: 'out', x: 740, y: 132, w: 140, h: 58, t: ['readout', 'p(c_k = 1)'] },
+  { id: 'gru', x: 290, y: 330, w: 590, h: 50, t: ['GRU step: fold (a_k, b_k, c_k) into each memory, then move to the next bit'] },
+];
+type Box = (typeof box)[number];
+const by = Object.fromEntries(box.map((b) => [b.id, b])) as Record<string, Box>;
+const r = (id: string) => by[id]!.x + by[id]!.w;
+const cy = (id: string) => by[id]!.y + by[id]!.h / 2;
+---
+
+<div class="scroll">
+  <svg viewBox="0 0 900 400" role="img" aria-labelledby="step-title step-desc">
+    <title id="step-title">One bit step of a pass</title>
+    <desc id="step-desc">
+      The question and every example describe their situation at bit k. Attention matches the question to examples in
+      the same situation and reads their c_k. The readout gives the probability that the question's c_k is 1. A GRU step
+      then folds the bits into each memory and the loop moves to the next bit.
+    </desc>
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"></path>
+      </marker>
+    </defs>
+    <g class="edges">
+      <path d={`M${r('q')},${cy('q')} H${by.dq!.x - 4}`} />
+      <path d={`M${r('e')},${cy('e')} H${by.de!.x - 4}`} />
+      <path d={`M${r('dq')},${cy('dq')} C${r('dq') + 40},${cy('dq')} ${by.att!.x - 40},${by.att!.y + 26} ${by.att!.x - 4},${by.att!.y + 26}`} />
+      <path d={`M${r('de')},${cy('de')} H${by.att!.x - 4}`} />
+      <path d={`M${r('c')},${cy('c')} C${r('c') + 160},${cy('c')} ${by.att!.x - 60},${by.att!.y + by.att!.h - 22} ${by.att!.x - 4},${by.att!.y + by.att!.h - 22}`} />
+      <path d={`M${r('att')},${cy('out')} H${by.out!.x - 4}`} />
+      <path class="loop" d={`M${by.out!.x + 70},${by.out!.y + by.out!.h} V${by.gru!.y - 4}`} />
+      <path class="loop" d={`M${by.gru!.x},${cy('gru')} H14 V${cy('q')} H${by.q!.x - 4}`} />
+      <path class="loop" d={`M14,${cy('e')} H${by.e!.x - 4}`} />
+    </g>
+    <g class="labels">
+      <text x={(r('dq') + by.att!.x) / 2 + 10} y={cy('dq') - 4}>asks</text>
+      <text x={(r('de') + by.att!.x) / 2} y={cy('de') - 8}>keys</text>
+      <text x={r('c') + 150} y={cy('c') - 6}>values</text>
+      <text x={by.out!.x + 78} y={by.gru!.y - 26}>round to 0/1</text>
+      <text x="24" y={by.gru!.y + by.gru!.h / 2 + 18}>next bit</text>
+    </g>
+    {
+      box.map((b) => (
+        <g class:list={['node', b.id]}>
+          <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="10" />
+          {b.t.map((line, i) => (
+            <text
+              x={b.x + b.w / 2}
+              y={b.y + b.h / 2 + (i - (b.t.length - 1) / 2) * 17 + 5}
+              text-anchor="middle"
+              class={i === 0 ? 'head' : 'sub'}
+            >
+              {line}
+            </text>
+          ))}
+        </g>
+      ))
+    }
+  </svg>
+</div>
+
+<style>
+  .scroll {
+    overflow-x: auto;
+  }
+
+  svg {
+    min-width: 640px;
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .node rect {
+    fill: var(--surface);
+    stroke: var(--axis);
+    stroke-width: 1;
+  }
+
+  .node.att rect {
+    fill: var(--wash-1);
+    stroke: var(--series-1);
+    stroke-width: 1.5;
+  }
+
+  .node.gru rect {
+    fill: var(--surface-2);
+  }
+
+  .head {
+    fill: var(--ink);
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .sub {
+    fill: var(--ink-2);
+    font-size: 13px;
+  }
+
+  .edges path {
+    fill: none;
+    stroke: var(--muted);
+    stroke-width: 1.5;
+    marker-end: url(#arrow);
+  }
+
+  .edges .loop {
+    stroke: var(--series-2);
+  }
+
+  .labels text {
+    fill: var(--muted);
+    font-size: 12px;
+  }
+</style>

@@ -1,0 +1,132 @@
+---
+import Layout from '../layouts/Layout.astro';
+import LineChart from '../components/LineChart.astro';
+import Heatmap from '../components/Heatmap.astro';
+import TimelinePlayer from '../components/TimelinePlayer.astro';
+import { model, training } from '../lib/data';
+import { pct } from '../lib/format';
+
+const accuracy = [
+  { name: 'trained relations', color: 'var(--series-1)', points: training.map((r) => ({ x: r.update, y: r.known_exact })) },
+  { name: 'never-seen relations', color: 'var(--series-2)', points: training.map((r) => ({ x: r.update, y: r.heldout_exact })) },
+];
+const loss = [{ name: 'training loss', color: 'var(--series-1)', points: training.map((r) => ({ x: r.update, y: r.loss })) }];
+const maxLoss = Math.ceil(Math.max(...training.map((r) => r.loss)) * 2) / 2;
+const rows = [
+  ...model.families.train.map((name) => ({ name, group: 'trained', values: training.map((r) => r.exact[name] ?? 0) })),
+  ...model.families.heldout.map((name) => ({ name, group: 'never seen', values: training.map((r) => r.exact[name] ?? 0) })),
+];
+const first = (threshold: number) => training.find((r) => r.known_exact >= threshold)?.update;
+const last = training[training.length - 1]!;
+---
+
+<Layout title="Learning" description="Training curves, per-relation progress and replayed checkpoints of the bit-serial model.">
+  <p class="eyebrow">Learning</p>
+  <h1>Watch it learn</h1>
+  <p class="lede">
+    Training never shows the same problem twice. Each step draws 8 new episodes: a random relation, 999 new examples
+    and 16 new questions. The model learns a procedure that works for any relation, not answers for one.
+  </p>
+
+  <div class="grid-3 stats">
+    <div class="card stat">
+      <span class="label">Updates to reach 90% on trained relations</span>
+      <span class="value">{first(0.9)?.toLocaleString('en-US') ?? '—'}</span>
+      <span class="note">of 3,000 · batch of 8 episodes × 16 questions</span>
+    </div>
+    <div class="card stat">
+      <span class="label">Final, trained relations</span>
+      <span class="value">{pct(last.known_exact)}</span>
+      <span class="note">mean exact; the gap from 100% is the random rules</span>
+    </div>
+    <div class="card stat">
+      <span class="label">Final, never-seen relations</span>
+      <span class="value">{pct(last.heldout_exact)}</span>
+      <span class="note">mean of a+b+1, a−2b, min, nand, 3a</span>
+    </div>
+  </div>
+
+  <h2>Exact answers during training</h2>
+  <p>
+    Measured every 100 updates on fixed validation episodes (128 questions per relation). Only the trained relations
+    were used to pick the saved checkpoint; the never-seen ones are just watched.
+  </p>
+  <div class="card">
+    <LineChart series={accuracy} xLabel="training updates" title="Exact-match accuracy over training" />
+  </div>
+
+  <h2>Relation by relation</h2>
+  <p>
+    Bitwise relations (<code>and</code>, <code>or</code>, <code>a&lt;&lt;1</code>) click within the first 200 updates;
+    carries and <code>max</code> follow by about 400. Among the never-seen relations, <code>a+b+1</code> and
+    <code>nand</code> transfer almost at once, <code>3a</code> and <code>a−2b</code> creep up slowly, and
+    <code>min</code> never takes off. Random rules plateau below 100%. Hover a cell for the value.
+  </p>
+  <div class="card">
+    <Heatmap rows={rows} columns={training.map((r) => r.update)} title="Exact-match accuracy per relation over training" />
+  </div>
+
+  <h2>Replay the checkpoints</h2>
+  <p>
+    The same question and the same 999 examples, answered by the model saved at each stage. At first attention is
+    spread evenly and the answer is a blur of probabilities. As training goes on, attention snaps onto the examples in
+    the question's situation and the bits become certain.
+  </p>
+  <TimelinePlayer />
+
+  <h2>Training loss</h2>
+  <p>Per-bit cross-entropy, averaged over each 100-update window.</p>
+  <div class="card">
+    <LineChart
+      series={loss}
+      yMax={maxLoss}
+      yTicks={Array.from({ length: maxLoss * 2 + 1 }, (_, i) => i / 2)}
+      yFormat="raw"
+      xLabel="training updates"
+      title="Training loss"
+      height={200}
+    />
+  </div>
+
+  <h2>Training recipe</h2>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Relations drawn during training</h3>
+      <div class="chips static">{model.families.train.map((n) => <span class="chip">{n}</span>)}</div>
+      <p class="small">
+        <code>a+const</code> and <code>b^const</code> draw a new constant each episode. <code>transducer</code> is a random
+        1–4 state rule reading one bit position at a time, in either direction — a nearly endless supply of new relations.
+      </p>
+      <h3>Never trained (held out)</h3>
+      <div class="chips static">{model.families.heldout.map((n) => <span class="chip">{n}</span>)}</div>
+    </div>
+    <div class="card">
+      <h3>Settings</h3>
+      <table>
+        <tbody>
+          <tr><td>Updates</td><td class="num">3,000</td></tr>
+          <tr><td>Episodes per update</td><td class="num">8</td></tr>
+          <tr><td>Questions per episode</td><td class="num">16</td></tr>
+          <tr><td>Optimizer</td><td class="num">AdamW, one-cycle, peak 1e-3</td></tr>
+          <tr><td>Loss</td><td class="num">per-bit cross-entropy</td></tr>
+          <tr><td>Wall time</td><td class="num">~8 min, RTX 3050 laptop</td></tr>
+        </tbody>
+      </table>
+      <pre>uv run teenie-bits --device cuda --updates 3000 \
+  --log-every 100 --save checkpoints/bits.pt \
+  --snapshots checkpoints/bits-snapshots \
+  --log experiments/bits-seed0-train.jsonl</pre>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .stats {
+    margin: 1.5rem 0 0;
+  }
+
+  .chips.static .chip {
+    cursor: default;
+    font-family: var(--mono);
+  }
+</style>

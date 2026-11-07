@@ -1,0 +1,186 @@
+---
+// Replays saved checkpoints (timeline.json): the same question and the same 999 examples at each training stage.
+---
+
+<section class="player card" id="timeline">
+  <div class="top">
+    <div>
+      <p class="eyebrow">Relation</p>
+      <div class="chips" data-role="relations"></div>
+    </div>
+    <div class="scrub">
+      <button class="chip" type="button" data-role="play">▶ play training</button>
+      <label>
+        <span class="small muted">after <b data-role="update">0</b> updates</span>
+        <input type="range" min="0" max="0" value="0" data-role="slider" aria-label="Training update" />
+      </label>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div>
+      <div class="stat">
+        <span class="label">Exact on 64 fresh questions (this relation)</span>
+        <span class="value" data-role="exact">—</span>
+      </div>
+      <svg class="spark" viewBox="0 0 300 70" data-role="spark" role="img" aria-label="Exact match over training"></svg>
+      <div class="strips" data-role="question"></div>
+    </div>
+    <div>
+      <p class="small muted">Where the first question looks at <b>bit 3</b> (low-bit-first pass)</p>
+      <canvas data-role="plane" aria-label="Attention over the 999 examples at bit 3"></canvas>
+    </div>
+  </div>
+</section>
+
+<script>
+  import type { Timeline } from '../lib/data';
+  import { dataUrl } from '../lib/data';
+  import { strip } from '../lib/bits-dom';
+  import { drawPlane } from '../lib/plane';
+
+  const root = document.getElementById('timeline')!;
+  const q = <T extends Element>(role: string) => root.querySelector<T>(`[data-role="${role}"]`)!;
+  let data: Timeline | undefined;
+  let names: string[] = [];
+  const state = { relation: 0, index: 0 };
+  let timer: number | undefined;
+
+  function render(): void {
+    if (!data) return;
+    const name = names[state.relation]!;
+    const series = data.relations[name]!;
+    const snap = series.snapshots[state.index]!;
+    const host = q('relations');
+    host.innerHTML = names
+      .map((n, i) => `<button type="button" class="chip" aria-pressed="${i === state.relation}" data-i="${i}">${n}${n === 'min' ? '<span class="tag">held out</span>' : ''}</button>`)
+      .join('');
+    host.querySelectorAll<HTMLButtonElement>('button').forEach((b) =>
+      b.addEventListener('click', () => {
+        state.relation = Number(b.dataset.i);
+        render();
+      }),
+    );
+    const slider = q<HTMLInputElement>('slider');
+    slider.max = String(series.snapshots.length - 1);
+    slider.value = String(state.index);
+    q('update').textContent = snap.update.toLocaleString('en-US');
+    q('exact').textContent = `${Math.round(snap.exact * 1000) / 10}%`;
+
+    // Sparkline: exact over training with the current snapshot marked.
+    const W = 300;
+    const H = 70;
+    const n = series.snapshots.length - 1;
+    const x = (i: number) => 4 + (i / n) * (W - 8);
+    const y = (v: number) => 6 + (1 - v) * (H - 12);
+    const d = series.snapshots.map((s, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(s.exact).toFixed(1)}`).join('');
+    q('spark').innerHTML = `<line x1="4" x2="${W - 4}" y1="${y(1)}" y2="${y(1)}" stroke="var(--grid)"/>
+      <line x1="4" x2="${W - 4}" y1="${y(0)}" y2="${y(0)}" stroke="var(--axis)"/>
+      <path d="${d}" fill="none" stroke="var(--series-1)" stroke-width="2" stroke-linejoin="round"/>
+      <circle cx="${x(state.index)}" cy="${y(snap.exact)}" r="5" fill="var(--series-1)" stroke="var(--surface)" stroke-width="2"/>`;
+
+    q('question').innerHTML = [
+      strip(series.a, { label: 'a' }),
+      strip(series.b, { label: 'b' }),
+      strip(0, { label: 'p', probs: snap.combined }),
+      strip(snap.prediction, { label: 'ĉ', wrong: snap.prediction !== series.target }),
+      strip(series.target, { label: 'c' }),
+    ].join('');
+
+    drawPlane(q<HTMLCanvasElement>('plane'), {
+      points: series.context,
+      weights: snap.attention,
+      query: [series.a, series.b],
+      bit: data.bit,
+    });
+  }
+
+  function stop(): void {
+    if (timer !== undefined) window.clearInterval(timer);
+    timer = undefined;
+    q('play').textContent = '▶ play training';
+  }
+
+  q<HTMLInputElement>('slider').addEventListener('input', (e) => {
+    stop();
+    state.index = Number((e.target as HTMLInputElement).value);
+    render();
+  });
+  q('play').addEventListener('click', () => {
+    if (timer !== undefined) return stop();
+    if (!data) return;
+    const last = data.relations[names[state.relation]!]!.snapshots.length - 1;
+    if (state.index >= last) state.index = 0;
+    q('play').textContent = '❚❚ pause';
+    timer = window.setInterval(() => {
+      if (state.index >= last) return stop();
+      state.index += 1;
+      render();
+    }, 350);
+    render();
+  });
+  window.addEventListener('themechange', render);
+  window.addEventListener('resize', render);
+
+  fetch(dataUrl('timeline.json'))
+    .then((r) => r.json() as Promise<Timeline>)
+    .then((t) => {
+      data = t;
+      names = Object.keys(t.relations);
+      render();
+    })
+    .catch(() => {
+      q('question').textContent = 'Could not load timeline.json.';
+    });
+</script>
+
+<style>
+  .player {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .top {
+    display: grid;
+    gap: 0.9rem;
+  }
+
+  .scrub {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .scrub label {
+    flex: 1;
+    display: grid;
+  }
+
+  .panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+    gap: 1.5rem;
+  }
+
+  .spark {
+    width: 100%;
+    max-width: 320px;
+    height: auto;
+    margin: 0.5rem 0 1rem;
+    display: block;
+  }
+
+  [data-role='question'] {
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  canvas {
+    width: 100%;
+    max-width: 360px;
+    aspect-ratio: 1;
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+</style>

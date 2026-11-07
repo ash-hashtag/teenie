@@ -1,0 +1,154 @@
+---
+import Layout from '../layouts/Layout.astro';
+import DotPlot from '../components/DotPlot.astro';
+import { bestWindow, evaluation, type Group } from '../lib/data';
+import { pct } from '../lib/format';
+
+const methods = [
+  { name: 'Teenie (learned)', color: 'var(--series-1)' },
+  { name: 'closest example', color: 'var(--series-2)' },
+  { name: 'best hand-written lookup (reference)', color: 'var(--series-3)', ring: true },
+];
+const groups: { key: Group; title: string; blurb: string }[] = [
+  { key: 'train', title: 'Relations it trained on', blurb: 'Fresh examples and questions, same kinds of relation as in training.' },
+  { key: 'heldout', title: 'Relations it never saw', blurb: 'Close cousins of trained ideas, never sampled during training.' },
+  { key: 'stress', title: 'Stress test', blurb: 'Multiplication has no small bit-by-bit summary; nothing here solves it yet.' },
+];
+const rowsFor = (g: Group) =>
+  Object.entries(evaluation.results[g]).map(([name, r]) => ({
+    name,
+    values: [r.exact ?? null, r.nearest ?? null, bestWindow(r)],
+    note: `bits right: ${pct(r.bit)}`,
+  }));
+const all = groups.flatMap((g) => Object.entries(evaluation.results[g.key]).map(([name, r]) => ({ group: g.key, name, r })));
+const questions = evaluation.episodes * evaluation.queries;
+const sure = all.filter((x) => x.r.sure_accuracy !== null && x.r.sure_accuracy !== undefined);
+const sureCorrect = sure.every((x) => x.r.sure_accuracy === 1);
+---
+
+<Layout title="Benchmarks" description="Exact-match accuracy of Teenie against nearest-example and hand-written lookup baselines.">
+  <p class="eyebrow">Benchmarks</p>
+  <h1>How good is it, honestly?</h1>
+  <p class="lede">
+    Every method answers the <strong>same</strong> {questions.toLocaleString('en-US')} questions per relation
+    ({`${evaluation.episodes} fresh episodes × ${evaluation.queries} questions, seed ${evaluation.seed}`}, never used in
+    training or checkpoint selection).
+    A question counts only if all 8 bits are right.
+  </p>
+
+  <div class="card methods">
+    <ul>
+      <li><strong>Teenie</strong> — the trained model, weights frozen, never told the relation.</li>
+      <li><strong>Closest example</strong> — copy <code>c</code> from the example whose <code>(a, b)</code> differs in the fewest bits.</li>
+      <li>
+        <strong>Best hand-written lookup</strong> — the bit-by-bit lookup from the Journey page, looking back 1 or 2
+        bits, in whichever direction does best <em>for that relation</em>. It is told the direction, so it's an
+        <em>upper reference</em> for fixed rules, not a fair rival.
+      </li>
+    </ul>
+  </div>
+
+  {
+    groups.map((g) => (
+      <section>
+        <h2>{g.title}</h2>
+        <p>{g.blurb}</p>
+        <div class="card">
+          <DotPlot rows={rowsFor(g.key)} methods={methods} title={`${g.title}: exact-match accuracy`} />
+        </div>
+      </section>
+    ))
+  }
+
+  <h2>When it says it's sure</h2>
+  <p>
+    Confidence = the probability of the model's <em>least</em> certain bit. Above {evaluation.sure_threshold}, its
+    answers were {sureCorrect ? 'correct every time in this evaluation' : 'not always correct'}. How often it gets that
+    sure varies a lot: on <code>max</code> it is 100% exact but only rarely above the bar, because the 6% weight left
+    on the wrong-direction pass softens every bit.
+  </p>
+  <div class="table-scroll card">
+    <table>
+      <thead>
+        <tr>
+          <th>relation</th>
+          <th class="num">exact</th>
+          <th class="num">bits right</th>
+          <th class="num">sure (≥ {evaluation.sure_threshold})</th>
+          <th class="num">exact when sure</th>
+          <th class="num">closest example</th>
+          <th class="num">lookup L1 / L2 / H1 / H2</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          all.map(({ group, name, r }) => (
+            <tr>
+              <td>
+                <code>{name}</code> {group !== 'train' && <span class="small muted">{group === 'heldout' ? 'held out' : 'stress'}</span>}
+              </td>
+              <td class="num">
+                <b>{pct(r.exact)}</b>
+              </td>
+              <td class="num">{pct(r.bit)}</td>
+              <td class="num">{pct(r.sure_coverage)}</td>
+              <td class="num">{pct(r.sure_accuracy)}</td>
+              <td class="num">{pct(r.nearest)}</td>
+              <td class="num">
+                {pct(r.window1L, 0)} / {pct(r.window2L, 0)} / {pct(r.window1H, 0)} / {pct(r.window2H, 0)}
+              </td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <h2>What these numbers do and don't show</h2>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Shows</h3>
+      <ul class="small">
+        <li>The model finds and applies the rule from the examples alone: closest-example copying is 2–5% on carry relations, the model is 100%.</li>
+        <li>It picks the right reading direction by itself (low-first for carries, high-first for max).</li>
+        <li>It generalises to some unseen relations (<code>a+b+1</code>, <code>nand</code>: 100%).</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Doesn't show (yet)</h3>
+      <ul class="small">
+        <li>One training seed; numbers are from a single run.</li>
+        <li>New carry patterns (<code>3a</code>, <code>a−2b</code>) and the mirror of a trained idea (<code>min</code>) are still unreliable.</li>
+        <li>Only 8-bit numbers. Wider numbers and multiplication are untested or unsolved.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Reproduce</h2>
+  <pre>uv run teenie-bits-eval --load checkpoints/bits.pt --device cuda \
+  --episodes {evaluation.episodes} --queries {evaluation.queries} --seed {evaluation.seed} \
+  --output experiments/bits-seed0-eval.json
+uv run python -m teenie.bits.export   # refresh this site's data
+cd site && pnpm install && pnpm build</pre>
+</Layout>
+
+<style>
+  .methods ul {
+    margin: 0;
+    padding-left: 1.2rem;
+    color: var(--ink-2);
+  }
+
+  .methods li + li {
+    margin-top: 0.4rem;
+  }
+
+  .table-scroll.card {
+    padding: 0.5rem 0.75rem;
+  }
+
+  ul.small {
+    color: var(--ink-2);
+    padding-left: 1.1rem;
+  }
+</style>

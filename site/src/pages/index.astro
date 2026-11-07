@@ -1,0 +1,226 @@
+---
+import Layout from '../layouts/Layout.astro';
+import BitStrip from '../components/BitStrip.astro';
+import traces from '../../public/data/traces.json';
+import { evaluation, model } from '../lib/data';
+import { thousands } from '../lib/format';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const add = (traces as { relation: string; context: number[][]; examples: { a: number; b: number; target: number }[] }[])[0]!;
+const rows = add.context.slice(0, 4) as [number, number, number][];
+const question = add.examples[0]!;
+const trained = Object.values(evaluation.results.train);
+const perfect = trained.filter((r) => r.exact === 1).length;
+const heldout = Object.values(evaluation.results.heldout);
+const heldPerfect = heldout.filter((r) => r.exact === 1).length;
+---
+
+<Layout title="Teenie" description="A tiny model that reads 999 examples of a hidden bit relation and answers a new question exactly.">
+  <section class="hero">
+    <p class="eyebrow">Teenie · bit-relation prototype</p>
+    <h1>Show it 999 examples. It works out the rule, one bit at a time.</h1>
+    <p class="lede">
+      Each example is two 8-bit numbers <code>a</code>, <code>b</code> and an answer <code>c</code> produced by a hidden
+      relation — addition, max, xor, or a random rule. The model is never told the relation. It reads the examples and
+      must produce <strong>every bit</strong> of <code>c</code> for a new <code>(a, b)</code>. Close doesn't count.
+    </p>
+  </section>
+
+  <section class="demo card" id="demo" aria-label="Animated example: reading bits from least to most significant">
+    <div class="demo-grid">
+      <div>
+        <p class="eyebrow">999 examples (4 shown) · relation hidden</p>
+        <div class="rows">
+          {
+            rows.map(([a, b, c]) => (
+              <div class="ex">
+                <BitStrip value={a} />
+                <span class="op">?</span>
+                <BitStrip value={b} />
+                <span class="op">→</span>
+                <BitStrip value={c} />
+              </div>
+            ))
+          }
+          <div class="ex dots">⋮ 995 more</div>
+        </div>
+      </div>
+      <div>
+        <p class="eyebrow">New question</p>
+        <div class="ex">
+          <BitStrip value={question.a} />
+          <span class="op">?</span>
+          <BitStrip value={question.b} />
+          <span class="op">→</span>
+          <div class="answer" data-target={question.target}>
+            <BitStrip value={question.target} />
+          </div>
+        </div>
+        <p class="small muted reveal-note">
+          It fills in the answer from the lowest bit up, checking at each step which examples are “in the same situation”.
+          This one is <code>add</code>: {question.a} + {question.b} = {question.target} (mod 256).
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="stats grid-3">
+    <div class="card stat">
+      <span class="label">Trained relations answered exactly</span>
+      <span class="value">{perfect} of {trained.length}</span>
+      <span class="note">all 12 named relations at 100%; random rules at 74%</span>
+    </div>
+    <div class="card stat">
+      <span class="label">Never-seen relations answered exactly</span>
+      <span class="value">{heldPerfect} of {heldout.length}</span>
+      <span class="note">a+b+1 and nand at 100%; 3a, a−2b, min not yet</span>
+    </div>
+    <div class="card stat">
+      <span class="label">Model size · training</span>
+      <span class="value">{Math.round(model.parameters / 1000)}K</span>
+      <span class="note">{thousands(model.parameters)} parameters · ~8 min on a laptop RTX 3050</span>
+    </div>
+  </section>
+
+  <h2>Read the story</h2>
+  <div class="grid-2 links">
+    <a class="card link" href={`${base}/journey/`}>
+      <p class="eyebrow">1 · Journey</p>
+      <h3>From fuzzy decimals to exact bits</h3>
+      <p>Three float-number attempts, why they stalled, and the quick test that led to bits.</p>
+    </a>
+    <a class="card link" href={`${base}/model/`}>
+      <p class="eyebrow">2 · Model</p>
+      <h3>How it reasons, step by step</h3>
+      <p>The bit-by-bit loop, the attention lookup, the two passes, and a replay of real predictions.</p>
+    </a>
+    <a class="card link" href={`${base}/learning/`}>
+      <p class="eyebrow">3 · Learning</p>
+      <h3>Watch it learn</h3>
+      <p>Training curves for every relation, and saved checkpoints replayed from random weights to the final model.</p>
+    </a>
+    <a class="card link" href={`${base}/benchmarks/`}>
+      <p class="eyebrow">4 · Benchmarks</p>
+      <h3>How good is it, honestly?</h3>
+      <p>Model versus nearest-example and hand-written lookup on identical questions, including where it fails.</p>
+    </a>
+  </div>
+</Layout>
+
+<script>
+  // Reveal the answer bit by bit, lowest first, with the current column highlighted on every row.
+  const demo = document.getElementById('demo');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (demo && !reduce) {
+    const answer = demo.querySelector('.answer .cells')!;
+    const cells = Array.from(answer.children) as HTMLElement[];
+    const rows = Array.from(demo.querySelectorAll('.cells')) as HTMLElement[];
+    let step = 0;
+    const tick = () => {
+      const k = step % 10; // 8 bits, then a short pause
+      rows.forEach((r) =>
+        Array.from(r.children).forEach((c, i) => c.classList.toggle('scan', k < 8 && 7 - i === k)),
+      );
+      cells.forEach((c, i) => c.classList.toggle('hidden', k < 8 && 7 - i > k));
+      step += 1;
+    };
+    tick();
+    window.setInterval(tick, 700);
+  }
+</script>
+
+<style>
+  .hero {
+    margin-bottom: 2rem;
+  }
+
+  .demo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
+    gap: 1.5rem;
+  }
+
+  .rows {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .ex {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .rows,
+  .ex {
+    overflow-x: auto;
+  }
+
+  .ex :global(.strip .dec) {
+    display: none;
+  }
+
+  .ex {
+    flex-wrap: nowrap;
+  }
+
+  .ex :global(.strip .cells) {
+    gap: 2px;
+  }
+
+  .ex :global(.strip .cell) {
+    width: 13px;
+    height: 20px;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    transition: box-shadow 0.2s;
+  }
+
+  .ex :global(.strip .cell.scan) {
+    box-shadow: 0 0 0 2px var(--series-2);
+  }
+
+  .answer :global(.cell.hidden) {
+    background: transparent;
+    color: transparent;
+    box-shadow: inset 0 0 0 1px var(--axis);
+  }
+
+  .op {
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  .dots {
+    color: var(--muted);
+    font-size: 0.85rem;
+    padding-left: 0.25rem;
+  }
+
+  .reveal-note {
+    margin-top: 1rem;
+  }
+
+  .stats {
+    margin-top: 1.5rem;
+  }
+
+  .link {
+    color: inherit;
+    text-decoration: none;
+    transition: border-color 0.15s;
+  }
+
+  .link:hover {
+    border-color: var(--series-1);
+  }
+
+  .link h3 {
+    margin-top: 0;
+    color: var(--ink);
+  }
+
+  .link p:last-child {
+    margin-bottom: 0;
+  }
+</style>

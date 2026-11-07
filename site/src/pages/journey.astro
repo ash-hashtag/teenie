@@ -1,0 +1,237 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { evaluation } from '../lib/data';
+import { pct } from '../lib/format';
+
+const train = evaluation.results.train;
+
+// Earlier float32 experiments, copied from experiments/*.json (seed 0; within 1% relative error counted as correct).
+const phases = [
+  {
+    tag: 'Attempt 1',
+    title: 'A small recurrent network on decimal numbers',
+    body: 'Inputs and outputs were float32 numbers. A recurrent network read the 999 examples and had to output c, counted correct within 1% relative error. After 1,000 training updates it was essentially never right.',
+    rows: [
+      ['add', '1.2%'],
+      ['sub', '1.0%'],
+      ['mul', '0%'],
+      ['div', '0%'],
+    ],
+    file: 'fixed999-seed0-eval.json',
+    verdict: 'Fails',
+  },
+  {
+    tag: 'Attempt 2',
+    title: 'Curriculum, memory slots, more training',
+    body: 'Small numbers first, several memory slots, 3,000 updates and 133K parameters. Better, but just copying the c of the closest example still did better on every basic relation.',
+    rows: [
+      ['add', '30.9% (closest example 42.6%)'],
+      ['sub', '11.7% (14.1%)'],
+      ['mul', '16.4% (19.5%)'],
+      ['div', '1.6% (16.4%)'],
+    ],
+    file: 'curriculum-long-m4-eval.json',
+    verdict: 'Below the closest-example baseline',
+  },
+  {
+    tag: 'Attempt 3',
+    title: 'A built-in curve fitter (residual loop)',
+    body: 'Replaced the network with a fixed curve-fitting loop (conjugate gradient) over a hand-chosen set of features, with 61 trainable parameters. It passed 90% on all four operations — but an untrained copy scored the same. The fitter did the work, not learning. And “within 1%” is still a guess, not an answer.',
+    rows: [
+      ['add', '99.7% (untrained 99.7%)'],
+      ['sub', '99.2% (99.4%)'],
+      ['mul', '94.5% (94.7%)'],
+      ['div', '97.4% (97.7%)'],
+    ],
+    file: 'residual-pilot-basic-seed4000{0,1,2}.json (pooled)',
+    verdict: 'High score, but not learned',
+  },
+];
+---
+
+<Layout title="Journey" description="How Teenie moved from approximate decimal regression to exact bit-level relation inference.">
+  <p class="eyebrow">Journey</p>
+  <h1>From fuzzy decimals to exact bits</h1>
+  <p class="lede">
+    The goal never changed: given exactly 999 examples of an unknown relation <code>c = f(a, b)</code> and one new
+    <code>(a, b)</code>, produce <code>c</code> — with no operation name, no menu of formulas, and no retraining at
+    answer time. What changed was how numbers are shown to the model, and what counts as right.
+  </p>
+
+  <ol class="timeline">
+    {
+      phases.map((p) => (
+        <li class="card">
+          <p class="eyebrow">{p.tag} · float32 · within 1% counts as right</p>
+          <h3>{p.title}</h3>
+          <p>{p.body}</p>
+          <table>
+            <tbody>
+              {p.rows.map(([op, v]) => (
+                <tr>
+                  <td>
+                    <code>{op}</code>
+                  </td>
+                  <td class="num">{v}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p class="small muted">
+            {p.verdict} · <code>experiments/{p.file}</code>
+          </p>
+        </li>
+      ))
+    }
+
+    <li class="card pivot">
+      <p class="eyebrow">The switch · 8-bit integers · all bits right or wrong</p>
+      <h3>Write numbers as bits, score only exact answers</h3>
+      <p>
+        Instead of one decimal number, each of <code>a</code>, <code>b</code>, <code>c</code> becomes 8 bits, and the
+        model predicts each bit of <code>c</code> as 0 or 1. Results wrap at 256. An answer is right only when all 8 bits
+        are. This trades “close enough” for a yes-or-no answer, and the model can say how sure it is about each bit.
+      </p>
+      <p>
+        Before building anything, a quick test with no learning asked whether 999 examples are even enough. A hand-written
+        lookup walks the bits from lowest to highest. At bit <code>k</code> it keeps the examples whose bits at
+        <code>k</code> and at the previous position match the question, and copies their <code>c<sub>k</sub></code>:
+      </p>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>relation</th>
+              <th class="num">closest example</th>
+              <th class="num">lookup, looking back 1 bit</th>
+              <th class="num">looking back 2 bits</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              ['add', 'sub', 'xor', 'a+2b', 'max'].map((n) => (
+                <tr>
+                  <td>
+                    <code>{n}</code>
+                  </td>
+                  <td class="num">{pct(train[n]?.nearest)}</td>
+                  <td class="num">{pct(Math.max(train[n]?.window1L ?? 0, train[n]?.window1H ?? 0))}</td>
+                  <td class="num">{pct(Math.max(train[n]?.window2L ?? 0, train[n]?.window2H ?? 0))}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Three lessons: <strong>copying the closest example is useless with bits</strong> (2–5% for add/sub); <strong
+          >going bit by bit, remembering just the previous position, is exact</strong
+        > for carry-style relations; and <strong>looking further back fails</strong> because 999 examples don't cover all
+        the combinations. So the model has to learn a short summary of the bits so far — like a carry — and that is
+        what its loop does.
+      </p>
+    </li>
+
+    <li class="card result">
+      <p class="eyebrow">Now · bit-serial model</p>
+      <h3>A learned loop over bit positions, plus a lookup over the examples</h3>
+      <p>
+        One shared recurrent network reads every example one bit at a time. At each bit the question looks up the
+        examples in the same situation. One pass runs from the lowest bit and one from the highest; the model checks
+        both against examples it holds out from itself and trusts whichever explains them better.
+      </p>
+      <p>
+        <strong>Result:</strong> 100% exact on all 12 named relations it trained on and on 2 of the 5 relations it never
+        saw, after ~8 minutes of training. <a href="../model/">See how it works →</a>
+      </p>
+    </li>
+  </ol>
+
+  <h2>Where it goes next</h2>
+  <div class="grid-3">
+    <div class="card">
+      <h3>Commit to one direction</h3>
+      <p class="small">
+        On <code>min</code> the model splits its trust 63/37 between the passes and gets 32% exact. Sharper trust should
+        fix this and raise how often it is confident.
+      </p>
+    </div>
+    <div class="card">
+      <h3>New carry patterns</h3>
+      <p class="small">
+        <code>3a</code> and <code>a−2b</code> need a carry it has never seen (72–76%). More varied random rules, and
+        training on its own predicted bits, should help.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Wider numbers</h3>
+      <p class="small">
+        The weights don't depend on how many bits there are (positions up to 64 are supported), so 16 bits and beyond
+        is the next scale test. Multiplication is a separate, harder problem.
+      </p>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .timeline {
+    list-style: none;
+    padding: 0;
+    margin: 2rem 0 0;
+    display: grid;
+    gap: 1rem;
+    position: relative;
+  }
+
+  .timeline li {
+    position: relative;
+    margin-left: 1.5rem;
+  }
+
+  .timeline li::before {
+    content: '';
+    position: absolute;
+    left: -1.5rem;
+    top: 1.5rem;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--axis);
+    box-shadow: 0 0 0 3px var(--page);
+  }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 1rem;
+    bottom: 1rem;
+    width: 2px;
+    background: var(--grid);
+  }
+
+  .timeline .pivot::before {
+    background: var(--series-2);
+  }
+
+  .timeline .result::before {
+    background: var(--series-1);
+  }
+
+  .timeline h3 {
+    margin-top: 0;
+  }
+
+  .timeline table {
+    max-width: 520px;
+  }
+
+  .pivot,
+  .result {
+    border-left: 3px solid var(--series-1);
+  }
+
+  .pivot {
+    border-left-color: var(--series-2);
+  }
+</style>

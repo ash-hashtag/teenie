@@ -1,0 +1,324 @@
+---
+// Interactive replay of real recorded predictions (traces.json): pick a relation, a question, a pass and a bit.
+---
+
+<section class="inspector card" id="inspector" aria-live="polite">
+  <div class="controls">
+    <div>
+      <p class="eyebrow">Relation</p>
+      <div class="chips" data-role="relations"></div>
+    </div>
+    <div class="row">
+      <div>
+        <p class="eyebrow">Question</p>
+        <div class="chips" data-role="examples"></div>
+      </div>
+      <div>
+        <p class="eyebrow">Pass</p>
+        <div class="chips" data-role="passes"></div>
+      </div>
+    </div>
+    <div class="bitrow">
+      <button class="chip" type="button" data-role="play" aria-label="Play through the bits">▶ play</button>
+      <label class="slider">
+        <span class="small muted">bit <b data-role="bit-label">0</b></span>
+        <input type="range" min="0" max="7" value="0" step="1" data-role="bit" aria-label="Bit position" />
+      </label>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <h3>The question</h3>
+      <div class="strips" data-role="question"></div>
+      <div class="verdict" data-role="verdict"></div>
+      <div class="trust" data-role="trust"></div>
+    </div>
+    <div class="panel">
+      <h3>Where it looks at bit <span data-role="bit-label-2">0</span></h3>
+      <canvas data-role="plane" aria-label="The 999 examples on the a–b plane, shaded by attention"></canvas>
+      <p class="small muted caption">
+        Each dot is one of the 999 examples (a → right, b → up). Gray = no more than an even share of attention; bigger
+        and bluer = more (log scale, up to 256× an even share).
+        Shaded bands: examples whose bit k of a or of b matches the question. The ring is the question.
+      </p>
+    </div>
+    <div class="panel">
+      <h3>Most attended examples</h3>
+      <div data-role="top"></div>
+      <p class="small" data-role="vote"></p>
+    </div>
+  </div>
+</section>
+
+<script>
+  import type { Trace } from '../lib/data';
+  import { dataUrl } from '../lib/data';
+  import { strip } from '../lib/bits-dom';
+  import { drawPlane, evenShares, hit } from '../lib/plane';
+
+  const root = document.getElementById('inspector')!;
+  const q = <T extends Element>(role: string) => root.querySelector<T>(`[data-role="${role}"]`)!;
+  const state = { relation: 0, example: 0, pass: 0, bit: 0 };
+  let traces: Trace[] = [];
+  let timer: number | undefined;
+
+  const chips = (role: string, labels: string[], selected: number, onPick: (i: number) => void) => {
+    const host = q<HTMLDivElement>(role);
+    host.innerHTML = labels
+      .map((l, i) => `<button type="button" class="chip" aria-pressed="${i === selected}" data-i="${i}">${l}</button>`)
+      .join('');
+    host.querySelectorAll<HTMLButtonElement>('button').forEach((b) =>
+      b.addEventListener('click', () => onPick(Number(b.dataset.i))),
+    );
+  };
+
+  const order = () => (state.pass === 0 ? [0, 1, 2, 3, 4, 5, 6, 7] : [7, 6, 5, 4, 3, 2, 1, 0]);
+
+  function render(): void {
+    const trace = traces[state.relation]!;
+    const example = trace.examples[state.example]!;
+    const pass = example.passes[state.pass]!;
+    const k = state.bit;
+    const bit = pass.bits[k]!;
+    const step = order().indexOf(k);
+    const done = order().slice(0, step + 1);
+
+    chips(
+      'relations',
+      traces.map((t) => `${t.relation}${t.heldout ? '<span class="tag">held out</span>' : t.stress ? '<span class="tag">stress</span>' : ''}`),
+      state.relation,
+      (i) => {
+        state.relation = i;
+        state.example = 0;
+        render();
+      },
+    );
+    chips('examples', trace.examples.map((e) => `${e.a}, ${e.b}`), state.example, (i) => {
+      state.example = i;
+      render();
+    });
+    chips('passes', example.passes.map((p) => p.label), state.pass, (i) => {
+      state.pass = i;
+      render();
+    });
+    q<HTMLInputElement>('bit').value = String(k);
+    q('bit-label').textContent = String(k);
+    q('bit-label-2').textContent = String(k);
+
+    // Bits this pass has already decided are shown with its probabilities; the rest are still unknown.
+    const soft = pass.bits.map((b, i) => (done.includes(i) ? b.p : Number.NaN));
+    q('question').innerHTML = [
+      strip(example.a, { label: 'a', highlight: k }),
+      strip(example.b, { label: 'b', highlight: k }),
+      `<div class="sep small muted">this pass so far (step ${step + 1} of 8)</div>`,
+      strip(0, { label: 'c?', probs: soft, highlight: k }),
+      `<div class="sep small muted">final answer (both passes, trust-weighted)</div>`,
+      strip(example.prediction, { label: 'ĉ', wrong: example.prediction !== example.target }),
+      strip(example.target, { label: 'c' }),
+    ].join('');
+    const right = example.prediction === example.target;
+    q('verdict').innerHTML = `<span class="${right ? 'ok' : 'bad'}">${right ? '✓ exact' : '✗ wrong'}</span>
+      <span class="muted small">confidence (least certain bit) ${(example.confidence * 100).toFixed(1)}%</span>`;
+    q('trust').innerHTML = `<p class="eyebrow">Trust from the 64 probe examples</p>` +
+      trace.trust
+        .map(
+          (t, i) => `<div class="tbar" data-tip="${example.passes[i]!.label}: ${(t * 100).toFixed(1)}% of the final vote">
+            <span class="small">${example.passes[i]!.label}</span><i><b style="width:${t * 100}%"></b></i><span class="num small">${(t * 100).toFixed(0)}%</span></div>`,
+        )
+        .join('');
+
+    const canvas = q<HTMLCanvasElement>('plane');
+    drawPlane(canvas, { points: trace.context, weights: bit.attention, query: [example.a, example.b], bit: k });
+
+    q('top').innerHTML =
+      `<table class="top"><thead><tr><th>a</th><th>b</th><th>c</th><th class="num">attn</th></tr></thead><tbody>` +
+      bit.top
+        .map(({ i, w }) => {
+          const [a, b, c] = trace.context[i]!;
+          const mark = (v: number) =>
+            v.toString(2).padStart(8, '0').split('').map((ch, j) => (7 - j === k ? `<b>${ch}</b>` : ch)).join('');
+          return `<tr><td><code>${mark(a)}</code></td><td><code>${mark(b)}</code></td><td><code>${mark(c)}</code></td><td class="num">${(w * 100).toFixed(1)}%</td></tr>`;
+        })
+        .join('') +
+      `</tbody></table>`;
+    q('vote').innerHTML = `Attention-weighted share of examples whose c<sub>${k}</sub> = 1: <b>${(bit.vote * 100).toFixed(1)}%</b>.
+      This pass says p(c<sub>${k}</sub> = 1) = <b>${(bit.p * 100).toFixed(1)}%</b>; the true bit is <b>${(example.target >> k) & 1}</b>.`;
+  }
+
+  function stopPlaying(): void {
+    if (timer !== undefined) window.clearInterval(timer);
+    timer = undefined;
+    q('play').textContent = '▶ play';
+  }
+
+  q<HTMLInputElement>('bit').addEventListener('input', (e) => {
+    stopPlaying();
+    state.bit = Number((e.target as HTMLInputElement).value);
+    render();
+  });
+  q('play').addEventListener('click', () => {
+    if (timer !== undefined) return stopPlaying();
+    q('play').textContent = '❚❚ pause';
+    let step = 0;
+    state.bit = order()[0]!;
+    render();
+    timer = window.setInterval(() => {
+      step += 1;
+      if (step >= 8) return stopPlaying();
+      state.bit = order()[step]!;
+      render();
+    }, 900);
+  });
+
+  const canvas = q<HTMLCanvasElement>('plane');
+  canvas.addEventListener('pointermove', (e) => {
+    const trace = traces[state.relation];
+    if (!trace) return;
+    const box = canvas.getBoundingClientRect();
+    const i = hit(canvas, trace.context, e.clientX - box.left, e.clientY - box.top);
+    if (i < 0) return canvas.removeAttribute('data-tip');
+    const [a, b, c] = trace.context[i]!;
+    const w = trace.examples[state.example]!.passes[state.pass]!.bits[state.bit]!.attention[i]!;
+    canvas.setAttribute('data-tip', `example #${i}\na=${a}  b=${b}  c=${c}\nattention: ${w === 0 ? 'at most an even share' : `≈ ${evenShares(w).toFixed(1)}× an even share`}`);
+  });
+  window.addEventListener('themechange', () => traces.length && render());
+  window.addEventListener('resize', () => traces.length && render());
+
+  fetch(dataUrl('traces.json'))
+    .then((r) => r.json() as Promise<Trace[]>)
+    .then((data) => {
+      traces = data;
+      render();
+    })
+    .catch(() => {
+      q('question').textContent = 'Could not load traces.json.';
+    });
+</script>
+
+<style>
+  .inspector {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .controls {
+    display: grid;
+    gap: 0.9rem;
+  }
+
+  .controls .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+  }
+
+  .bitrow {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .slider {
+    flex: 1;
+    display: grid;
+    gap: 0.1rem;
+  }
+
+  .panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
+    gap: 1.25rem;
+  }
+
+  .panel h3 {
+    margin-top: 0;
+  }
+
+  .panel :global(.strips) {
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  [data-role='question'] {
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  [data-role='question'] :global(.sep) {
+    margin-top: 0.4rem;
+  }
+
+  canvas {
+    width: 100%;
+    max-width: 340px;
+    aspect-ratio: 1;
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: crosshair;
+  }
+
+  .caption {
+    margin-top: 0.5rem;
+  }
+
+  [data-role='verdict'] {
+    margin: 0.75rem 0;
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+    flex-wrap: wrap;
+  }
+
+  [data-role='verdict'] :global(.ok) {
+    color: var(--good);
+    font-weight: 700;
+  }
+
+  [data-role='verdict'] :global(.bad) {
+    color: var(--bad);
+    font-weight: 700;
+  }
+
+  [data-role='trust'] :global(.tbar) {
+    display: grid;
+    grid-template-columns: 7.5rem 1fr 2.5rem;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.3rem 0;
+  }
+
+  [data-role='trust'] :global(.tbar i) {
+    height: 8px;
+    border-radius: 4px;
+    background: var(--grid);
+    overflow: hidden;
+  }
+
+  [data-role='trust'] :global(.tbar b) {
+    display: block;
+    height: 100%;
+    border-radius: 4px;
+    background: var(--series-1);
+  }
+
+  [data-role='top'] :global(table) {
+    font-size: 0.8rem;
+  }
+
+  [data-role='top'] :global(td),
+  [data-role='top'] :global(th) {
+    padding: 0.3rem 0.35rem;
+  }
+
+  [data-role='top'] :global(code) {
+    background: none;
+    padding: 0;
+    color: var(--ink-2);
+  }
+
+  [data-role='top'] :global(code b) {
+    color: var(--series-2);
+  }
+</style>

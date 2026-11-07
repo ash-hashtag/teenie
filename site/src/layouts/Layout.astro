@@ -1,0 +1,193 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const pages = [
+  { href: '/', label: 'Overview' },
+  { href: '/journey/', label: 'Journey' },
+  { href: '/model/', label: 'Model' },
+  { href: '/learning/', label: 'Learning' },
+  { href: '/benchmarks/', label: 'Benchmarks' },
+];
+const current = Astro.url.pathname.replace(base, '') || '/';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="icon" href={`${base}/favicon.svg`} type="image/svg+xml" />
+    <title>{title === 'Teenie' ? title : `${title} · Teenie`}</title>
+    <script is:inline>
+      try {
+        const saved = localStorage.getItem('theme');
+        if (saved === 'light' || saved === 'dark') document.documentElement.dataset.theme = saved;
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap bar">
+        <a class="brand" href={`${base}/`}>
+          <span class="brand-bits" aria-hidden="true"><i></i><i class="on"></i><i class="on"></i><i></i></span>
+          teenie
+        </a>
+        <nav aria-label="Sections">
+          {
+            pages.map((p) => (
+              <a href={`${base}${p.href}`} aria-current={current === p.href ? 'page' : undefined}>
+                {p.label}
+              </a>
+            ))
+          }
+        </nav>
+        <button class="theme" id="theme" type="button" aria-label="Toggle dark mode">
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"
+            ><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"></circle><path
+              d="M8 1.75a6.25 6.25 0 0 1 0 12.5z"
+              fill="currentColor"></path></svg
+          >
+        </button>
+      </div>
+    </header>
+    <main class="wrap">
+      <slot />
+    </main>
+    <footer class="wrap footer">
+      <p class="small muted">
+        Teenie — every number on this site was exported from the trained checkpoint and its evaluation files
+        (<code>uv run python -m teenie.bits.export</code>). Seed 0, one training run.
+      </p>
+    </footer>
+    <div id="tooltip" role="tooltip"></div>
+    <script>
+      import { installTooltips } from '../lib/tooltip';
+
+      installTooltips();
+      document.getElementById('theme')?.addEventListener('click', () => {
+        const root = document.documentElement;
+        const dark =
+          root.dataset.theme === 'dark' ||
+          (!root.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches);
+        root.dataset.theme = dark ? 'light' : 'dark';
+        try {
+          localStorage.setItem('theme', root.dataset.theme);
+        } catch {}
+        window.dispatchEvent(new Event('themechange'));
+      });
+    </script>
+  </body>
+</html>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: color-mix(in srgb, var(--page) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-height: 56px;
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    color: var(--ink);
+    text-decoration: none;
+    font-family: var(--mono);
+  }
+
+  .brand-bits {
+    display: inline-flex;
+    gap: 2px;
+  }
+
+  .brand-bits i {
+    width: 6px;
+    height: 14px;
+    border-radius: 2px;
+    background: var(--bit-off);
+  }
+
+  .brand-bits i.on {
+    background: var(--series-1);
+  }
+
+  nav {
+    display: flex;
+    gap: 0.15rem;
+    overflow-x: auto;
+    margin-left: auto;
+    scrollbar-width: none;
+  }
+
+  nav a {
+    color: var(--ink-2);
+    text-decoration: none;
+    font-size: 0.9rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+
+  nav a:hover {
+    background: var(--surface-2);
+  }
+
+  nav a[aria-current='page'] {
+    color: var(--ink);
+    background: var(--surface-2);
+    font-weight: 600;
+  }
+
+  .theme {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink);
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    flex: none;
+    display: grid;
+    place-items: center;
+  }
+
+  main {
+    padding-top: 2.5rem;
+    padding-bottom: 3rem;
+  }
+
+  .footer {
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+    padding-bottom: 2rem;
+  }
+
+  @media (max-width: 640px) {
+    .brand {
+      display: none;
+    }
+
+    nav {
+      margin-left: 0;
+    }
+  }
+</style>

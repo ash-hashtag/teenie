@@ -1,0 +1,120 @@
+---
+import Layout from '../layouts/Layout.astro';
+import StepDiagram from '../components/StepDiagram.astro';
+import TrustStrip from '../components/TrustStrip.astro';
+import Inspector from '../components/Inspector.astro';
+import { evaluation, model } from '../lib/data';
+import { thousands } from '../lib/format';
+
+const order = ['add', 'sub', 'a+2b', 'a<<1', 'xor', 'and', 'max', 'transducer', 'a+b+1', '3a', 'a-2b', 'nand', 'min', 'a*b'];
+const heldout = new Set(model.families.heldout);
+const notes: Record<string, string> = {
+  min: `held out · ${Math.round((evaluation.results.heldout.min?.exact ?? 0) * 100)}% exact — never commits to one direction`,
+  max: 'carries a “which is bigger” decision from the top bit down',
+  xor: 'no carry at all: either direction works',
+};
+const trustRows = order.map((name) => ({
+  name: heldout.has(name) ? `${name} *` : name,
+  value: model.pass_trust[name] ?? 0,
+  note: notes[name],
+}));
+---
+
+<Layout title="Model" description="How the bit-serial in-context model reads 999 examples and predicts each bit.">
+  <p class="eyebrow">Model</p>
+  <h1>How it reasons, step by step</h1>
+  <p class="lede">
+    The model never sees a formula. It learns a <strong>general procedure</strong>: walk through the bit positions,
+    remember a little about the bits so far, and at each bit copy the answer from the examples that are in the same
+    situation as the question.
+  </p>
+
+  <div class="grid-2 ideas">
+    <div class="card">
+      <p class="eyebrow">1 · Loop over bits</p>
+      <p>
+        A small recurrent network (GRU) reads <code>(a<sub>k</sub>, b<sub>k</sub>, c<sub>k</sub>)</code> one position at
+        a time, for <strong>every</strong> example and for the question. The same weights run at every position.
+      </p>
+    </div>
+    <div class="card">
+      <p class="eyebrow">2 · Remember what matters</p>
+      <p>
+        Its memory has to hold just enough about the bits already read — a carry for <code>add</code>, a borrow for
+        <code>sub</code>, “a is already bigger” for <code>max</code>. Nobody tells it which; training does.
+      </p>
+    </div>
+    <div class="card">
+      <p class="eyebrow">3 · Look up similar situations</p>
+      <p>
+        At bit <code>k</code>, the question attends over the 999 examples. Examples whose current bits and memory match
+        get the attention; their known <code>c<sub>k</sub></code> becomes the vote. The question's own guess feeds back
+        into its memory for the next bit.
+      </p>
+    </div>
+    <div class="card">
+      <p class="eyebrow">4 · Check both directions</p>
+      <p>
+        One pass reads from the lowest bit, one from the highest. Each re-predicts 64 of the examples with that example
+        hidden from itself. The pass that explains them better gets more say in the final answer.
+      </p>
+    </div>
+  </div>
+
+  <h2>One bit step</h2>
+  <p>
+    This repeats 8 times per pass. During training the question's earlier bits are the true ones; when answering, they
+    are its own predictions. Weights never change when answering.
+  </p>
+  <div class="card">
+    <StepDiagram />
+  </div>
+
+  <h2>Inside real predictions</h2>
+  <p>
+    These are recordings from the trained model on fresh episodes. Pick a relation and step through the bits. On
+    <code>add</code>, low-bit-first, the attention gathers in the shaded intersection — examples whose bit
+    <code>k</code> of <em>a</em> and <em>b</em> match the question — and, within it, only those with the same carry.
+    Try <code>min</code> or <code>a*b</code> to see it fail.
+  </p>
+  <Inspector />
+
+  <h2>Which direction does it trust?</h2>
+  <p>
+    Average weight given to the high-bit-first pass over 16 episodes per relation. It picks low-first for carries,
+    high-first for <code>max</code>, and doesn't care for bitwise relations. On the held-out <code>min</code> it
+    hesitates — which is exactly where it fails. <span class="muted">* never seen in training.</span>
+  </p>
+  <div class="card">
+    <TrustStrip rows={trustRows} />
+  </div>
+
+  <h2>Size</h2>
+  <div class="table-scroll">
+    <table>
+      <tbody>
+        <tr><td>Parameters</td><td class="num">{thousands(model.parameters)}</td></tr>
+        <tr><td>Memory (GRU hidden size)</td><td class="num">{model.config.hidden}</td></tr>
+        <tr><td>Attention heads</td><td class="num">{model.config.heads}</td></tr>
+        <tr><td>Self-check examples per pass</td><td class="num">{model.config.probes}</td></tr>
+        <tr><td>Examples per question</td><td class="num">999 (fixed)</td></tr>
+        <tr><td>Bit width trained / supported</td><td class="num">8 / up to {model.config.max_width}</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="small muted">Source: <code>src/teenie/bits/model.py</code>.</p>
+</Layout>
+
+<style>
+  .ideas {
+    margin-top: 1.5rem;
+  }
+
+  .ideas p:last-child {
+    margin-bottom: 0;
+  }
+
+  table {
+    max-width: 520px;
+  }
+</style>

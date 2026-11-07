@@ -188,3 +188,49 @@ Current checkpoint format: `teenie-residual-v5-fixed999`. Older weights are
 preserved but rejected, not silently converted. Previous model/train source is
 in `experiments/archive/*_v4.py.txt`; historical results remain in `experiments/`.
 Only the residual fitter is active in the package.
+
+## Bit-vector track (`teenie.bits`)
+
+A separate prototype. `a`, `b` and `c` are unsigned 8-bit integers given as
+bits, results wrap modulo 256, and the score is **exact match on all 8 bits**.
+The setup is still 999 examples plus questions that never appear among them.
+
+```bash
+uv run teenie-bits --device cuda --updates 3000 --save checkpoints/bits.pt \
+  --log experiments/bits-seed0-train.jsonl
+uv run teenie-bits-eval --load checkpoints/bits.pt --device cuda \
+  --episodes 64 --seed 60000 --output experiments/bits-seed0-eval.json
+```
+
+How the model works: one shared GRU reads every example one bit position at a
+time. At position `k` the question attends to the examples' states at the same
+position and reads their `c_k`. Its own predicted bits feed back into its
+state, so the GRU has to learn what to carry forward (a carry, a borrow, "a is
+already larger"). One pass reads low bit first and another high bit first.
+Each pass re-predicts 64 of the examples with that example hidden from itself,
+and the pass that explains them better is trusted more. Weights never change
+at inference, and there are no operation IDs.
+
+Training draws from add, sub, b−a, xor/and/or, a+2b, 2a+b, max, a<<1, a+k,
+b^k and random small state machines that read one bit position at a time.
+`a+b+1`, `a−2b`, `min`, `nand` and `3a` are never trained. `a*b` is a stress test.
+
+Seed 0, 3000 updates (~8 min on an RTX 3050), 1024 fresh questions per relation:
+
+| relation | model exact | Hamming nearest | best hand-written window lookup |
+|---|---|---|---|
+| all 12 named training relations | **100%** | 2–33% | 71–100% |
+| random state machines (trained family, new machines) | 74% | 20% | 66% |
+| held out: a+b+1, nand | **100%** | 2–28% | 100% |
+| held out: 3a / a−2b | 76% / 71% | 28% / 4% | 96.5% / 95% |
+| held out: min | 32% | 22% | 72% |
+| stress: a*b | 6% | 7% | 8% |
+
+A visual walkthrough (model diagram, replays of real predictions, training replay, benchmarks)
+lives in `site/` — `cd site && pnpm install && pnpm dev`. See `site/README.md`.
+
+When the least certain bit is at ≥0.99, every answer in this evaluation was
+correct. How often the model is that sure varies: 0.6% of the time for `max`,
+even though it is 100% exact there, so the trust between passes is not sharp
+enough yet. The model generalises within its training patterns, but not yet to
+`min` or other new carry patterns.

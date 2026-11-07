@@ -260,3 +260,24 @@ The bit-token model is ~5× slower per update (8 tokens per question read the ex
 and the loop model both with step-by-step training (`--stepwise`: round t scored against intermediate
 step t, plus a "done" signal), width 96, 64 questions per context, on `mix4` (adds a product-then-step
 family), tested on the ladder and on loops 4–16× longer than trained.
+
+## 11. Step-by-step training (`--stepwise`, `experiments/steps/`) — not helping as built
+
+Every training relation carries its intermediate values (each operation of an expression, each iteration of a
+loop); round t is scored against step t, then the final answer, and a "done" output learns when the steps end.
+Both runs used width 96, 64 questions per context, 16 probes, 16 rounds, `mix4`, adaptive sampling; both were
+stopped at 5,000 of 10,000 updates after flattening. Validation (128 questions per relation):
+
+| update 5,000 | loop + steps | bit tokens + steps | B, no steps (width 128, `mix3`) |
+|---|---|---|---|
+| trained relations | 73% | 72% | 87% |
+| hidden compositions | 31% | 26% | 45% |
+| T1 / T2 / T3 | 47 / 42 / 26% | 33 / 48 / 29% | 55 / 46 / 44% |
+| T4 / T5 | 52 / 35% | 47 / 33% | 64 / 46% |
+| product, then a step | 14% | 13% | 20% |
+
+Step supervision held both architectures back. Likely reason: the 999 examples only ever show the final `c`, so
+in early rounds the model is scored on intermediate values it cannot see and would have to guess the
+decomposition to match; most of the training effort goes there. (Runs differ in width and data too, so this is
+not a clean ablation.) Next: bit tokens **without** step supervision on `mix4`, width 128, 8 rounds — the
+configuration that reached 99–100% in the capacity check — with bf16 training (3.5× faster, same loss).

@@ -14,7 +14,7 @@ import torch
 
 from ..train import select_device
 from .checkpoint import AnyBitModel, load_bit_model, save_bit_model
-from .data import BitSampler
+from .data import BitEpisodes, BitSampler
 from .eval import evaluate
 from .bit_token_model import BitTokenModel
 from .loop_model import LoopModel
@@ -22,6 +22,20 @@ from .model import BitModel
 from .sets import TRAIN_SETS, test_groups
 from .program_model import ProgramModel
 from .think_model import ThinkModel
+
+
+def step_loss(model: AnyBitModel, episode: BitEpisodes, width: int) -> torch.Tensor:
+    """Forward pass and loss for one batch of episodes."""
+    if isinstance(model, ProgramModel):
+        return model.loss(model.forward(episode.context, episode.query, width), episode.context, episode.target, width)
+    if isinstance(model, (LoopModel, BitTokenModel)):
+        prediction = model.forward(episode.context, episode.query, width)
+        return model.loss(prediction, episode.context, episode.target, width, episode.steps, episode.step_counts)
+    if isinstance(model, ThinkModel):
+        return model.loss(model.forward(episode.context, episode.query, width), episode.context, episode.target, width)
+    # Teacher forcing (true earlier c bits, training only) applies to the serial model.
+    serial = model.forward(episode.context, episode.query, width, episode.target)
+    return model.loss(serial, episode.context, episode.target, width)
 
 
 def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, queries: int = 16,
@@ -33,7 +47,8 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
           layers: int = 2, steps: int = 8, train_set: str = 'base', channels: int = 16,
           informed: bool = True, multiplicative: bool = False, clock: bool = False,
           adaptive: bool = False, init: str | Path | None = None, resume: bool = False,
-          scratch: int = 0, halting: bool = False, stepwise: bool = False) -> AnyBitModel:
+          scratch: int = 0, halting: bool = False, stepwise: bool = False, bf16: bool = False,
+          recompute: bool = True) -> AnyBitModel:
     """`init` starts from saved weights and trains `updates` more (fresh optimizer and schedule; update numbers
     continue from the checkpoint). `resume` continues an interrupted run exactly from `<save>.resume.pt`, which
     every log step writes: weights, optimizer, schedule, sampling weights and random state."""
@@ -41,6 +56,9 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
         raise ValueError('counts and lr must be positive')
     torch.manual_seed(seed)
     selected = select_device(device)
+    # TF32 matrix maths on Ampere GPUs: much faster float32 matmuls at slightly lower precision.
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
     if train_set not in TRAIN_SETS:
         raise ValueError(f'unknown training set {train_set!r}; choose from {sorted(TRAIN_SETS)}')
     families = TRAIN_SETS[train_set]
@@ -60,6 +78,8 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
         model = BitModel(hidden, heads, probes=probes).to(selected)
     else:
         raise ValueError(f'unknown architecture {architecture!r}')
+    if isinstance(model, BitTokenModel):
+        model.recompute = recompute
     path = Path(save)
     best_path = path.with_name(path.stem + '.best' + path.suffix)
     resume_path = path.with_name(path.stem + '.resume' + path.suffix)
@@ -101,19 +121,9 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
         model.train()
         episode = sampler.sample(batch_size, queries, steps=stepwise).to(selected)
         optimizer.zero_grad(set_to_none=True)
-        # Teacher forcing (true earlier c bits, training only) applies to the serial model.
-        if isinstance(model, ProgramModel):
-            planned = model.forward(episode.context, episode.query, width)
-            loss = model.loss(planned, episode.context, episode.target, width)
-        elif isinstance(model, (LoopModel, BitTokenModel)):
-            looped = model.forward(episode.context, episode.query, width)
-            loss = model.loss(looped, episode.context, episode.target, width, episode.steps, episode.step_counts)
-        elif isinstance(model, ThinkModel):
-            looped = model.forward(episode.context, episode.query, width)
-            loss = model.loss(looped, episode.context, episode.target, width)
-        else:
-            serial = model.forward(episode.context, episode.query, width, episode.target)
-            loss = model.loss(serial, episode.context, episode.target, width)
+        # bf16 autocast runs matmuls and attention in bfloat16 (weights and optimizer stay float32).
+        with torch.autocast(selected.type, dtype=torch.bfloat16, enabled=bf16):
+            loss = step_loss(model, episode, width)
         if not torch.isfinite(loss):
             raise RuntimeError('nonfinite loss: training aborted before updating weights')
         loss.backward()  # type: ignore[no-untyped-call]  # PyTorch's backward stub is untyped.
@@ -140,7 +150,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
             running = 0.
             metadata: dict[str, object] = {
                 'architecture': architecture, 'multiplicative': multiplicative, 'clock': clock, 'adaptive': adaptive,
-                'scratch': scratch, 'halting': halting, 'stepwise': stepwise,
+                'scratch': scratch, 'halting': halting, 'stepwise': stepwise, 'bf16': bf16,
                 'train_set': train_set, 'width': width, 'update': update, 'seed': seed, 'known_exact': score}
             save_bit_model(path, model, metadata)
             if snapshot_dir:
@@ -191,6 +201,10 @@ def main() -> None:
                         help='loop: learn when to stop; --steps becomes the maximum number of rounds')
     parser.add_argument('--stepwise', action='store_true',
                         help='loop/bittoken: train each round against the next intermediate step, plus a "done" signal')
+    parser.add_argument('--bf16', action='store_true', help='train in bfloat16 mixed precision (faster on Ampere GPUs)')
+    parser.add_argument('--no-recompute', action='store_true',
+                        help='bittoken: keep activations instead of recomputing them in backward (faster, more memory)')
+    parser.add_argument('--validation-episodes', type=int, default=8)
     parser.add_argument('--init', help='start from these weights and train --updates more (fresh optimizer)')
     parser.add_argument('--resume', action='store_true',
                         help='continue an interrupted run exactly from <save>.resume.pt')
@@ -208,7 +222,8 @@ def main() -> None:
           snapshots=args.snapshots, architecture=args.architecture, layers=args.layers, steps=args.steps,
           train_set=args.train_set, channels=args.channels, informed=not args.blank,
           multiplicative=args.multiplicative, clock=args.clock, adaptive=args.adaptive, init=args.init,
-          resume=args.resume, scratch=args.scratch, halting=args.halting, stepwise=args.stepwise)
+          resume=args.resume, scratch=args.scratch, halting=args.halting, stepwise=args.stepwise, bf16=args.bf16,
+          recompute=not args.no_recompute, validation_episodes=args.validation_episodes)
 
 
 if __name__ == '__main__':

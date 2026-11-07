@@ -90,6 +90,8 @@ class BitTokenModel(nn.Module):
         self.readout = nn.Sequential(nn.LayerNorm(hidden), nn.Linear(hidden, 1))
         if stepwise:  # "the steps are finished", read from the mean of the question's bit tokens
             self.done = nn.Sequential(nn.LayerNorm(hidden), nn.Linear(hidden, 1))
+        # Recompute each round in the backward pass instead of storing its activations: less memory, ~30% slower.
+        self.recompute = True
 
     def forward(self, context: Tensor, query: Tensor, width: int, target: Tensor | None = None,
                 steps: int | None = None) -> LoopPrediction:
@@ -121,7 +123,7 @@ class BitTokenModel(nn.Module):
         guess = asked.new_zeros(batch, items, width)
         outputs = []
         for _ in range(rounds):
-            if self.training:
+            if self.training and self.recompute:
                 # Recompute activations in backward: memory stays flat in the number of rounds.
                 state, logits = checkpoint(self._round, asked, guess, state, keys, values, allowed,
                                            use_reentrant=False)

@@ -190,3 +190,45 @@ def test_mix2_has_more_steps_more_products_and_keeps_hidden_out():
     for family in STEPS:
         for _ in range(30):
             assert fingerprint(family.make(generator, 8), 8) not in banned
+
+
+def test_loops_tiers_and_held_combinations():
+    from teenie.bits.expressions import pairs
+    from teenie.bits.loops import hidden_loops, popcount, reverse
+    from teenie.bits.sets import HELD_PAIRS, LOOPS, STEPS3, TIERS, TRAIN_SETS
+
+    a, b = torch.tensor([3, 10, 200]), torch.tensor([4, 2, 17])
+    total, power, fib, collatz, shift_xor = (f.make(torch.Generator(), 8) for f in hidden_loops(4))
+    assert total(a, b, 8).tolist() == [3 + 4 + 5 + 6, 10 + 11, 200]  # n = b & 15: 4, 2, 1
+    assert power(a, b, 8).tolist() == [81, 100, 200]
+    assert fib(a, b, 8).tolist() == [3 * 5, 10 * 2, 200]  # terms a, a, 2a, 3a, 5a, ...
+    assert collatz(torch.tensor([1]), torch.tensor([2]), 8).tolist() == [13]
+    longer = hidden_loops(8)[0].make(torch.Generator(), 8)
+    assert longer(torch.tensor([1]), torch.tensor([20]), 8).tolist() == [sum(range(1, 21)) % 256]
+    assert popcount(torch.tensor([255, 6]), 8).tolist() == [8, 2]
+    assert reverse(torch.tensor([1, 6]), 8).tolist() == [128, 96]
+    assert all(f in TRAIN_SETS['mix3'] for f in STEPS3 + LOOPS) and len(TIERS) == 5
+    assert {('^', '*')} <= HELD_PAIRS and pairs(('^', ('*', 'a', 'b'), 'a')) == {('^', '*')}
+    # Training draws never contain a held-out combination; tier draws always do.
+    from teenie.bits.expressions import _draw, random_tree
+    seen: list[tuple[str, bool]] = []
+
+    def draw(generator, width):
+        tree = random_tree(3, generator, width, 2.)
+        seen.append((str(tree), bool(pairs(tree) & HELD_PAIRS)))
+        return tree
+    generator = torch.Generator().manual_seed(2)
+    for require in (False, True):
+        for _ in range(20):
+            seen.clear()
+            relation = _draw(draw, (), generator, 8, HELD_PAIRS, require_pair=require)
+            assert seen[-1][1] == require
+            assert relation.name
+    # Generated loops (not the fixed bit loops, whose counts take few values) vary enough.
+    for family in LOOPS[:3] + TIERS['T5'][15:21]:
+        assert len(set(fingerprint_of(family.make(generator, 8)))) >= 8
+
+
+def fingerprint_of(relation):
+    from teenie.bits.expressions import fingerprint
+    return fingerprint(relation, 8)

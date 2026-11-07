@@ -5,7 +5,9 @@ binary  + - * xor and or min max      unary  <<1  >>1  not
 
 `expression_family(ops)` draws a fresh tree with exactly `ops` operations per episode. Trees that
 are (nearly) constant, or that behave like any hidden test relation, are redrawn: equivalence is
-checked on fixed probe inputs, so `a + a*b` cannot leak a hidden `a*b + a`.
+checked on fixed probe inputs, so `a + a*b` cannot leak a hidden `a*b + a`. Whole combinations can be
+held out too: `banned_pairs` such as ('^', '*') reject any tree where a xor is applied to a product.
+Leaves are 'a' and 'b' by default; loops (`loops.py`) reuse the same trees over other variables.
 """
 from collections.abc import Callable
 from functools import lru_cache
@@ -16,7 +18,8 @@ from torch import Tensor
 
 from .relations import Family, Relation
 
-# A tree is a leaf ('a' | 'b' | constant int) or (op, child) / (op, left, right).
+# A tree is a leaf (a variable name such as 'a' | constant int) or (op, child) / (op, left, right).
+Pair = tuple[str, str]  # (parent operation, child operation)
 Tree = Union[str, int, tuple[str, 'Tree'], tuple[str, 'Tree', 'Tree']]
 
 BINARY: dict[str, Callable[[Tensor, Tensor], Tensor]] = {
@@ -35,17 +38,32 @@ def _parts(tree: Tree) -> tuple[str, list[Tree]]:
     return node[0], list(node[1:])
 
 
-def evaluate(tree: Tree, a: Tensor, b: Tensor, width: int) -> Tensor:
+def evaluate_with(tree: Tree, variables: dict[str, Tensor], width: int) -> Tensor:
     mask = (1 << width) - 1
-    if tree == 'a':
-        return a & mask
-    if tree == 'b':
-        return b & mask
+    if isinstance(tree, str):
+        return variables[tree] & mask
     if isinstance(tree, int):
-        return torch.full_like(a, tree & mask)
+        return torch.full_like(next(iter(variables.values())), tree & mask)
     op, children = _parts(tree)
-    values = [evaluate(child, a, b, width) for child in children]
+    values = [evaluate_with(child, variables, width) for child in children]
     return (UNARY[op](values[0]) if len(values) == 1 else BINARY[op](values[0], values[1])) & mask
+
+
+def evaluate(tree: Tree, a: Tensor, b: Tensor, width: int) -> Tensor:
+    return evaluate_with(tree, {'a': a, 'b': b}, width)
+
+
+def pairs(tree: Tree) -> set[Pair]:
+    """Every (parent operation, child operation) link in the tree."""
+    if not isinstance(tree, tuple):
+        return set()
+    op, children = _parts(tree)
+    found: set[Pair] = set()
+    for child in children:
+        if isinstance(child, tuple):
+            found.add((op, _parts(child)[0]))
+        found |= pairs(child)
+    return found
 
 
 def show(tree: Tree) -> str:
@@ -60,8 +78,10 @@ def show(tree: Tree) -> str:
     return f'({shown[0]}{op}{shown[1]})'
 
 
-def random_tree(ops: int, generator: torch.Generator, width: int, product_weight: float = 1.) -> Tree:
-    """`product_weight` > 1 draws `*` more often than each other binary operation."""
+def random_tree(ops: int, generator: torch.Generator, width: int, product_weight: float = 1.,
+                leaves: tuple[str, ...] = ('a', 'b')) -> Tree:
+    """`product_weight` > 1 draws `*` more often than each other binary operation. Leaves are a variable
+    (84%, evenly among `leaves`) or a constant."""
     def pick(options: list[str]) -> str:
         return options[int(torch.randint(0, len(options), (), generator=generator))]
 
@@ -73,22 +93,20 @@ def random_tree(ops: int, generator: torch.Generator, width: int, product_weight
 
     if ops == 0:
         roll = float(torch.rand((), generator=generator))
-        if roll < .42:
-            return 'a'
-        if roll < .84:
-            return 'b'
+        if roll < .84:  # same draws as before for the default ('a', 'b'): below .42 'a', else 'b'
+            return leaves[min(int(roll / .84 * len(leaves)), len(leaves) - 1)]
         return int(torch.randint(1, 1 << width, (), generator=generator))
     if float(torch.rand((), generator=generator)) < .2:
-        return (pick(list(UNARY)), random_tree(ops - 1, generator, width, product_weight))
+        return (pick(list(UNARY)), random_tree(ops - 1, generator, width, product_weight, leaves))
     left = int(torch.randint(0, ops, (), generator=generator))
-    return (pick_binary(), random_tree(left, generator, width, product_weight),
-            random_tree(ops - 1 - left, generator, width, product_weight))
+    return (pick_binary(), random_tree(left, generator, width, product_weight, leaves),
+            random_tree(ops - 1 - left, generator, width, product_weight, leaves))
 
 
-def has_variable(tree: Tree) -> bool:
+def has_variable(tree: Tree, names: tuple[str, ...] = ('a', 'b')) -> bool:
     if not isinstance(tree, tuple):
-        return tree in ('a', 'b')
-    return any(has_variable(child) for child in _parts(tree)[1])
+        return tree in names
+    return any(has_variable(child, names) for child in _parts(tree)[1])
 
 
 @lru_cache(maxsize=8)
@@ -134,11 +152,16 @@ HIDDEN_FAMILIES: tuple[Family, ...] = (
 
 
 def _draw(draw: Callable[[torch.Generator, int], Tree], forbidden: tuple[Family, ...],
-          generator: torch.Generator, width: int) -> Relation:
-    """Redraw until the expression varies enough and behaves unlike every forbidden relation."""
+          generator: torch.Generator, width: int, banned_pairs: frozenset[Pair] = frozenset(),
+          require_pair: bool = False) -> Relation:
+    """Redraw until the expression varies enough and behaves unlike every forbidden relation. With
+    `require_pair` the tree must contain one of `banned_pairs` (a test of an unseen combination); otherwise
+    it must contain none of them."""
     banned = _banned(forbidden, width)
-    for _ in range(200):
+    for _ in range(2000 if require_pair else 200):
         tree = draw(generator, width)
+        if bool(pairs(tree) & banned_pairs) != require_pair:
+            continue
         relation = tree_relation(show(tree), tree)
         outputs = fingerprint(relation, width)
         if len(set(outputs)) >= 8 and outputs not in banned:
@@ -146,15 +169,22 @@ def _draw(draw: Callable[[torch.Generator, int], Tree], forbidden: tuple[Family,
     raise RuntimeError('could not draw a usable expression')
 
 
-def expression_family(ops: int, forbidden: tuple[Family, ...], name: str | None = None,
-                      product_weight: float = 1.) -> Family:
-    """A fresh random expression with exactly `ops` operations per episode, never equivalent to `forbidden`."""
+def expression_family(ops: int | tuple[int, int], forbidden: tuple[Family, ...], name: str | None = None,
+                      product_weight: float = 1., banned_pairs: frozenset[Pair] = frozenset(),
+                      require_pair: bool = False) -> Family:
+    """A fresh random expression per episode with `ops` operations (or a number drawn from an inclusive
+    range), never equivalent to `forbidden`; see `_draw` for `banned_pairs` / `require_pair`."""
+    def draw(generator: torch.Generator, width: int) -> Tree:
+        count = ops if isinstance(ops, int) else int(torch.randint(ops[0], ops[1] + 1, (), generator=generator))
+        return random_tree(count, generator, width, product_weight)
+
     def make(generator: torch.Generator, width: int) -> Relation:
-        return _draw(lambda g, w: random_tree(ops, g, w, product_weight), forbidden, generator, width)
+        return _draw(draw, forbidden, generator, width, banned_pairs, require_pair)
     return Family(name or f'expr{ops}', make)
 
 
-def composed_family(forbidden: tuple[Family, ...], product_weight: float = 2.) -> Family:
+def composed_family(forbidden: tuple[Family, ...], product_weight: float = 2.,
+                    banned_pairs: frozenset[Pair] = frozenset(), name: str = 'composed') -> Family:
     """One binary operation joining two multi-step pieces that both use a or b, e.g. (a*b)+(a^b)."""
     def piece(generator: torch.Generator, width: int) -> Tree:
         while True:
@@ -167,8 +197,8 @@ def composed_family(forbidden: tuple[Family, ...], product_weight: float = 2.) -
         return (op, piece(generator, width), piece(generator, width))
 
     def make(generator: torch.Generator, width: int) -> Relation:
-        return _draw(draw, forbidden, generator, width)
-    return Family('composed', make)
+        return _draw(draw, forbidden, generator, width, banned_pairs)
+    return Family(name, make)
 
 
 _banned_cache: dict[tuple[int, int], frozenset[tuple[int, ...]]] = {}

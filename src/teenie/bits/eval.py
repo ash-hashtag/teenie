@@ -58,6 +58,19 @@ def evaluate(model: AnyBitModel | None, families: Sequence[Family], **options: o
     return {f.name: evaluate_family(model, f, **options) for f in families}  # type: ignore[arg-type]
 
 
+def summarise(reports: dict[str, Report]) -> dict[str, float | bool | None]:
+    """Mean exact match of a group, and how often its sure answers were right (pooled by coverage).
+    A tier counts as won at >= 50% exact with sure answers right >= 95% of the time."""
+    exact = [r['exact'] for r in reports.values() if r.get('exact') is not None]
+    covered = [(r['sure_coverage'] or 0., r['sure_accuracy']) for r in reports.values()
+               if r.get('sure_coverage') is not None]
+    weight = sum(c for c, _ in covered)
+    sure = sum(c * (a or 0.) for c, a in covered) / weight if weight else None
+    mean = sum(e for e in exact if e is not None) / len(exact) if exact else None
+    return {'exact': mean, 'sure_accuracy': sure,
+            'won': mean is not None and mean >= .5 and (sure is None or sure >= .95)}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description='Exact-match accuracy of a bit-relation checkpoint')
     parser.add_argument('--load', help='checkpoint; omitted = baselines only')
@@ -67,20 +80,23 @@ def main() -> None:
     parser.add_argument('--queries', type=int, default=16)
     parser.add_argument('--seed', type=int, default=50000)
     parser.add_argument('--no-baselines', action='store_true')
+    parser.add_argument('--tests', help='use the test groups of this training set (default: the checkpoint\'s own)')
     parser.add_argument('--steps', type=int, help='refinement rounds for a loop model (default: as trained)')
     parser.add_argument('--output')
     args = parser.parse_args()
     model, metadata = load_bit_model(args.load, args.device) if args.load else (None, {})
     width = int(metadata.get('width', 8))  # type: ignore[call-overload]
-    groups = test_groups(str(metadata.get('train_set', 'base')))
+    groups = test_groups(args.tests or str(metadata.get('train_set', 'base')))
     if args.families:
         groups = {'selected': tuple(ALL_NAMED[n] for n in args.families)}
     results = {group: evaluate(model, families, width=width, episodes=args.episodes, queries=args.queries,
                                seed=args.seed, device=args.device, baselines=not args.no_baselines,
                                steps=args.steps)
                for group, families in groups.items()}
-    output = {'checkpoint': args.load, 'train_set': metadata.get('train_set', 'base'), 'width': width, 'episodes': args.episodes, 'queries': args.queries,
-              'seed': args.seed, 'sure_threshold': SURE, 'steps': args.steps, 'results': results}
+    summary = {group: summarise(reports) for group, reports in results.items()} if model is not None else {}
+    output = {'checkpoint': args.load, 'train_set': metadata.get('train_set', 'base'), 'tests': args.tests,
+              'width': width, 'episodes': args.episodes, 'queries': args.queries, 'seed': args.seed,
+              'sure_threshold': SURE, 'steps': args.steps, 'summary': summary, 'results': results}
     text = json.dumps(output, indent=2)
     if args.output:
         Path(args.output).parent.mkdir(parents=True, exist_ok=True)
@@ -89,6 +105,10 @@ def main() -> None:
         print(f'[{group}]')
         for name, report in reports.items():
             print(f'  {name:12s} ' + ' '.join(f'{k}={100 * v:5.1f}' for k, v in report.items() if v is not None))
+    for group, line in summary.items():
+        exact, sure = line['exact'], line['sure_accuracy']
+        print(f'{group:8s} exact={100 * float(exact or 0):5.1f}%  sure-right='
+              f'{"   -" if sure is None else f"{100 * float(sure):5.1f}%"}  {"WON" if line["won"] else ""}')
 
 
 if __name__ == '__main__':

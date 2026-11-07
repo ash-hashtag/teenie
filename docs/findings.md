@@ -64,7 +64,10 @@ E1 = `a*b` in training (`--train-set mul`); E2 = only pieces (`a*const`, `a*(b&3
 - **Confidently wrong on unseen multiplication**: E2 "sure" answers on unseen `a*b` were right only
   31–48% of the time (elsewhere ≈ 100%). Confidence is not trustworthy outside the training distribution.
 - **More rounds at test time do not help** (`a*b` 43–45% for 4…24 rounds): the loop is not used as a
-  step-by-step computation. `--clock` (round number signal + loss mostly on the last round) is under test.
+  step-by-step computation.
+- **`--clock`** (fixed round-number signal, loss mostly on the last round), E1, 8 rounds: `a*b` 50.0%
+  (vs 45.3%), others unchanged. Still not step-by-step: 4 rounds 53.3%, 8 → 51.2%, 12 → 42.6%,
+  16 → 37.7% (round numbers past training are unfamiliar; even `add` drops to 98.2%).
 
 Dead ends, kept for the record:
 

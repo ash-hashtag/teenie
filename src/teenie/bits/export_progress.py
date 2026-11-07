@@ -9,6 +9,10 @@ import argparse
 import json
 from pathlib import Path
 
+from torch import nn
+
+from .bit_token_model import BitTokenModel
+from .checkpoint import load_bit_model
 from .eval import Report, summarise
 from .sets import TIERS
 
@@ -45,7 +49,18 @@ EXPERIMENTS: list[tuple[str, str, str, str, tuple[str, ...]]] = [
      'experiments/mix3/mix3-mloop-eval.json', ('experiments/mix3/mix3-mloop-train.jsonl',)),
     ('mix3-scratch4', 'Loops and the ladder', '+ 4 scratch slots per question',
      'experiments/mix3/mix3-mloop-scratch4-eval.json', ('experiments/mix3/mix3-mloop-scratch4-train.jsonl',)),
+    ('nearonly-scratch4', 'Bit tokens', '"product, then a step" only, loop + scratch slots (capacity check)',
+     'experiments/arch/nearonly-scratch4-eval.json', ('experiments/arch/nearonly-scratch4-train.jsonl',)),
+    ('nearonly-bittoken', 'Bit tokens', '"product, then a step" only, bit tokens (capacity check)',
+     'experiments/arch/nearonly-bittoken-eval.json', ('experiments/arch/nearonly-bittoken-train.jsonl',)),
+    ('loop-steps', 'Step by step', 'loop, step-by-step training, width 96 (mix4)',
+     'experiments/steps/loop-steps-eval.json', ('experiments/steps/loop-steps-train.jsonl',)),
+    ('bittoken-steps', 'Step by step', 'bit tokens, step-by-step training, width 96 (mix4)',
+     'experiments/steps/bittoken-steps-eval.json', ('experiments/steps/bittoken-steps-train.jsonl',)),
 ]
+
+# Architectures shown on the site besides the current model: (id, title, checkpoint).
+ARCHITECTURES = [('bittoken', 'Bit tokens', 'checkpoints/arch/nearonly-bittoken.pt')]
 
 LADDER = ('T1', 'T2', 'T3', 'T4', 'T5', 'hidden', 'near')
 HIGHLIGHTS = ('a*b', 'a*b+a', 'min', '3a', 'transducer')
@@ -87,6 +102,32 @@ def experiment(identifier: str, chapter: str, title: str, evaluation: Path, logs
             'curve': curve}
 
 
+def count(module: nn.Module) -> int:
+    return sum(p.numel() for p in module.parameters())
+
+
+def bit_token_parts(model: BitTokenModel) -> dict[str, object]:
+    config = model.config
+    layers = list(model.layers)
+    parts = [
+        {'part': 'Example encoder', 'detail': '24 bits → bilinear layer → GELU → linear → norm (run once)',
+         'parameters': count(model.example)},
+        {'part': 'Example keys and values', 'detail': f'one projection pair per layer ({config["layers"]})',
+         'parameters': count(model.keys) + count(model.values)},
+        {'part': 'Question input', 'detail': '(a, b, current guess) → bilinear layer, plus 8 bit-position vectors',
+         'parameters': count(model.ask) + model.position.numel()},
+        *[{'part': f'Bit layer {i + 1}', 'detail': 'bit tokens attend to each other (bias per bit distance), '
+           f'read the examples ({config["heads"]} heads), gated feed-forward', 'parameters': count(layer)}
+          for i, layer in enumerate(layers)],
+        {'part': 'Memory', 'detail': 'GRU cell per bit token, carried to the next round', 'parameters': count(model.cell)},
+        {'part': 'Readout', 'detail': 'each bit token → its own bit', 'parameters': count(model.readout)},
+    ]
+    if config.get('stepwise', False):
+        parts.append({'part': 'Done signal', 'detail': '"the steps are finished"', 'parameters': count(model.done)})
+    return {'hidden': config['hidden'], 'heads': config['heads'], 'layers': config['layers'], 'rounds': config['steps'],
+            'width': config['width'], 'parameters': count(model), 'parts': parts}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description='Export experiment progress for the docs site')
     parser.add_argument('--root', default='.')
@@ -99,7 +140,14 @@ def main() -> None:
         if path.exists():
             found.append(experiment(identifier, chapter, title, path, [root / log for log in logs if (root / log).exists()]))
     tiers = {tier: [f.name for f in families] for tier, families in TIERS.items()}
-    Path(args.out).write_text(json.dumps({'ladder': list(LADDER), 'tiers': tiers, 'experiments': found}))
+    architectures = {}
+    for identifier, title, checkpoint in ARCHITECTURES:
+        if (root / checkpoint).exists():
+            model, _ = load_bit_model(root / checkpoint)
+            if isinstance(model, BitTokenModel):
+                architectures[identifier] = {'title': title, 'checkpoint': checkpoint, **bit_token_parts(model)}
+    Path(args.out).write_text(json.dumps({'ladder': list(LADDER), 'tiers': tiers, 'experiments': found,
+                                          'architectures': architectures}))
     print(f'exported {len(found)} experiments to {args.out}')
 
 

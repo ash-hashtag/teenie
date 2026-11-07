@@ -197,8 +197,8 @@ const phases = [
       </p>
     </li>
 
-    <li class="card result">
-      <p class="eyebrow">Now · loops and the difficulty ladder</p>
+    <li class="card">
+      <p class="eyebrow">Loops and the difficulty ladder</p>
       <h3>Functions defined by loops, measured on a ladder</h3>
       <p>
         Training now includes loops whose repeat count comes from <code>b</code> (sums of sequences, repeated
@@ -207,29 +207,53 @@ const phases = [
         both count. <a href={`${base}/results/`}>See the results →</a>
       </p>
     </li>
+    <li class="card">
+      <p class="eyebrow">Scratch slots · memory that is never scored</p>
+      <h3>Somewhere to keep intermediate results</h3>
+      <p>
+        Four memory vectors per question, carried between rounds, lifted multiplication inside mixed training from
+        {pct(fam('mix3', 'a*b'))} to {pct(fam('mix3-scratch4', 'a*b'))} and the Fibonacci-like loop from
+        {pct(fam('mix3', 'fib(a,a) n15'))} to {pct(fam('mix3-scratch4', 'fib(a,a) n15'))} — but a product followed by
+        another step stayed near {pct(fam('mix3-scratch4', 'a*b+b'))}, even when trained on nothing else
+        ({pct(fam('nearonly-scratch4', 'a*b+b'))}).
+      </p>
+    </li>
+
+    <li class="card result">
+      <p class="eyebrow">Now · bit tokens and step-by-step training</p>
+      <h3>One token per answer bit, one round per step</h3>
+      <p>
+        The limit was never parameters: carries have to move between bit positions through an intermediate result, and
+        one question vector has no structure for that. Giving every answer bit its own token — attending to the other
+        bits and to the examples each round — took that capacity check from {pct(fam('nearonly', 'a*b+b'))} to
+        <strong>{pct(fam('nearonly-bittoken', 'a*b+b'))}</strong>. Now it trains on everything with step-by-step
+        supervision: round t is scored against the t-th intermediate value (an operation, or a loop iteration) and a
+        "done" signal learns when to stop — so a loop of n iterations takes n rounds, and longer loops can be tested by
+        running more rounds. <a href={`${base}/model/`}>The design →</a>
+      </p>
+    </li>
   </ol>
 
   <h2>Where it goes next</h2>
   <div class="grid-3">
     <div class="card">
-      <h3>Scratch slots</h3>
+      <h3>Longer loops by repetition</h3>
       <p class="small">
-        A few memory vectors per question, carried between rounds and never scored — somewhere to keep <code>a*b</code>
-        while adding <code>a</code>, or a running total and a counter.
+        Trained on loops of up to 15 iterations, tested with 64 and 256 rounds: does one round per iteration carry over
+        to loops it has never seen at that length?
       </p>
     </div>
     <div class="card">
-      <h3>Choose its own number of rounds</h3>
+      <h3>Faster bit tokens</h3>
       <p class="small">
-        A learned "done" signal: one round when one pass is enough, many when a relation is loop-shaped, with an external
-        cap. Rounds used per question will show whether it loops or found a formula.
+        Eight tokens per question read the examples, which makes training about five times slower. Narrower layers,
+        fewer probe questions and sharing reads between bit tokens are the next efficiency steps.
       </p>
     </div>
     <div class="card">
-      <h3>Attention between bits</h3>
+      <h3>Wider numbers</h3>
       <p class="small">
-        Inside each round, let the 8 bit positions talk to each other (low to high, like carries), compared against a
-        carry scan.
+        Bit tokens and steps do not depend on the number of bits, so 12- and 16-bit numbers are the natural next tier.
       </p>
     </div>
   </div>

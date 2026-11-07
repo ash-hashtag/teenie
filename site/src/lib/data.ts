@@ -122,7 +122,24 @@ export type Experiment = {
   curve: CurvePoint[];
 };
 
-export type Progress = { ladder: string[]; tiers: Record<string, string[]>; experiments: Experiment[] };
+export type Architecture = {
+  title: string;
+  checkpoint: string;
+  hidden: number;
+  heads: number;
+  layers: number;
+  rounds: number;
+  width: number;
+  parameters: number;
+  parts: { part: string; detail: string; parameters: number }[];
+};
+
+export type Progress = {
+  ladder: string[];
+  tiers: Record<string, string[]>;
+  experiments: Experiment[];
+  architectures: Record<string, Architecture>;
+};
 
 export const progress = progressJson as unknown as Progress;
 

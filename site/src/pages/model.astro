@@ -1,13 +1,23 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import BitTokenDiagram from '../components/BitTokenDiagram.astro';
+import DotPlot from '../components/DotPlot.astro';
 import LoopDiagram from '../components/LoopDiagram.astro';
 import RoundsInspector from '../components/RoundsInspector.astro';
-import { current } from '../lib/data';
+import { current, experimentById, progress } from '../lib/data';
 import { pct, thousands } from '../lib/format';
 
 const arch = current.architecture;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const share = (n: number) => `${((100 * n) / arch.parameters).toFixed(1)}%`;
+const bitTokens = progress.architectures.bittoken;
+const capacityRuns = [
+  { id: 'nearonly', name: 'loop', color: 'var(--series-2)' },
+  { id: 'nearonly-scratch4', name: 'loop + scratch slots', color: 'var(--series-4)' },
+  { id: 'nearonly-bittoken', name: 'bit tokens', color: 'var(--series-1)' },
+];
+const capacityRelations = ['a*b+b', 'a*b+5', 'a*b-a', '(a*b)^a', 'a*b+a'];
+const capacityExact = (id: string, name: string) => experimentById(id)?.families[name]?.exact ?? null;
 ---
 
 <Layout title="Model" description="The current model: 999 examples encoded once, an 8-bit answer guess refined over rounds.">
@@ -119,6 +129,83 @@ const share = (n: number) => `${((100 * n) / arch.parameters).toFixed(1)}%`;
   </p>
   <RoundsInspector />
 
+  {
+    bitTokens && (
+      <section class="next">
+        <h2>In testing: bit tokens</h2>
+        <p>
+          The current model holds each question as one vector. That is enough to multiply, and enough to add — but not
+          to do one after the other: a product followed by another step needs carries to move between bit positions
+          through an intermediate result. The bit-token model gives every answer bit its own token. Each round the bit
+          tokens attend to each other, each reads the 999 examples, and a gated layer updates them.
+        </p>
+        <div class="grid-3 stats">
+          <div class="card stat">
+            <span class="label">Parameters</span>
+            <span class="value">{thousands(bitTokens.parameters)}</span>
+            <span class="note">{`about ${Math.round(bitTokens.parameters / 1000)}K at width ${bitTokens.hidden}`}</span>
+          </div>
+          <div class="card stat">
+            <span class="label">Layers per round · rounds</span>
+            <span class="value">{`${bitTokens.layers} · ${bitTokens.rounds}`}</span>
+            <span class="note">{`${bitTokens.layers} bit layers (${bitTokens.heads} heads), 8 tokens per question`}</span>
+          </div>
+          <div class="card stat">
+            <span class="label">"Product, then a step" (trained on it alone)</span>
+            <span class="value">{pct(capacityExact('nearonly-bittoken', 'a*b+b'))}</span>
+            <span class="note">{`the current design reaches ${pct(capacityExact('nearonly', 'a*b+b'))} with the same training`}</span>
+          </div>
+        </div>
+        <div class="card">
+          <BitTokenDiagram layers={bitTokens.layers} rounds={bitTokens.rounds} heads={bitTokens.heads} />
+        </div>
+        <h3>Can it compute a product followed by another step?</h3>
+        <p class="small">
+          Capacity check: each design trained on nothing but these four relations (3,000 updates), then tested on fresh
+          questions. <code>a*b+a</code> was never shown to any of them.
+        </p>
+        <div class="card">
+          <DotPlot
+            title="Exact match after training only on product-then-step relations"
+            reference={0.5}
+            labelWidth={150}
+            methods={capacityRuns.map((r) => ({ name: r.name, color: r.color }))}
+            rows={capacityRelations.map((name) => ({
+              name: name === 'a*b+a' ? 'a*b+a (unseen)' : name,
+              values: capacityRuns.map((r) => capacityExact(r.id, name)),
+            }))}
+          />
+        </div>
+        <p class="small muted">
+          Bit tokens reach 99–100% where a single question vector stalls below 50% — even with scratch memory. Trained on
+          only four relations it forces the unseen <code>a*b+a</code> into one it knows, so the real test is broad
+          training: it is now training with step-by-step supervision on the full data set, and replaces the current model
+          if it wins on the ladder.
+        </p>
+        <details>
+          <summary>Where its parameters are</summary>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th>part</th><th>what it does</th><th class="num">parameters</th></tr>
+              </thead>
+              <tbody>
+                {bitTokens.parts.map((p) => (
+                  <tr>
+                    <td><b>{p.part}</b></td>
+                    <td class="muted">{p.detail}</td>
+                    <td class="num">{thousands(p.parameters)}</td>
+                  </tr>
+                ))}
+                <tr><td><b>Total</b></td><td></td><td class="num"><b>{thousands(bitTokens.parameters)}</b></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </section>
+    )
+  }
+
   <h2>How it is trained</h2>
   <div class="grid-2">
     <div class="card">
@@ -135,7 +222,7 @@ const share = (n: number) => `${((100 * n) / arch.parameters).toFixed(1)}%`;
       <p class="small">
         Every 500 updates the model is checked on each relation kind, and the next episodes are drawn in proportion to how
         often it is still wrong. That alone took multiplication from 45% to 99.6% in an earlier mixed run.
-        {`This model: ${arch.updates?.toLocaleString('en-US')} updates on ${arch.train_set}, per-bit cross-entropy, AdamW.`}
+        {` This model: ${arch.updates?.toLocaleString('en-US')} updates on ${arch.train_set}, per-bit cross-entropy, AdamW.`}
       </p>
     </div>
   </div>
@@ -157,5 +244,9 @@ const share = (n: number) => `${((100 * n) / arch.parameters).toFixed(1)}%`;
 
   .steps p:last-child {
     margin-bottom: 0;
+  }
+
+  .next .stats {
+    margin: 1rem 0;
   }
 </style>

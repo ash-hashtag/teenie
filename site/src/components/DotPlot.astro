@@ -9,11 +9,13 @@ interface Props {
   title: string;
   /** Optional vertical reference line, e.g. the 50% bar. */
   reference?: number;
+  /** Width reserved for row names, in chart units (of 720). */
+  labelWidth?: number;
 }
 
-const { rows, methods, title, reference } = Astro.props;
+const { rows, methods, title, reference, labelWidth = 110 } = Astro.props;
 const W = 720;
-const label = 110;
+const label = labelWidth;
 const right = 16;
 const rowH = 28;
 const top = 8;

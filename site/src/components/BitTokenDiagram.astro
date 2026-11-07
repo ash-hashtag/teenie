@@ -1,0 +1,146 @@
+---
+// The bit-token model: the question is 8 tokens, one per answer bit, refined together round after round.
+interface Props {
+  layers: number;
+  rounds: number;
+  heads: number;
+}
+
+const { layers, rounds, heads } = Astro.props;
+const bits = [7, 6, 5, 4, 3, 2, 1, 0];
+const tokenX = (i: number) => 300 + i * 56;
+---
+
+<div class="scroll">
+  <svg viewBox="0 0 800 430" role="img" aria-labelledby="bt-title bt-desc">
+    <title id="bt-title">The bit-token model</title>
+    <desc id="bt-desc">
+      The 999 examples are encoded once. The question becomes eight tokens, one per answer bit. Each round the bit
+      tokens attend to each other, each reads the examples, and a gated layer updates them; a memory per token carries
+      to the next round and each token writes its own bit of the new guess.
+    </desc>
+    <defs>
+      <marker id="bt-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"></path>
+      </marker>
+    </defs>
+
+    <g class="node data"><rect x="20" y="40" width="200" height="56" rx="10" /><text x="120" y="64" class="head" text-anchor="middle">999 examples</text><text x="120" y="82" class="sub" text-anchor="middle">a, b, c as 24 bits</text></g>
+    <g class="node"><rect x="20" y="150" width="200" height="56" rx="10" /><text x="120" y="174" class="head" text-anchor="middle">Example encoder</text><text x="120" y="192" class="sub" text-anchor="middle">bilinear · run once</text></g>
+    <g class="node data"><rect x="20" y="260" width="200" height="56" rx="10" /><text x="120" y="284" class="head" text-anchor="middle">999 fixed vectors</text><text x="120" y="302" class="sub" text-anchor="middle">keys &amp; values per layer</text></g>
+    <g class="edges">
+      <path d="M120,96 V146" />
+      <path d="M120,206 V256" />
+      <path d="M220,288 H284 V217 H296" />
+    </g>
+
+    <rect x="270" y="16" width="510" height="400" rx="14" class="round" />
+    <text x="290" y="404" class="round-label">one round · same weights · × {rounds}</text>
+
+    <g class="node data"><rect x="300" y="30" width="440" height="40" rx="10" /><text x="520" y="55" class="sub" text-anchor="middle">question: a, b + current 8-bit guess, plus a position vector per bit</text></g>
+    <g class="edges"><path d="M520,70 V92" /></g>
+    {
+      bits.map((b, i) => (
+        <g class="token">
+          <rect x={tokenX(i)} y="96" width="48" height="44" rx="8" />
+          <text x={tokenX(i) + 24} y="123" text-anchor="middle" class="head">c{b}</text>
+        </g>
+      ))
+    }
+    <path class="arc" d={`M${tokenX(1) + 24},96 C${tokenX(1) + 24},76 ${tokenX(4) + 24},76 ${tokenX(4) + 24},96`} />
+    <path class="arc" d={`M${tokenX(4) + 24},96 C${tokenX(4) + 24},80 ${tokenX(6) + 24},80 ${tokenX(6) + 24},96`} />
+    <text x="520" y="160" text-anchor="middle" class="label">8 bit tokens per question</text>
+
+    <g class="node att">
+      <rect x="300" y="174" width="440" height="88" rx="10" />
+      <text x="520" y="196" text-anchor="middle" class="head">Bit layers × {layers}</text>
+      <text x="520" y="216" text-anchor="middle" class="sub">1 · bit tokens attend to each other (learned bias per bit distance)</text>
+      <text x="520" y="234" text-anchor="middle" class="sub">2 · each bit token reads the examples ({heads} heads)</text>
+      <text x="520" y="252" text-anchor="middle" class="sub">3 · gated feed-forward (can multiply)</text>
+    </g>
+    <g class="edges">
+      <path d="M520,140 V170" />
+      <path d="M520,262 V286" />
+    </g>
+    <g class="node"><rect x="300" y="290" width="200" height="52" rx="10" /><text x="400" y="312" class="head" text-anchor="middle">Memory</text><text x="400" y="330" class="sub" text-anchor="middle">GRU cell per bit token</text></g>
+    <g class="node"><rect x="540" y="290" width="200" height="52" rx="10" /><text x="640" y="312" class="head" text-anchor="middle">Readout</text><text x="640" y="330" class="sub" text-anchor="middle">each token → its own bit</text></g>
+    <g class="edges">
+      <path d="M500,316 H536" />
+      <path class="loop" d="M740,316 H764 V50 H744" />
+    </g>
+    <text x="756" y="190" class="label" text-anchor="end" transform="rotate(-90 756 190)">next round</text>
+  </svg>
+</div>
+
+<style>
+  .scroll {
+    overflow-x: auto;
+  }
+
+  svg {
+    min-width: 600px;
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .round {
+    fill: var(--surface-2);
+    stroke: var(--grid);
+  }
+
+  .round-label,
+  .label {
+    fill: var(--muted);
+    font-size: 12px;
+  }
+
+  .node rect {
+    fill: var(--surface);
+    stroke: var(--axis);
+  }
+
+  .node.data rect {
+    fill: var(--page);
+  }
+
+  .node.att rect {
+    fill: var(--wash-1);
+    stroke: var(--series-1);
+    stroke-width: 1.5;
+  }
+
+  .token rect {
+    fill: var(--surface);
+    stroke: var(--series-3);
+    stroke-width: 1.5;
+  }
+
+  .head {
+    fill: var(--ink);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .sub {
+    fill: var(--ink-2);
+    font-size: 12px;
+  }
+
+  .edges path {
+    fill: none;
+    stroke: var(--muted);
+    stroke-width: 1.5;
+    marker-end: url(#bt-arrow);
+  }
+
+  .edges .loop {
+    stroke: var(--series-2);
+  }
+
+  .arc {
+    fill: none;
+    stroke: var(--series-3);
+    stroke-width: 1.5;
+  }
+</style>

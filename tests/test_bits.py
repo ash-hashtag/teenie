@@ -173,3 +173,20 @@ def test_training_resume_and_init_continue_from_saved_state(tmp_path):
     train(updates=2, save=tmp_path / 'more.pt', log=tmp_path / 'b.jsonl', init=save, **options)
     records = [json.loads(line) for line in (tmp_path / 'b.jsonl').read_text().splitlines()]
     assert records[-1]['update'] == 4
+
+
+def test_mix2_has_more_steps_more_products_and_keeps_hidden_out():
+    from teenie.bits.expressions import fingerprint, random_tree
+    from teenie.bits.sets import FORBIDDEN, STEPS, TRAIN_SETS
+
+    count = lambda trees: sum(str(t).count("'*'") for t in trees)  # noqa: E731
+    plain = [random_tree(3, torch.Generator().manual_seed(i), 8) for i in range(300)]
+    weighted = [random_tree(3, torch.Generator().manual_seed(i), 8, product_weight=2.) for i in range(300)]
+    assert count(weighted) > 1.4 * count(plain)
+    assert [f.name for f in STEPS] == ['steps1', 'steps2', 'steps3', 'steps4', 'steps5', 'composed']
+    assert all(f in TRAIN_SETS['mix2'] for f in STEPS)
+    banned = {fingerprint(f.make(torch.Generator(), 8), 8) for f in FORBIDDEN}
+    generator = torch.Generator().manual_seed(1)
+    for family in STEPS:
+        for _ in range(30):
+            assert fingerprint(family.make(generator, 8), 8) not in banned

@@ -60,9 +60,16 @@ def show(tree: Tree) -> str:
     return f'({shown[0]}{op}{shown[1]})'
 
 
-def random_tree(ops: int, generator: torch.Generator, width: int) -> Tree:
+def random_tree(ops: int, generator: torch.Generator, width: int, product_weight: float = 1.) -> Tree:
+    """`product_weight` > 1 draws `*` more often than each other binary operation."""
     def pick(options: list[str]) -> str:
         return options[int(torch.randint(0, len(options), (), generator=generator))]
+
+    def pick_binary() -> str:
+        if product_weight == 1.:  # keeps the original draws for the `mix` set
+            return pick(list(BINARY))
+        weights = torch.tensor([product_weight if op == '*' else 1. for op in BINARY])
+        return list(BINARY)[int(torch.multinomial(weights, 1, generator=generator))]
 
     if ops == 0:
         roll = float(torch.rand((), generator=generator))
@@ -72,9 +79,16 @@ def random_tree(ops: int, generator: torch.Generator, width: int) -> Tree:
             return 'b'
         return int(torch.randint(1, 1 << width, (), generator=generator))
     if float(torch.rand((), generator=generator)) < .2:
-        return (pick(list(UNARY)), random_tree(ops - 1, generator, width))
+        return (pick(list(UNARY)), random_tree(ops - 1, generator, width, product_weight))
     left = int(torch.randint(0, ops, (), generator=generator))
-    return (pick(list(BINARY)), random_tree(left, generator, width), random_tree(ops - 1 - left, generator, width))
+    return (pick_binary(), random_tree(left, generator, width, product_weight),
+            random_tree(ops - 1 - left, generator, width, product_weight))
+
+
+def has_variable(tree: Tree) -> bool:
+    if not isinstance(tree, tuple):
+        return tree in ('a', 'b')
+    return any(has_variable(child) for child in _parts(tree)[1])
 
 
 @lru_cache(maxsize=8)
@@ -98,6 +112,14 @@ def named(name: str, tree: Tree) -> Family:
     return Family(name, lambda generator, width: relation)
 
 
+# Close relatives of the hidden set that training may produce: tracks "a product, then another step".
+NEAR_FAMILIES: tuple[Family, ...] = (
+    named('a*b+b', ('+', ('*', 'a', 'b'), 'b')),
+    named('a*b+5', ('+', ('*', 'a', 'b'), 5)),
+    named('a*b-a', ('-', ('*', 'a', 'b'), 'a')),
+    named('(a*b)^a', ('^', ('*', 'a', 'b'), 'a')),
+)
+
 # New operations never generated for training: compositions of the trained building blocks.
 HIDDEN_FAMILIES: tuple[Family, ...] = (
     named('a*b+a', ('+', ('*', 'a', 'b'), 'a')),
@@ -111,18 +133,42 @@ HIDDEN_FAMILIES: tuple[Family, ...] = (
 )
 
 
-def expression_family(ops: int, forbidden: tuple[Family, ...], name: str | None = None) -> Family:
+def _draw(draw: Callable[[torch.Generator, int], Tree], forbidden: tuple[Family, ...],
+          generator: torch.Generator, width: int) -> Relation:
+    """Redraw until the expression varies enough and behaves unlike every forbidden relation."""
+    banned = _banned(forbidden, width)
+    for _ in range(200):
+        tree = draw(generator, width)
+        relation = tree_relation(show(tree), tree)
+        outputs = fingerprint(relation, width)
+        if len(set(outputs)) >= 8 and outputs not in banned:
+            return relation
+    raise RuntimeError('could not draw a usable expression')
+
+
+def expression_family(ops: int, forbidden: tuple[Family, ...], name: str | None = None,
+                      product_weight: float = 1.) -> Family:
     """A fresh random expression with exactly `ops` operations per episode, never equivalent to `forbidden`."""
     def make(generator: torch.Generator, width: int) -> Relation:
-        banned = _banned(forbidden, width)
-        for _ in range(200):
-            tree = random_tree(ops, generator, width)
-            relation = tree_relation(show(tree), tree)
-            outputs = fingerprint(relation, width)
-            if len(set(outputs)) >= 8 and outputs not in banned:
-                return relation
-        raise RuntimeError(f'could not draw a usable {ops}-operation expression')
+        return _draw(lambda g, w: random_tree(ops, g, w, product_weight), forbidden, generator, width)
     return Family(name or f'expr{ops}', make)
+
+
+def composed_family(forbidden: tuple[Family, ...], product_weight: float = 2.) -> Family:
+    """One binary operation joining two multi-step pieces that both use a or b, e.g. (a*b)+(a^b)."""
+    def piece(generator: torch.Generator, width: int) -> Tree:
+        while True:
+            tree = random_tree(int(torch.randint(1, 3, (), generator=generator)), generator, width, product_weight)
+            if has_variable(tree):
+                return tree
+
+    def draw(generator: torch.Generator, width: int) -> Tree:
+        op = list(BINARY)[int(torch.randint(0, len(BINARY), (), generator=generator))]
+        return (op, piece(generator, width), piece(generator, width))
+
+    def make(generator: torch.Generator, width: int) -> Relation:
+        return _draw(draw, forbidden, generator, width)
+    return Family('composed', make)
 
 
 _banned_cache: dict[tuple[int, int], frozenset[tuple[int, ...]]] = {}

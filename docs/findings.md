@@ -78,7 +78,7 @@ Dead ends, kept for the record:
   65,536 pairs) but does not train — the cosine over values up to 65,025 makes gradients effectively
   random (loss rose 2.9 → 3.7). `experiments/mul/stopped/`.
 
-## 6. Procedurally generated relations (`--train-set mix`) — paused at update 6,500 of 10,000
+## 6. Procedurally generated relations (`--train-set mix`)
 
 Training adds random expression trees with 1–3 operations (`+ − × xor and or min max`, `<<1 >>1 not`,
 constants) to the named relations and `a*b`. Eight **hidden** compositions are never generated —
@@ -98,5 +98,36 @@ Validation at update 6,500 (128 questions per relation; not yet the full 1,024-q
   `(a*b)^b` 16%, `(a+1)*(b+1)` 14%. Fresh 5-operation expressions: 70%.
 - Sampling share at the end went mostly to state machines and 2-operation expressions.
 
-The run was paused by request. Weights at update 6,500 are in `checkpoints/mix/mix-mloop.pt`; the
-optimizer state is not saved, so continuing restarts the learning-rate schedule from those weights.
+The run was paused by request at 6,500 and continued with `--init` for 3,500 more updates at a lower
+peak learning rate (3e-4) to reach 10,000 (`checkpoints/mix/mix-mloop-cont.pt`,
+`experiments/mix/mix-mloop-cont-train.jsonl`).
+
+**Full evaluation at 10,000 updates** (1,024 questions per relation, `experiments/mix/mix-mloop-eval.json`):
+
+| group | relation | exact | bits | sure | right when sure | closest example | best lookup |
+|---|---|---|---|---|---|---|---|
+| trained | 12 named relations | 99.9–100% | 100% | 94–100% | 100% | 2–33% | 71–100% |
+| trained | `a*b` | **99.6%** | 100% | 72% | 100% | 6.6% | 7.8% |
+| trained | random state machines | 86.5% | 97.8% | 46% | 99.4% | 20% | 66% |
+| trained | expressions, 1 / 2 / 3 ops | 94.5 / 83.7 / 77.6% | 95–99% | 49–87% | ≥99.6% | 25–30% | 55–84% |
+| held out | a+b+1, nand | 100% | | | | | |
+| held out | a−2b / min / 3a | 99.8 / **97.7** / 99.3% | | | 100% | | |
+| hidden | `(a+b)>>1` | 92.0% | 98.6% | 9.9% | 100% | 3.8% | 35% |
+| hidden | `(a^b)*3` | 82.4% | 97.2% | 7.0% | 100% | 4.7% | 97% |
+| hidden | `a*a` | 70.9% | 95.8% | 0.4% | 100% | 41% | 18% |
+| hidden | `\|a−b\|` | 60.9% | 88.5% | 7.0% | 95.8% | 3.2% | 35% |
+| hidden | `(a<<1)+(b>>1)` | 49.7% | 89.9% | 0.1% | 100% | 4.6% | 5.4% |
+| hidden | `(a*b)^b` / `a*b+a` / `(a+1)*(b+1)` | 15.4 / 13.6 / 14.7% | ~80% | 0% | — | 5–7% | 7% |
+| deeper | fresh 5-op expressions | 68.7% | 92.7% | 30% | 99.0% | 26% | 47% |
+| stress | `a*(b&63)` | 50.2% | 92.3% | 74% | **54.5%** | 9.3% | 8.0% |
+
+Conclusions:
+
+- **The multiplicative loop with adaptive sampling is the best model so far**: `a*b` 99.6% inside mixed
+  training, every earlier relation at 98–100% (including `min`, 32–47% in all previous models).
+- **Hidden compositions average 50%**, far above both baselines (closest example ≈ 9%, lookup ≈ 28%).
+  The model reasons its way to new combinations of shifts, xor, add and squaring, but **multiplication
+  combined with another operation is not solved** (14–15%).
+- **Confidence is now honest on unseen relations**: on hidden compositions it is rarely "sure" (0–10%),
+  and when it is, it is right 96–100% of the time — unlike the E2 multiplication runs. The exception is
+  `a*(b&63)`, which it confidently mistakes for `a*b` (sure 74%, right 55%).

@@ -1,0 +1,453 @@
+{
+  "checkpoint": "checkpoints/mix2/mix2-mloop.pt",
+  "train_set": "mix2",
+  "width": 8,
+  "episodes": 64,
+  "queries": 16,
+  "seed": 60000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "results": {
+    "train": {
+      "add": {
+        "exact": 0.998046875,
+        "bit": 0.999755859375,
+        "sure_coverage": 0.96875,
+        "sure_accuracy": 1.0,
+        "nearest": 0.021484375,
+        "window1L": 1.0,
+        "window1H": 0.1220703125,
+        "window2L": 0.9921875,
+        "window2H": 0.109375
+      },
+      "sub": {
+        "exact": 0.9990234375,
+        "bit": 0.9998779296875,
+        "sure_coverage": 0.9013671875,
+        "sure_accuracy": 1.0,
+        "nearest": 0.03515625,
+        "window1L": 1.0,
+        "window1H": 0.111328125,
+        "window2L": 0.9912109375,
+        "window2H": 0.1083984375
+      },
+      "b-a": {
+        "exact": 0.998046875,
+        "bit": 0.999755859375,
+        "sure_coverage": 0.8994140625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.03515625,
+        "window1L": 1.0,
+        "window1H": 0.1015625,
+        "window2L": 0.986328125,
+        "window2H": 0.099609375
+      },
+      "xor": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.994140625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.046875,
+        "window1L": 1.0,
+        "window1H": 1.0,
+        "window2L": 1.0,
+        "window2H": 1.0
+      },
+      "and": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9853515625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.283203125,
+        "window1L": 1.0,
+        "window1H": 1.0,
+        "window2L": 1.0,
+        "window2H": 1.0
+      },
+      "or": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9892578125,
+        "sure_accuracy": 1.0,
+        "nearest": 0.298828125,
+        "window1L": 1.0,
+        "window1H": 1.0,
+        "window2L": 1.0,
+        "window2H": 1.0
+      },
+      "a+2b": {
+        "exact": 0.9931640625,
+        "bit": 0.9990234375,
+        "sure_coverage": 0.8154296875,
+        "sure_accuracy": 1.0,
+        "nearest": 0.0390625,
+        "window1L": 0.3427734375,
+        "window1H": 0.08984375,
+        "window2L": 0.9453125,
+        "window2H": 0.0712890625
+      },
+      "2a+b": {
+        "exact": 0.99609375,
+        "bit": 0.9993896484375,
+        "sure_coverage": 0.8583984375,
+        "sure_accuracy": 0.9999999403953552,
+        "nearest": 0.0498046875,
+        "window1L": 0.3564453125,
+        "window1H": 0.0830078125,
+        "window2L": 0.9482421875,
+        "window2H": 0.076171875
+      },
+      "max": {
+        "exact": 0.994140625,
+        "bit": 0.9991455078125,
+        "sure_coverage": 0.8505859375,
+        "sure_accuracy": 1.0,
+        "nearest": 0.2109375,
+        "window1L": 0.30078125,
+        "window1H": 0.431640625,
+        "window2L": 0.404296875,
+        "window2H": 0.7119140625
+      },
+      "a<<1": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9970703125,
+        "sure_accuracy": 1.0,
+        "nearest": 0.333984375,
+        "window1L": 1.0,
+        "window1H": 0.0107421875,
+        "window2L": 0.99609375,
+        "window2H": 0.0078125
+      },
+      "a+const": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9765625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.302734375,
+        "window1L": 0.998046875,
+        "window1H": 0.296875,
+        "window2L": 0.978515625,
+        "window2H": 0.2841796875
+      },
+      "b^const": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9931640625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.2685546875,
+        "window1L": 1.0,
+        "window1H": 1.0,
+        "window2L": 1.0,
+        "window2H": 1.0
+      },
+      "transducer": {
+        "exact": 0.802734375,
+        "bit": 0.9638671875,
+        "sure_coverage": 0.3876953125,
+        "sure_accuracy": 0.9974810481071472,
+        "nearest": 0.203125,
+        "window1L": 0.5625,
+        "window1H": 0.560546875,
+        "window2L": 0.6279296875,
+        "window2H": 0.6611328125
+      },
+      "a*b": {
+        "exact": 0.9736328125,
+        "bit": 0.99658203125,
+        "sure_coverage": 0.1904296875,
+        "sure_accuracy": 1.0,
+        "nearest": 0.06640625,
+        "window1L": 0.03515625,
+        "window1H": 0.0234375,
+        "window2L": 0.078125,
+        "window2H": 0.03125
+      },
+      "steps1": {
+        "exact": 0.955078125,
+        "bit": 0.9937744140625,
+        "sure_coverage": 0.736328125,
+        "sure_accuracy": 0.9986737370491028,
+        "nearest": 0.2744140625,
+        "window1L": 0.671875,
+        "window1H": 0.59765625,
+        "window2L": 0.7080078125,
+        "window2H": 0.6181640625
+      },
+      "steps2": {
+        "exact": 0.83984375,
+        "bit": 0.9696044921875,
+        "sure_coverage": 0.57421875,
+        "sure_accuracy": 1.0,
+        "nearest": 0.263671875,
+        "window1L": 0.59375,
+        "window1H": 0.3876953125,
+        "window2L": 0.619140625,
+        "window2H": 0.4052734375
+      },
+      "steps3": {
+        "exact": 0.73046875,
+        "bit": 0.9449462890625,
+        "sure_coverage": 0.4306640625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.234375,
+        "window1L": 0.4541015625,
+        "window1H": 0.3330078125,
+        "window2L": 0.515625,
+        "window2H": 0.341796875
+      },
+      "steps4": {
+        "exact": 0.66796875,
+        "bit": 0.92919921875,
+        "sure_coverage": 0.291015625,
+        "sure_accuracy": 0.9966443181037903,
+        "nearest": 0.263671875,
+        "window1L": 0.4052734375,
+        "window1H": 0.30859375,
+        "window2L": 0.447265625,
+        "window2H": 0.32421875
+      },
+      "steps5": {
+        "exact": 0.6796875,
+        "bit": 0.9261474609375,
+        "sure_coverage": 0.30859375,
+        "sure_accuracy": 0.996835470199585,
+        "nearest": 0.2509765625,
+        "window1L": 0.3681640625,
+        "window1H": 0.3310546875,
+        "window2L": 0.470703125,
+        "window2H": 0.359375
+      },
+      "composed": {
+        "exact": 0.65625,
+        "bit": 0.92822265625,
+        "sure_coverage": 0.3076171875,
+        "sure_accuracy": 0.9936507940292358,
+        "nearest": 0.1943359375,
+        "window1L": 0.3701171875,
+        "window1H": 0.3115234375,
+        "window2L": 0.43359375,
+        "window2H": 0.3251953125
+      }
+    },
+    "heldout": {
+      "a+b+1": {
+        "exact": 0.998046875,
+        "bit": 0.999755859375,
+        "sure_coverage": 0.9443359375,
+        "sure_accuracy": 1.0,
+        "nearest": 0.021484375,
+        "window1L": 1.0,
+        "window1H": 0.107421875,
+        "window2L": 0.9912109375,
+        "window2H": 0.109375
+      },
+      "a-2b": {
+        "exact": 0.97265625,
+        "bit": 0.995849609375,
+        "sure_coverage": 0.4638671875,
+        "sure_accuracy": 0.9999999403953552,
+        "nearest": 0.0419921875,
+        "window1L": 0.341796875,
+        "window1H": 0.0791015625,
+        "window2L": 0.9501953125,
+        "window2H": 0.080078125
+      },
+      "min": {
+        "exact": 0.9541015625,
+        "bit": 0.9932861328125,
+        "sure_coverage": 0.431640625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.21875,
+        "window1L": 0.3017578125,
+        "window1H": 0.4326171875,
+        "window2L": 0.4052734375,
+        "window2H": 0.7158203125
+      },
+      "nand": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.98828125,
+        "sure_accuracy": 1.0,
+        "nearest": 0.283203125,
+        "window1L": 1.0,
+        "window1H": 1.0,
+        "window2L": 1.0,
+        "window2H": 1.0
+      },
+      "3a": {
+        "exact": 0.96875,
+        "bit": 0.99560546875,
+        "sure_coverage": 0.3916015625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.2802734375,
+        "window1L": 0.1806640625,
+        "window1H": 0.0546875,
+        "window2L": 0.96484375,
+        "window2H": 0.0458984375
+      }
+    },
+    "stress": {
+      "a*(b&63)": {
+        "exact": 0.498046875,
+        "bit": 0.92138671875,
+        "sure_coverage": 0.1826171875,
+        "sure_accuracy": 0.7754010558128357,
+        "nearest": 0.0927734375,
+        "window1L": 0.0380859375,
+        "window1H": 0.01953125,
+        "window2L": 0.080078125,
+        "window2H": 0.0205078125
+      }
+    },
+    "near": {
+      "a*b+b": {
+        "exact": 0.22265625,
+        "bit": 0.8431396484375,
+        "sure_coverage": 0.0029296875,
+        "sure_accuracy": 1.0,
+        "nearest": 0.072265625,
+        "window1L": 0.0400390625,
+        "window1H": 0.0234375,
+        "window2L": 0.068359375,
+        "window2H": 0.025390625
+      },
+      "a*b+5": {
+        "exact": 0.216796875,
+        "bit": 0.8387451171875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null,
+        "nearest": 0.06640625,
+        "window1L": 0.0390625,
+        "window1H": 0.0263671875,
+        "window2L": 0.0693359375,
+        "window2H": 0.0283203125
+      },
+      "a*b-a": {
+        "exact": 0.22265625,
+        "bit": 0.834228515625,
+        "sure_coverage": 0.0009765625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.064453125,
+        "window1L": 0.0478515625,
+        "window1H": 0.0224609375,
+        "window2L": 0.0732421875,
+        "window2H": 0.01953125
+      },
+      "(a*b)^a": {
+        "exact": 0.1982421875,
+        "bit": 0.83642578125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null,
+        "nearest": 0.0595703125,
+        "window1L": 0.0302734375,
+        "window1H": 0.0205078125,
+        "window2L": 0.08203125,
+        "window2H": 0.029296875
+      }
+    },
+    "hidden": {
+      "a*b+a": {
+        "exact": 0.1904296875,
+        "bit": 0.831787109375,
+        "sure_coverage": 0.001953125,
+        "sure_accuracy": 1.0,
+        "nearest": 0.0498046875,
+        "window1L": 0.0439453125,
+        "window1H": 0.037109375,
+        "window2L": 0.072265625,
+        "window2H": 0.03515625
+      },
+      "a*a": {
+        "exact": 0.802734375,
+        "bit": 0.9742431640625,
+        "sure_coverage": 0.138671875,
+        "sure_accuracy": 1.0,
+        "nearest": 0.41015625,
+        "window1L": 0.0556640625,
+        "window1H": 0.0654296875,
+        "window2L": 0.1796875,
+        "window2H": 0.060546875
+      },
+      "(a+1)*(b+1)": {
+        "exact": 0.1806640625,
+        "bit": 0.8216552734375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null,
+        "nearest": 0.0732421875,
+        "window1L": 0.0341796875,
+        "window1H": 0.0234375,
+        "window2L": 0.0654296875,
+        "window2H": 0.0126953125
+      },
+      "(a^b)*3": {
+        "exact": 0.5302734375,
+        "bit": 0.919921875,
+        "sure_coverage": 0.0126953125,
+        "sure_accuracy": 0.9230769872665405,
+        "nearest": 0.046875,
+        "window1L": 0.1884765625,
+        "window1H": 0.0439453125,
+        "window2L": 0.9736328125,
+        "window2H": 0.0400390625
+      },
+      "|a-b|": {
+        "exact": 0.7041015625,
+        "bit": 0.92138671875,
+        "sure_coverage": 0.06640625,
+        "sure_accuracy": 0.9852941036224365,
+        "nearest": 0.0322265625,
+        "window1L": 0.2392578125,
+        "window1H": 0.1640625,
+        "window2L": 0.345703125,
+        "window2H": 0.1533203125
+      },
+      "(a+b)>>1": {
+        "exact": 0.986328125,
+        "bit": 0.9979248046875,
+        "sure_coverage": 0.0947265625,
+        "sure_accuracy": 0.9999999403953552,
+        "nearest": 0.0380859375,
+        "window1L": 0.0107421875,
+        "window1H": 0.2666015625,
+        "window2L": 0.0048828125,
+        "window2H": 0.3505859375
+      },
+      "(a*b)^b": {
+        "exact": 0.2080078125,
+        "bit": 0.8377685546875,
+        "sure_coverage": 0.00390625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.0732421875,
+        "window1L": 0.03515625,
+        "window1H": 0.021484375,
+        "window2L": 0.076171875,
+        "window2H": 0.025390625
+      },
+      "(a<<1)+(b>>1)": {
+        "exact": 0.67578125,
+        "bit": 0.939208984375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null,
+        "nearest": 0.0458984375,
+        "window1L": 0.0068359375,
+        "window1H": 0.0087890625,
+        "window2L": 0.0078125,
+        "window2H": 0.0537109375
+      }
+    },
+    "deeper": {
+      "expr7": {
+        "exact": 0.5341796875,
+        "bit": 0.8863525390625,
+        "sure_coverage": 0.1103515625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.2060546875,
+        "window1L": 0.1796875,
+        "window1H": 0.1416015625,
+        "window2L": 0.2685546875,
+        "window2H": 0.1708984375
+      }
+    }
+  }
+}

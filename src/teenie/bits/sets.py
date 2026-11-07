@@ -20,6 +20,7 @@ TRAIN_SETS: dict[str, tuple[Family, ...]] = {
     'blocks': TRAIN_FAMILIES + BLOCK_FAMILIES,
     'mix': TRAIN_FAMILIES + (MULTIPLY,) + EXPRESSIONS,
     'mix2': TRAIN_FAMILIES + (MULTIPLY,) + STEPS,
+    'near-only': NEAR_FAMILIES,  # diagnostic: can the model compute "a product, then another step" at all?
 }
 
 ALL_NAMED: dict[str, Family] = {**NAMED, **{f.name: f for f in HIDDEN_FAMILIES + NEAR_FAMILIES + EXPRESSIONS + DEEPER

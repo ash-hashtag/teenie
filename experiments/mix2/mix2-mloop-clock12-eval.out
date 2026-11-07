@@ -1,0 +1,45 @@
+[train]
+  add          exact=100.0 bit=100.0 sure_coverage= 96.9 sure_accuracy=100.0 nearest=  2.1 window1L=100.0 window1H= 12.2 window2L= 99.2 window2H= 10.9
+  sub          exact=100.0 bit=100.0 sure_coverage= 93.7 sure_accuracy=100.0 nearest=  3.5 window1L=100.0 window1H= 11.1 window2L= 99.1 window2H= 10.8
+  b-a          exact= 99.9 bit=100.0 sure_coverage= 92.6 sure_accuracy=100.0 nearest=  3.5 window1L=100.0 window1H= 10.2 window2L= 98.6 window2H= 10.0
+  xor          exact=100.0 bit=100.0 sure_coverage= 99.3 sure_accuracy=100.0 nearest=  4.7 window1L=100.0 window1H=100.0 window2L=100.0 window2H=100.0
+  and          exact=100.0 bit=100.0 sure_coverage= 99.2 sure_accuracy=100.0 nearest= 28.3 window1L=100.0 window1H=100.0 window2L=100.0 window2H=100.0
+  or           exact=100.0 bit=100.0 sure_coverage= 99.7 sure_accuracy=100.0 nearest= 29.9 window1L=100.0 window1H=100.0 window2L=100.0 window2H=100.0
+  a+2b         exact= 99.6 bit=100.0 sure_coverage= 83.9 sure_accuracy=100.0 nearest=  3.9 window1L= 34.3 window1H=  9.0 window2L= 94.5 window2H=  7.1
+  2a+b         exact= 99.8 bit=100.0 sure_coverage= 88.1 sure_accuracy=100.0 nearest=  5.0 window1L= 35.6 window1H=  8.3 window2L= 94.8 window2H=  7.6
+  max          exact= 99.8 bit=100.0 sure_coverage= 82.6 sure_accuracy=100.0 nearest= 21.1 window1L= 30.1 window1H= 43.2 window2L= 40.4 window2H= 71.2
+  a<<1         exact=100.0 bit=100.0 sure_coverage= 99.9 sure_accuracy=100.0 nearest= 33.4 window1L=100.0 window1H=  1.1 window2L= 99.6 window2H=  0.8
+  a+const      exact=100.0 bit=100.0 sure_coverage= 98.7 sure_accuracy=100.0 nearest= 30.3 window1L= 99.8 window1H= 29.7 window2L= 97.9 window2H= 28.4
+  b^const      exact=100.0 bit=100.0 sure_coverage= 99.7 sure_accuracy=100.0 nearest= 26.9 window1L=100.0 window1H=100.0 window2L=100.0 window2H=100.0
+  transducer   exact= 81.2 bit= 96.6 sure_coverage= 40.0 sure_accuracy= 99.8 nearest= 20.3 window1L= 56.2 window1H= 56.1 window2L= 62.8 window2H= 66.1
+  a*b          exact= 78.1 bit= 97.2 sure_coverage= 17.1 sure_accuracy=100.0 nearest=  6.6 window1L=  3.5 window1H=  2.3 window2L=  7.8 window2H=  3.1
+  steps1       exact= 92.7 bit= 99.0 sure_coverage= 73.3 sure_accuracy= 99.9 nearest= 27.4 window1L= 67.2 window1H= 59.8 window2L= 70.8 window2H= 61.8
+  steps2       exact= 82.8 bit= 97.0 sure_coverage= 58.8 sure_accuracy=100.0 nearest= 26.4 window1L= 59.4 window1H= 38.8 window2L= 61.9 window2H= 40.5
+  steps3       exact= 72.3 bit= 94.4 sure_coverage= 43.1 sure_accuracy=100.0 nearest= 23.4 window1L= 45.4 window1H= 33.3 window2L= 51.6 window2H= 34.2
+  steps4       exact= 64.8 bit= 92.6 sure_coverage= 31.5 sure_accuracy=100.0 nearest= 26.4 window1L= 40.5 window1H= 30.9 window2L= 44.7 window2H= 32.4
+  steps5       exact= 69.3 bit= 93.0 sure_coverage= 29.6 sure_accuracy=100.0 nearest= 25.1 window1L= 36.8 window1H= 33.1 window2L= 47.1 window2H= 35.9
+  composed     exact= 64.9 bit= 92.7 sure_coverage= 30.8 sure_accuracy= 99.4 nearest= 19.4 window1L= 37.0 window1H= 31.2 window2L= 43.4 window2H= 32.5
+[heldout]
+  a+b+1        exact=100.0 bit=100.0 sure_coverage= 94.6 sure_accuracy=100.0 nearest=  2.1 window1L=100.0 window1H= 10.7 window2L= 99.1 window2H= 10.9
+  a-2b         exact= 97.6 bit= 99.7 sure_coverage= 46.2 sure_accuracy=100.0 nearest=  4.2 window1L= 34.2 window1H=  7.9 window2L= 95.0 window2H=  8.0
+  min          exact= 96.0 bit= 99.4 sure_coverage= 46.0 sure_accuracy=100.0 nearest= 21.9 window1L= 30.2 window1H= 43.3 window2L= 40.5 window2H= 71.6
+  nand         exact=100.0 bit=100.0 sure_coverage= 99.3 sure_accuracy=100.0 nearest= 28.3 window1L=100.0 window1H=100.0 window2L=100.0 window2H=100.0
+  3a           exact= 97.0 bit= 99.6 sure_coverage= 33.5 sure_accuracy=100.0 nearest= 28.0 window1L= 18.1 window1H=  5.5 window2L= 96.5 window2H=  4.6
+[stress]
+  a*(b&63)     exact= 49.4 bit= 92.0 sure_coverage= 15.9 sure_accuracy= 77.3 nearest=  9.3 window1L=  3.8 window1H=  2.0 window2L=  8.0 window2H=  2.1
+[near]
+  a*b+b        exact= 19.1 bit= 83.6 sure_coverage=  0.5 sure_accuracy=100.0 nearest=  7.2 window1L=  4.0 window1H=  2.3 window2L=  6.8 window2H=  2.5
+  a*b+5        exact= 18.2 bit= 82.8 sure_coverage=  0.0 nearest=  6.6 window1L=  3.9 window1H=  2.6 window2L=  6.9 window2H=  2.8
+  a*b-a        exact= 22.3 bit= 84.0 sure_coverage=  0.4 sure_accuracy=100.0 nearest=  6.4 window1L=  4.8 window1H=  2.2 window2L=  7.3 window2H=  2.0
+  (a*b)^a      exact= 20.8 bit= 83.6 sure_coverage=  0.4 sure_accuracy=100.0 nearest=  6.0 window1L=  3.0 window1H=  2.1 window2L=  8.2 window2H=  2.9
+[hidden]
+  a*b+a        exact= 21.6 bit= 83.6 sure_coverage=  0.3 sure_accuracy=100.0 nearest=  5.0 window1L=  4.4 window1H=  3.7 window2L=  7.2 window2H=  3.5
+  a*a          exact= 79.8 bit= 97.4 sure_coverage=  6.5 sure_accuracy=100.0 nearest= 41.0 window1L=  5.6 window1H=  6.5 window2L= 18.0 window2H=  6.1
+  (a+1)*(b+1)  exact= 15.9 bit= 82.2 sure_coverage=  0.0 nearest=  7.3 window1L=  3.4 window1H=  2.3 window2L=  6.5 window2H=  1.3
+  (a^b)*3      exact= 58.7 bit= 93.0 sure_coverage=  2.0 sure_accuracy= 95.0 nearest=  4.7 window1L= 18.8 window1H=  4.4 window2L= 97.4 window2H=  4.0
+  |a-b|        exact= 70.4 bit= 92.4 sure_coverage=  6.4 sure_accuracy=100.0 nearest=  3.2 window1L= 23.9 window1H= 16.4 window2L= 34.6 window2H= 15.3
+  (a+b)>>1     exact= 99.5 bit= 99.9 sure_coverage= 17.7 sure_accuracy=100.0 nearest=  3.8 window1L=  1.1 window1H= 26.7 window2L=  0.5 window2H= 35.1
+  (a*b)^b      exact= 19.7 bit= 83.3 sure_coverage=  0.3 sure_accuracy=100.0 nearest=  7.3 window1L=  3.5 window1H=  2.1 window2L=  7.6 window2H=  2.5
+  (a<<1)+(b>>1) exact= 67.5 bit= 94.3 sure_coverage=  0.2 sure_accuracy=100.0 nearest=  4.6 window1L=  0.7 window1H=  0.9 window2L=  0.8 window2H=  5.4
+[deeper]
+  expr7        exact= 53.7 bit= 89.1 sure_coverage= 10.5 sure_accuracy=100.0 nearest= 20.6 window1L= 18.0 window1H= 14.2 window2L= 26.9 window2H= 17.1

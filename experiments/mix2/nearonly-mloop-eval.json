@@ -1,0 +1,44 @@
+{
+  "checkpoint": "checkpoints/mix2/nearonly-mloop.pt",
+  "train_set": "near-only",
+  "width": 8,
+  "episodes": 64,
+  "queries": 16,
+  "seed": 60000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "results": {
+    "selected": {
+      "a*b+b": {
+        "exact": 0.390625,
+        "bit": 0.9072265625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*b+5": {
+        "exact": 0.3759765625,
+        "bit": 0.904296875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*b-a": {
+        "exact": 0.3984375,
+        "bit": 0.9058837890625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*b)^a": {
+        "exact": 0.384765625,
+        "bit": 0.905517578125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*b+a": {
+        "exact": 0.0595703125,
+        "bit": 0.62109375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      }
+    }
+  }
+}

@@ -131,3 +131,30 @@ Conclusions:
 - **Confidence is now honest on unseen relations**: on hidden compositions it is rarely "sure" (0–10%),
   and when it is, it is right 96–100% of the time — unlike the E2 multiplication runs. The exception is
   `a*(b&63)`, which it confidently mistakes for `a*b` (sure 74%, right 55%).
+
+## 7. Why "a product, then another step" fails (`experiments/mix2/`)
+
+Diagnosis of the `mix` model: `a*b+a` fails exactly like relatives training may produce (`a*b+b`, `a*b+5`,
+`a*b−a`, `(a*b)^a`: 12–17% exact). The low 4 bits are right (0.3% wrong), the high 4 bits wrong 37% of
+the time — the carries through the product's result. Only ~1% of training episodes contained such a
+composition.
+
+**More steps in the data (`--train-set mix2`)**: expressions with 1–5 operations, `*` twice as likely,
+plus compositions of two multi-step pieces; 10,000 updates, multiplicative loop, adaptive sampling.
+
+| | `mix` | `mix2`, 8 rounds | `mix2`, 12 rounds + `--clock` |
+|---|---|---|---|
+| hidden mean | 50.0% | 53.5% | 54.1% |
+| `(a+b)>>1` / `a*a` / `(a<<1)+(b>>1)` | 92 / 71 / 50% | 98.6 / 80.3 / 67.6% | 99.5 / 79.8 / — |
+| near group (`a*b+b`, `a*b+5`, `a*b−a`, `(a*b)^a`) | 12–17% | 21.5% | 20.1% |
+| `a*b+a` | 13.6% | 19.0% | 21.6% |
+| deeper (fresh 7-op) | — | 53.4% | 53.7% |
+
+More multi-step data helps multi-step reasoning in general, but not product-then-step; extra rounds with a
+round counter change nothing.
+
+**Capacity check (`--train-set near-only`)**: trained on only the four near relations for 3,000 updates,
+the model reaches just 38–40% on them (bits 90.6%), and 6.0% on the unseen `a*b+a` — whereas `a*b` alone
+reached 98% in the same budget. **The limit is computation, not data or recognition**: the loop has no
+good way to carry through an intermediate result. Next: give each round per-bit-position state with a
+carry scan across positions, and scratch slots that are not scored as the answer.

@@ -1,0 +1,921 @@
+{
+  "checkpoint": "checkpoints/mix2/mix2-mloop.pt",
+  "train_set": "mix2",
+  "tests": "mix3",
+  "width": 8,
+  "episodes": 64,
+  "queries": 16,
+  "seed": 60000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {
+    "train": {
+      "exact": 0.8660074869791666,
+      "sure_accuracy": 0.9992960397739135,
+      "won": true
+    },
+    "heldout": {
+      "exact": 0.9787109375,
+      "sure_accuracy": 0.999999991412737,
+      "won": true
+    },
+    "stress": {
+      "exact": 0.498046875,
+      "sure_accuracy": 0.7754010558128357,
+      "won": false
+    },
+    "near": {
+      "exact": 0.215087890625,
+      "sure_accuracy": 1.0,
+      "won": false
+    },
+    "hidden": {
+      "exact": 0.5347900390625,
+      "sure_accuracy": 0.9938650125740496,
+      "won": true
+    },
+    "T1": {
+      "exact": 0.587890625,
+      "sure_accuracy": 1.0,
+      "won": true
+    },
+    "T2": {
+      "exact": 0.4462890625,
+      "sure_accuracy": 0.9910714626312256,
+      "won": false
+    },
+    "T3": {
+      "exact": 0.4697265625,
+      "sure_accuracy": 0.9560439586639404,
+      "won": false
+    },
+    "T4": {
+      "exact": 0.6993582589285714,
+      "sure_accuracy": 0.9995446281952067,
+      "won": true
+    },
+    "T5": {
+      "exact": 0.4034830729166667,
+      "sure_accuracy": 0.9883621838023099,
+      "won": false
+    }
+  },
+  "results": {
+    "train": {
+      "add": {
+        "exact": 0.998046875,
+        "bit": 0.999755859375,
+        "sure_coverage": 0.96875,
+        "sure_accuracy": 1.0,
+        "nearest": 0.021484375,
+        "window1L": 1.0,
+        "window1H": 0.1220703125,
+        "window2L": 0.9921875,
+        "window2H": 0.109375
+      },
+      "sub": {
+        "exact": 0.9990234375,
+        "bit": 0.9998779296875,
+        "sure_coverage": 0.9013671875,
+        "sure_accuracy": 1.0,
+        "nearest": 0.03515625,
+        "window1L": 1.0,
+        "window1H": 0.111328125,
+        "window2L": 0.9912109375,
+        "window2H": 0.1083984375
+      },
+      "b-a": {
+        "exact": 0.998046875,
+        "bit": 0.999755859375,
+        "sure_coverage": 0.8994140625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.03515625,
+        "window1L": 1.0,
+        "window1H": 0.1015625,
+        "window2L": 0.986328125,
+        "window2H": 0.099609375
+      },
+      "xor": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.994140625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.046875,
+        "window1L": 1.0,
+        "window1H": 1.0,
+        "window2L": 1.0,
+        "window2H": 1.0
+      },
+      "and": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9853515625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.283203125,
+        "window1L": 1.0,
+        "window1H": 1.0,
+        "window2L": 1.0,
+        "window2H": 1.0
+      },
+      "or": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9892578125,
+        "sure_accuracy": 1.0,
+        "nearest": 0.298828125,
+        "window1L": 1.0,
+        "window1H": 1.0,
+        "window2L": 1.0,
+        "window2H": 1.0
+      },
+      "a+2b": {
+        "exact": 0.9931640625,
+        "bit": 0.9990234375,
+        "sure_coverage": 0.8154296875,
+        "sure_accuracy": 1.0,
+        "nearest": 0.0390625,
+        "window1L": 0.3427734375,
+        "window1H": 0.08984375,
+        "window2L": 0.9453125,
+        "window2H": 0.0712890625
+      },
+      "2a+b": {
+        "exact": 0.99609375,
+        "bit": 0.9993896484375,
+        "sure_coverage": 0.8583984375,
+        "sure_accuracy": 0.9999999403953552,
+        "nearest": 0.0498046875,
+        "window1L": 0.3564453125,
+        "window1H": 0.0830078125,
+        "window2L": 0.9482421875,
+        "window2H": 0.076171875
+      },
+      "max": {
+        "exact": 0.994140625,
+        "bit": 0.9991455078125,
+        "sure_coverage": 0.8505859375,
+        "sure_accuracy": 1.0,
+        "nearest": 0.2109375,
+        "window1L": 0.30078125,
+        "window1H": 0.431640625,
+        "window2L": 0.404296875,
+        "window2H": 0.7119140625
+      },
+      "a<<1": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9970703125,
+        "sure_accuracy": 1.0,
+        "nearest": 0.333984375,
+        "window1L": 1.0,
+        "window1H": 0.0107421875,
+        "window2L": 0.99609375,
+        "window2H": 0.0078125
+      },
+      "a+const": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9765625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.302734375,
+        "window1L": 0.998046875,
+        "window1H": 0.296875,
+        "window2L": 0.978515625,
+        "window2H": 0.2841796875
+      },
+      "b^const": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9931640625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.2685546875,
+        "window1L": 1.0,
+        "window1H": 1.0,
+        "window2L": 1.0,
+        "window2H": 1.0
+      },
+      "transducer": {
+        "exact": 0.802734375,
+        "bit": 0.9638671875,
+        "sure_coverage": 0.3876953125,
+        "sure_accuracy": 0.9974810481071472,
+        "nearest": 0.203125,
+        "window1L": 0.5625,
+        "window1H": 0.560546875,
+        "window2L": 0.6279296875,
+        "window2H": 0.6611328125
+      },
+      "a*b": {
+        "exact": 0.9736328125,
+        "bit": 0.99658203125,
+        "sure_coverage": 0.1904296875,
+        "sure_accuracy": 1.0,
+        "nearest": 0.06640625,
+        "window1L": 0.03515625,
+        "window1H": 0.0234375,
+        "window2L": 0.078125,
+        "window2H": 0.03125
+      },
+      "steps1": {
+        "exact": 0.955078125,
+        "bit": 0.9937744140625,
+        "sure_coverage": 0.736328125,
+        "sure_accuracy": 0.9986737370491028,
+        "nearest": 0.2744140625,
+        "window1L": 0.671875,
+        "window1H": 0.59765625,
+        "window2L": 0.7080078125,
+        "window2H": 0.6181640625
+      },
+      "steps2": {
+        "exact": 0.83984375,
+        "bit": 0.9696044921875,
+        "sure_coverage": 0.57421875,
+        "sure_accuracy": 1.0,
+        "nearest": 0.263671875,
+        "window1L": 0.59375,
+        "window1H": 0.3876953125,
+        "window2L": 0.619140625,
+        "window2H": 0.4052734375
+      },
+      "steps3": {
+        "exact": 0.794921875,
+        "bit": 0.9578857421875,
+        "sure_coverage": 0.486328125,
+        "sure_accuracy": 0.9999999403953552,
+        "nearest": 0.3037109375,
+        "window1L": 0.5380859375,
+        "window1H": 0.3779296875,
+        "window2L": 0.5732421875,
+        "window2H": 0.3984375
+      },
+      "steps4": {
+        "exact": 0.7138671875,
+        "bit": 0.9349365234375,
+        "sure_coverage": 0.33984375,
+        "sure_accuracy": 1.0,
+        "nearest": 0.2802734375,
+        "window1L": 0.3671875,
+        "window1H": 0.2431640625,
+        "window2L": 0.46875,
+        "window2H": 0.287109375
+      },
+      "steps5": {
+        "exact": 0.6123046875,
+        "bit": 0.9183349609375,
+        "sure_coverage": 0.208984375,
+        "sure_accuracy": 0.9906541705131531,
+        "nearest": 0.25390625,
+        "window1L": 0.2783203125,
+        "window1H": 0.18359375,
+        "window2L": 0.3427734375,
+        "window2H": 0.20703125
+      },
+      "composed": {
+        "exact": 0.7021484375,
+        "bit": 0.940673828125,
+        "sure_coverage": 0.33203125,
+        "sure_accuracy": 0.9970588684082031,
+        "nearest": 0.2451171875,
+        "window1L": 0.3828125,
+        "window1H": 0.3271484375,
+        "window2L": 0.4453125,
+        "window2H": 0.3583984375
+      },
+      "accumulate n15": {
+        "exact": 0.693359375,
+        "bit": 0.9324951171875,
+        "sure_coverage": 0.2275390625,
+        "sure_accuracy": 0.991416335105896,
+        "nearest": 0.4189453125,
+        "window1L": 0.4345703125,
+        "window1H": 0.4013671875,
+        "window2L": 0.4521484375,
+        "window2H": 0.419921875
+      },
+      "repeat n15": {
+        "exact": 0.7197265625,
+        "bit": 0.9381103515625,
+        "sure_coverage": 0.2890625,
+        "sure_accuracy": 0.9932432770729065,
+        "nearest": 0.5224609375,
+        "window1L": 0.6337890625,
+        "window1H": 0.5927734375,
+        "window2L": 0.6435546875,
+        "window2H": 0.6083984375
+      },
+      "recurrence n15": {
+        "exact": 0.650390625,
+        "bit": 0.9033203125,
+        "sure_coverage": 0.2578125,
+        "sure_accuracy": 0.9924242496490479,
+        "nearest": 0.5390625,
+        "window1L": 0.51953125,
+        "window1H": 0.5029296875,
+        "window2L": 0.560546875,
+        "window2H": 0.5205078125
+      },
+      "bit loops": {
+        "exact": 0.34765625,
+        "bit": 0.87451171875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null,
+        "nearest": 0.291015625,
+        "window1L": 0.19140625,
+        "window1H": 0.21484375,
+        "window2L": 0.1904296875,
+        "window2H": 0.208984375
+      }
+    },
+    "heldout": {
+      "a+b+1": {
+        "exact": 0.998046875,
+        "bit": 0.999755859375,
+        "sure_coverage": 0.9443359375,
+        "sure_accuracy": 1.0,
+        "nearest": 0.021484375,
+        "window1L": 1.0,
+        "window1H": 0.107421875,
+        "window2L": 0.9912109375,
+        "window2H": 0.109375
+      },
+      "a-2b": {
+        "exact": 0.97265625,
+        "bit": 0.995849609375,
+        "sure_coverage": 0.4638671875,
+        "sure_accuracy": 0.9999999403953552,
+        "nearest": 0.0419921875,
+        "window1L": 0.341796875,
+        "window1H": 0.0791015625,
+        "window2L": 0.9501953125,
+        "window2H": 0.080078125
+      },
+      "min": {
+        "exact": 0.9541015625,
+        "bit": 0.9932861328125,
+        "sure_coverage": 0.431640625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.21875,
+        "window1L": 0.3017578125,
+        "window1H": 0.4326171875,
+        "window2L": 0.4052734375,
+        "window2H": 0.7158203125
+      },
+      "nand": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.98828125,
+        "sure_accuracy": 1.0,
+        "nearest": 0.283203125,
+        "window1L": 1.0,
+        "window1H": 1.0,
+        "window2L": 1.0,
+        "window2H": 1.0
+      },
+      "3a": {
+        "exact": 0.96875,
+        "bit": 0.99560546875,
+        "sure_coverage": 0.3916015625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.2802734375,
+        "window1L": 0.1806640625,
+        "window1H": 0.0546875,
+        "window2L": 0.96484375,
+        "window2H": 0.0458984375
+      }
+    },
+    "stress": {
+      "a*(b&63)": {
+        "exact": 0.498046875,
+        "bit": 0.92138671875,
+        "sure_coverage": 0.1826171875,
+        "sure_accuracy": 0.7754010558128357,
+        "nearest": 0.0927734375,
+        "window1L": 0.0380859375,
+        "window1H": 0.01953125,
+        "window2L": 0.080078125,
+        "window2H": 0.0205078125
+      }
+    },
+    "near": {
+      "a*b+b": {
+        "exact": 0.22265625,
+        "bit": 0.8431396484375,
+        "sure_coverage": 0.0029296875,
+        "sure_accuracy": 1.0,
+        "nearest": 0.072265625,
+        "window1L": 0.0400390625,
+        "window1H": 0.0234375,
+        "window2L": 0.068359375,
+        "window2H": 0.025390625
+      },
+      "a*b+5": {
+        "exact": 0.216796875,
+        "bit": 0.8387451171875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null,
+        "nearest": 0.06640625,
+        "window1L": 0.0390625,
+        "window1H": 0.0263671875,
+        "window2L": 0.0693359375,
+        "window2H": 0.0283203125
+      },
+      "a*b-a": {
+        "exact": 0.22265625,
+        "bit": 0.834228515625,
+        "sure_coverage": 0.0009765625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.064453125,
+        "window1L": 0.0478515625,
+        "window1H": 0.0224609375,
+        "window2L": 0.0732421875,
+        "window2H": 0.01953125
+      },
+      "(a*b)^a": {
+        "exact": 0.1982421875,
+        "bit": 0.83642578125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null,
+        "nearest": 0.0595703125,
+        "window1L": 0.0302734375,
+        "window1H": 0.0205078125,
+        "window2L": 0.08203125,
+        "window2H": 0.029296875
+      }
+    },
+    "hidden": {
+      "a*b+a": {
+        "exact": 0.1904296875,
+        "bit": 0.831787109375,
+        "sure_coverage": 0.001953125,
+        "sure_accuracy": 1.0,
+        "nearest": 0.0498046875,
+        "window1L": 0.0439453125,
+        "window1H": 0.037109375,
+        "window2L": 0.072265625,
+        "window2H": 0.03515625
+      },
+      "a*a": {
+        "exact": 0.802734375,
+        "bit": 0.9742431640625,
+        "sure_coverage": 0.138671875,
+        "sure_accuracy": 1.0,
+        "nearest": 0.41015625,
+        "window1L": 0.0556640625,
+        "window1H": 0.0654296875,
+        "window2L": 0.1796875,
+        "window2H": 0.060546875
+      },
+      "(a+1)*(b+1)": {
+        "exact": 0.1806640625,
+        "bit": 0.8216552734375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null,
+        "nearest": 0.0732421875,
+        "window1L": 0.0341796875,
+        "window1H": 0.0234375,
+        "window2L": 0.0654296875,
+        "window2H": 0.0126953125
+      },
+      "(a^b)*3": {
+        "exact": 0.5302734375,
+        "bit": 0.919921875,
+        "sure_coverage": 0.0126953125,
+        "sure_accuracy": 0.9230769872665405,
+        "nearest": 0.046875,
+        "window1L": 0.1884765625,
+        "window1H": 0.0439453125,
+        "window2L": 0.9736328125,
+        "window2H": 0.0400390625
+      },
+      "|a-b|": {
+        "exact": 0.7041015625,
+        "bit": 0.92138671875,
+        "sure_coverage": 0.06640625,
+        "sure_accuracy": 0.9852941036224365,
+        "nearest": 0.0322265625,
+        "window1L": 0.2392578125,
+        "window1H": 0.1640625,
+        "window2L": 0.345703125,
+        "window2H": 0.1533203125
+      },
+      "(a+b)>>1": {
+        "exact": 0.986328125,
+        "bit": 0.9979248046875,
+        "sure_coverage": 0.0947265625,
+        "sure_accuracy": 0.9999999403953552,
+        "nearest": 0.0380859375,
+        "window1L": 0.0107421875,
+        "window1H": 0.2666015625,
+        "window2L": 0.0048828125,
+        "window2H": 0.3505859375
+      },
+      "(a*b)^b": {
+        "exact": 0.2080078125,
+        "bit": 0.8377685546875,
+        "sure_coverage": 0.00390625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.0732421875,
+        "window1L": 0.03515625,
+        "window1H": 0.021484375,
+        "window2L": 0.076171875,
+        "window2H": 0.025390625
+      },
+      "(a<<1)+(b>>1)": {
+        "exact": 0.67578125,
+        "bit": 0.939208984375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null,
+        "nearest": 0.0458984375,
+        "window1L": 0.0068359375,
+        "window1H": 0.0087890625,
+        "window2L": 0.0078125,
+        "window2H": 0.0537109375
+      }
+    },
+    "T1": {
+      "T1 2 ops": {
+        "exact": 0.587890625,
+        "bit": 0.9234619140625,
+        "sure_coverage": 0.1591796875,
+        "sure_accuracy": 1.0,
+        "nearest": 0.1962890625,
+        "window1L": 0.1533203125,
+        "window1H": 0.244140625,
+        "window2L": 0.220703125,
+        "window2H": 0.244140625
+      }
+    },
+    "T2": {
+      "T2 3-4 ops": {
+        "exact": 0.4462890625,
+        "bit": 0.8787841796875,
+        "sure_coverage": 0.109375,
+        "sure_accuracy": 0.9910714626312256,
+        "nearest": 0.17578125,
+        "window1L": 0.15234375,
+        "window1H": 0.1748046875,
+        "window2L": 0.2041015625,
+        "window2H": 0.185546875
+      }
+    },
+    "T3": {
+      "T3 5-7 ops": {
+        "exact": 0.4697265625,
+        "bit": 0.8797607421875,
+        "sure_coverage": 0.0888671875,
+        "sure_accuracy": 0.9560439586639404,
+        "nearest": 0.185546875,
+        "window1L": 0.1865234375,
+        "window1H": 0.1845703125,
+        "window2L": 0.220703125,
+        "window2H": 0.1767578125
+      }
+    },
+    "T4": {
+      "a//b": {
+        "exact": 0.716796875,
+        "bit": 0.9398193359375,
+        "sure_coverage": 0.3232421875,
+        "sure_accuracy": 1.0,
+        "nearest": 0.5908203125,
+        "window1L": 0.509765625,
+        "window1H": 0.5078125,
+        "window2L": 0.509765625,
+        "window2H": 0.4765625
+      },
+      "a%b": {
+        "exact": 0.5927734375,
+        "bit": 0.887939453125,
+        "sure_coverage": 0.1474609375,
+        "sure_accuracy": 0.9933775067329407,
+        "nearest": 0.1396484375,
+        "window1L": 0.421875,
+        "window1H": 0.4150390625,
+        "window2L": 0.4326171875,
+        "window2H": 0.419921875
+      },
+      "rotl(a,1)": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9794921875,
+        "sure_accuracy": 1.0,
+        "nearest": 0.2802734375,
+        "window1L": 0.482421875,
+        "window1H": 0.0048828125,
+        "window2L": 0.48046875,
+        "window2H": 0.0068359375
+      },
+      "rotl(a,b&7)": {
+        "exact": 0.2265625,
+        "bit": 0.789306640625,
+        "sure_coverage": 0.0009765625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.1337890625,
+        "window1L": 0.0712890625,
+        "window1H": 0.0732421875,
+        "window2L": 0.064453125,
+        "window2H": 0.0439453125
+      },
+      "a>b?a-b:a+b": {
+        "exact": 0.763671875,
+        "bit": 0.9488525390625,
+        "sure_coverage": 0.115234375,
+        "sure_accuracy": 1.0,
+        "nearest": 0.025390625,
+        "window1L": 0.2001953125,
+        "window1H": 0.125,
+        "window2L": 0.3037109375,
+        "window2H": 0.125
+      },
+      "a>b?a*b:b": {
+        "exact": 0.6630859375,
+        "bit": 0.9256591796875,
+        "sure_coverage": 0.2412109375,
+        "sure_accuracy": 1.0,
+        "nearest": 0.119140625,
+        "window1L": 0.4091796875,
+        "window1H": 0.482421875,
+        "window2L": 0.3544921875,
+        "window2H": 0.4833984375
+      },
+      "a<b?b^a:a&b": {
+        "exact": 0.9326171875,
+        "bit": 0.9842529296875,
+        "sure_coverage": 0.3369140625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.134765625,
+        "window1L": 0.291015625,
+        "window1H": 0.46875,
+        "window2L": 0.4404296875,
+        "window2H": 0.7451171875
+      }
+    },
+    "T5": {
+      "sum a..a+n-1 n15": {
+        "exact": 0.1962890625,
+        "bit": 0.7916259765625,
+        "sure_coverage": 0.00390625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.154296875,
+        "window1L": 0.01171875,
+        "window1H": 0.02734375,
+        "window2L": 0.0107421875,
+        "window2H": 0.033203125
+      },
+      "a^n n15": {
+        "exact": 0.533203125,
+        "bit": 0.90576171875,
+        "sure_coverage": 0.216796875,
+        "sure_accuracy": 0.9909909963607788,
+        "nearest": 0.4111328125,
+        "window1L": 0.369140625,
+        "window1H": 0.357421875,
+        "window2L": 0.3505859375,
+        "window2H": 0.3505859375
+      },
+      "fib(a,a) n15": {
+        "exact": 0.1630859375,
+        "bit": 0.7657470703125,
+        "sure_coverage": 0.0009765625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.12890625,
+        "window1L": 0.1103515625,
+        "window1H": 0.11328125,
+        "window2L": 0.1083984375,
+        "window2H": 0.080078125
+      },
+      "x->3x+1 n15": {
+        "exact": 0.1572265625,
+        "bit": 0.814208984375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null,
+        "nearest": 0.09375,
+        "window1L": 0.0556640625,
+        "window1H": 0.0302734375,
+        "window2L": 0.0927734375,
+        "window2H": 0.03515625
+      },
+      "acc=(acc<<1)^a n15": {
+        "exact": 0.5283203125,
+        "bit": 0.906982421875,
+        "sure_coverage": 0.0341796875,
+        "sure_accuracy": 0.9142857193946838,
+        "nearest": 0.1845703125,
+        "window1L": 0.6171875,
+        "window1H": 0.3203125,
+        "window2L": 0.5673828125,
+        "window2H": 0.3212890625
+      },
+      "sum a..a+n-1 n63": {
+        "exact": 0.1025390625,
+        "bit": 0.7508544921875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null,
+        "nearest": 0.0751953125,
+        "window1L": 0.00390625,
+        "window1H": 0.0146484375,
+        "window2L": 0.0029296875,
+        "window2H": 0.017578125
+      },
+      "a^n n63": {
+        "exact": 0.5859375,
+        "bit": 0.909912109375,
+        "sure_coverage": 0.40625,
+        "sure_accuracy": 0.9759615659713745,
+        "nearest": 0.4697265625,
+        "window1L": 0.494140625,
+        "window1H": 0.48828125,
+        "window2L": 0.4775390625,
+        "window2H": 0.4814453125
+      },
+      "fib(a,a) n63": {
+        "exact": 0.0625,
+        "bit": 0.6597900390625,
+        "sure_coverage": 0.0009765625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.0751953125,
+        "window1L": 0.029296875,
+        "window1H": 0.0244140625,
+        "window2L": 0.033203125,
+        "window2H": 0.017578125
+      },
+      "x->3x+1 n63": {
+        "exact": 0.138671875,
+        "bit": 0.8115234375,
+        "sure_coverage": 0.0009765625,
+        "sure_accuracy": 0.0,
+        "nearest": 0.041015625,
+        "window1L": 0.0419921875,
+        "window1H": 0.0205078125,
+        "window2L": 0.0625,
+        "window2H": 0.0146484375
+      },
+      "acc=(acc<<1)^a n63": {
+        "exact": 0.8408203125,
+        "bit": 0.9639892578125,
+        "sure_coverage": 0.2001953125,
+        "sure_accuracy": 1.0,
+        "nearest": 0.236328125,
+        "window1L": 0.90234375,
+        "window1H": 0.4619140625,
+        "window2L": 0.88671875,
+        "window2H": 0.4580078125
+      },
+      "sum a..a+n-1 n255": {
+        "exact": 0.07421875,
+        "bit": 0.7354736328125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null,
+        "nearest": 0.02734375,
+        "window1L": 0.0029296875,
+        "window1H": 0.015625,
+        "window2L": 0.0029296875,
+        "window2H": 0.01171875
+      },
+      "a^n n255": {
+        "exact": 0.611328125,
+        "bit": 0.9178466796875,
+        "sure_coverage": 0.4765625,
+        "sure_accuracy": 0.987704873085022,
+        "nearest": 0.5009765625,
+        "window1L": 0.5263671875,
+        "window1H": 0.5205078125,
+        "window2L": 0.5107421875,
+        "window2H": 0.5166015625
+      },
+      "fib(a,a) n255": {
+        "exact": 0.0439453125,
+        "bit": 0.6387939453125,
+        "sure_coverage": 0.0009765625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.0390625,
+        "window1L": 0.0234375,
+        "window1H": 0.0185546875,
+        "window2L": 0.0322265625,
+        "window2H": 0.0146484375
+      },
+      "x->3x+1 n255": {
+        "exact": 0.130859375,
+        "bit": 0.810546875,
+        "sure_coverage": 0.0009765625,
+        "sure_accuracy": 0.0,
+        "nearest": 0.0283203125,
+        "window1L": 0.044921875,
+        "window1H": 0.0146484375,
+        "window2L": 0.0693359375,
+        "window2H": 0.0205078125
+      },
+      "acc=(acc<<1)^a n255": {
+        "exact": 0.9384765625,
+        "bit": 0.98779296875,
+        "sure_coverage": 0.2861328125,
+        "sure_accuracy": 0.9931740164756775,
+        "nearest": 0.2646484375,
+        "window1L": 0.9775390625,
+        "window1H": 0.5048828125,
+        "window2L": 0.97265625,
+        "window2H": 0.50390625
+      },
+      "accumulate n63": {
+        "exact": 0.685546875,
+        "bit": 0.9342041015625,
+        "sure_coverage": 0.3095703125,
+        "sure_accuracy": 0.9873816967010498,
+        "nearest": 0.4072265625,
+        "window1L": 0.423828125,
+        "window1H": 0.400390625,
+        "window2L": 0.48046875,
+        "window2H": 0.412109375
+      },
+      "repeat n63": {
+        "exact": 0.765625,
+        "bit": 0.9481201171875,
+        "sure_coverage": 0.427734375,
+        "sure_accuracy": 0.9931506514549255,
+        "nearest": 0.5009765625,
+        "window1L": 0.64453125,
+        "window1H": 0.6142578125,
+        "window2L": 0.6796875,
+        "window2H": 0.6259765625
+      },
+      "recurrence n63": {
+        "exact": 0.5732421875,
+        "bit": 0.863525390625,
+        "sure_coverage": 0.2265625,
+        "sure_accuracy": 0.9870689511299133,
+        "nearest": 0.3896484375,
+        "window1L": 0.4345703125,
+        "window1H": 0.4130859375,
+        "window2L": 0.4755859375,
+        "window2H": 0.4453125
+      },
+      "accumulate n255": {
+        "exact": 0.7216796875,
+        "bit": 0.933837890625,
+        "sure_coverage": 0.373046875,
+        "sure_accuracy": 0.9973822236061096,
+        "nearest": 0.3095703125,
+        "window1L": 0.4521484375,
+        "window1H": 0.4306640625,
+        "window2L": 0.4833984375,
+        "window2H": 0.4609375
+      },
+      "repeat n255": {
+        "exact": 0.642578125,
+        "bit": 0.921142578125,
+        "sure_coverage": 0.265625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.27734375,
+        "window1L": 0.4228515625,
+        "window1H": 0.3759765625,
+        "window2L": 0.5185546875,
+        "window2H": 0.427734375
+      },
+      "recurrence n255": {
+        "exact": 0.5234375,
+        "bit": 0.833251953125,
+        "sure_coverage": 0.205078125,
+        "sure_accuracy": 0.9761905074119568,
+        "nearest": 0.3251953125,
+        "window1L": 0.3779296875,
+        "window1H": 0.3583984375,
+        "window2L": 0.404296875,
+        "window2H": 0.40625
+      },
+      "popcount(a|b)": {
+        "exact": 0.337890625,
+        "bit": 0.8763427734375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null,
+        "nearest": 0.3974609375,
+        "window1L": 0.279296875,
+        "window1H": 0.3251953125,
+        "window2L": 0.3017578125,
+        "window2H": 0.326171875
+      },
+      "reverse(a^b)": {
+        "exact": 0.232421875,
+        "bit": 0.8319091796875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null,
+        "nearest": 0.046875,
+        "window1L": 0.01171875,
+        "window1H": 0.01171875,
+        "window2L": 0.0068359375,
+        "window2H": 0.0068359375
+      },
+      "popcount(a)*b": {
+        "exact": 0.09375,
+        "bit": 0.6749267578125,
+        "sure_coverage": 0.00390625,
+        "sure_accuracy": 1.0,
+        "nearest": 0.103515625,
+        "window1L": 0.0263671875,
+        "window1H": 0.0263671875,
+        "window2L": 0.0517578125,
+        "window2H": 0.0224609375
+      }
+    }
+  }
+}

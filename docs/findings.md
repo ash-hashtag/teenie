@@ -158,3 +158,38 @@ the model reaches just 38–40% on them (bits 90.6%), and 6.0% on the unseen `a*
 reached 98% in the same budget. **The limit is computation, not data or recognition**: the loop has no
 good way to carry through an intermediate result. Next: give each round per-bit-position state with a
 carry scan across positions, and scratch slots that are not scored as the answer.
+
+## 8. Loops and the difficulty ladder (`--train-set mix3`, `experiments/mix3/`)
+
+Goal: recognise patterns in increasingly complex functions, including loop-defined ones, at **≥50% exact on
+unseen relations** with honest confidence. A tier is **won** at ≥50% mean exact with sure answers right
+≥95% of the time (pooled).
+
+New data (`src/teenie/bits/loops.py`): loops whose repeat count is n = b & 15 in training — accumulations
+`acc = init; n×: acc = body(acc, a, i)`, repeated application `x = step(x)`, two-term recurrences — plus
+bit loops (popcount, reverse, parity). Loops whose result barely depends on n are redrawn. Expression trees
+now also hold out whole **combinations**: a xor of a product, a product of a difference, a min of a sum,
+a shift of a xor (`HELD_PAIRS`).
+
+Ladder (`src/teenie/bits/sets.py`, `TIERS`):
+
+- T1 / T2 / T3: 2 / 3–4 / 5–7 operations, always containing a held-out combination.
+- T4: new operation types never trained — `a//b`, `a%b`, `rotl(a,1)`, `rotl(a,b&7)`, three conditionals.
+- T5: hidden loop bodies (sum of a..a+n−1, aⁿ, Fibonacci-like, x→3x+1, acc=(acc<<1)^a) at n ≤ 15, 63, 255;
+  trained loop kinds at n ≤ 63 and 255 (longer than trained); hidden bit loops.
+
+**Baseline — the `mix2` model, never trained on loops** (`baseline-mix2-mloop-eval.*`):
+
+| tier | exact | sure right | |
+|---|---|---|---|
+| T1 | 58.8% | 100% | won |
+| T2 | 44.6% | 99.1% | |
+| T3 | 47.0% | 95.6% | |
+| T4 | 69.9% | 100% | won |
+| T5 | 40.3% | 98.8% | |
+
+T1–T3 flatter this model (its training did not hold combinations out). T4 is already inferred well without
+training: `a//b` 72%, `a%b` 59%, conditionals 66–93%, `rotl(a,1)` 100% (`rotl(a,b&7)` 23%). Hidden loops
+split: `acc=(acc<<1)^a` (53–94%) and `aⁿ` (53–61%) collapse to simple patterns modulo 256; the sum of a
+sequence (7–20%), Fibonacci-like (4–16%) and x→3x+1 (13–16%) do not. Random loops at longer lengths reach
+52–77% partly because many settle into fixed points (closest example: 28–50%).

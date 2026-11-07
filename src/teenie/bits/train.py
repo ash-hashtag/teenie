@@ -13,7 +13,7 @@ from pathlib import Path
 import torch
 
 from ..train import select_device
-from .checkpoint import AnyBitModel, save_bit_model
+from .checkpoint import AnyBitModel, load_bit_model, save_bit_model
 from .data import BitSampler
 from .eval import evaluate
 from .loop_model import LoopModel
@@ -31,7 +31,10 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
           architecture: Literal['serial', 'loop', 'think', 'program'] = 'serial',
           layers: int = 2, steps: int = 8, train_set: str = 'base', channels: int = 16,
           informed: bool = True, multiplicative: bool = False, clock: bool = False,
-          adaptive: bool = False) -> AnyBitModel:
+          adaptive: bool = False, init: str | Path | None = None, resume: bool = False) -> AnyBitModel:
+    """`init` starts from saved weights and trains `updates` more (fresh optimizer and schedule; update numbers
+    continue from the checkpoint). `resume` continues an interrupted run exactly from `<save>.resume.pt`, which
+    every log step writes: weights, optimizer, schedule, sampling weights and random state."""
     if min(updates, batch_size, queries, log_every, validation_episodes) < 1 or not lr > 0:
         raise ValueError('counts and lr must be positive')
     torch.manual_seed(seed)
@@ -52,23 +55,44 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
         model = BitModel(hidden, heads, probes=probes).to(selected)
     else:
         raise ValueError(f'unknown architecture {architecture!r}')
+    path = Path(save)
+    best_path = path.with_name(path.stem + '.best' + path.suffix)
+    resume_path = path.with_name(path.stem + '.resume' + path.suffix)
+    start = 0
+    if init is not None and resume:
+        raise ValueError('use either init or resume, not both')
+    if init is not None:
+        loaded, init_metadata = load_bit_model(init, selected)
+        if type(loaded) is not type(model) or loaded.config != model.config:
+            raise ValueError(f'{init} has a different architecture or size: {loaded.config}')
+        model.load_state_dict(loaded.state_dict())
+        start = int(str(init_metadata.get('update', 0)))
+    end = start + updates
     sampler = BitSampler(families, width, seed)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     schedule = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr, total_steps=updates, pct_start=.05)
-    path = Path(save)
-    best_path = path.with_name(path.stem + '.best' + path.suffix)
+    best = -1.
+    if resume:
+        state = torch.load(resume_path, map_location='cpu', weights_only=False)
+        model.load_state_dict(state['model'])
+        optimizer.load_state_dict(state['optimizer'])
+        schedule.load_state_dict(state['schedule'])
+        sampler.weights = state['sampler_weights']
+        sampler.generator.set_state(state['generator'])
+        torch.set_rng_state(state['torch_rng'])
+        start, end, best = state['update'], state['end'], state['best']
     log_path = Path(log) if log else None
     if log_path:
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        log_path.write_text('')
-    best = -1.
+        if not resume:
+            log_path.write_text('')
     started = time.perf_counter()
     running = 0.
     snapshot_dir = Path(snapshots) if snapshots else None
     if snapshot_dir:
         save_bit_model(snapshot_dir / 'update-00000.pt', model,
                        {'architecture': architecture, 'train_set': train_set, 'width': width, 'update': 0, 'seed': seed})
-    for update in range(1, updates + 1):
+    for update in range(start + 1, end + 1):
         model.train()
         episode = sampler.sample(batch_size, queries).to(selected)
         optimizer.zero_grad(set_to_none=True)
@@ -89,7 +113,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
         optimizer.step()
         schedule.step()
         running += float(loss.detach())
-        if update % log_every == 0 or update == updates:
+        if update % log_every == 0 or update == end:
             model.eval()
             options = {'width': width, 'episodes': validation_episodes, 'queries': queries,
                        'seed': seed + 100000, 'device': selected, 'baselines': False}
@@ -100,7 +124,8 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
                 # Spend episodes where the model is still wrong; mastered families keep a small share.
                 sampler.weights = torch.tensor([.05 + 1 - float(known[f.name]['exact'] or 0) for f in families])
             record = {'update': update, 'sampling': {f.name: round(float(w), 3) for f, w in
-                                                     zip(families, sampler.weights / sampler.weights.sum())}, 'seconds': round(time.perf_counter() - started, 1),
+                                                     zip(families, sampler.weights / sampler.weights.sum())},
+                      'seconds': round(time.perf_counter() - started, 1),
                       'loss': running / log_every, 'known_exact': score,
                       'exact': {name: r['exact'] for name, r in {**known, **heldout}.items()},
                       'heldout_exact': sum(float(r['exact'] or 0) for r in heldout.values()) / len(heldout)}
@@ -114,6 +139,12 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
             if score > best:
                 best = score
                 save_bit_model(best_path, model, metadata)
+            temporary = resume_path.with_suffix('.tmp')
+            torch.save({'model': model.state_dict(), 'optimizer': optimizer.state_dict(),
+                        'schedule': schedule.state_dict(), 'sampler_weights': sampler.weights,
+                        'generator': sampler.generator.get_state(), 'torch_rng': torch.get_rng_state(),
+                        'update': update, 'end': end, 'best': best}, temporary)
+            temporary.replace(resume_path)
             print(json.dumps(record), flush=True)
             if log_path:
                 with log_path.open('a') as handle:
@@ -144,6 +175,9 @@ def main() -> None:
                         help='loop: tell each round its number and score mostly the last round')
     parser.add_argument('--adaptive', action='store_true',
                         help='after each validation, draw relations in proportion to how often they are still wrong')
+    parser.add_argument('--init', help='start from these weights and train --updates more (fresh optimizer)')
+    parser.add_argument('--resume', action='store_true',
+                        help='continue an interrupted run exactly from <save>.resume.pt')
     parser.add_argument('--blank', action='store_true',
                         help='program: start input scales and readout frequencies blank instead of at place values')
     parser.add_argument('--train-set', choices=sorted(TRAIN_SETS), default='base',
@@ -157,7 +191,8 @@ def main() -> None:
           seed=args.seed, log_every=args.log_every, save=args.save, log=args.log,
           snapshots=args.snapshots, architecture=args.architecture, layers=args.layers, steps=args.steps,
           train_set=args.train_set, channels=args.channels, informed=not args.blank,
-          multiplicative=args.multiplicative, clock=args.clock, adaptive=args.adaptive)
+          multiplicative=args.multiplicative, clock=args.clock, adaptive=args.adaptive, init=args.init,
+          resume=args.resume)
 
 
 if __name__ == '__main__':

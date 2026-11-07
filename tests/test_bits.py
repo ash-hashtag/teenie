@@ -153,3 +153,23 @@ def test_expressions_evaluate_wrap_and_never_match_hidden_relations():
     # The equivalence check catches rewrites: a + a*b behaves exactly like the hidden a*b + a.
     rewrite = lambda a, b, w: (a + a * b) & 255  # noqa: E731
     assert fingerprint(rewrite, 8) in banned
+
+
+def test_training_resume_and_init_continue_from_saved_state(tmp_path):
+    import json
+
+    from teenie.bits.train import train
+
+    options = dict(device='cpu', batch_size=1, queries=2, hidden=16, heads=2, probes=4, layers=1, steps=2,
+                   architecture='loop', train_set='mul-only', log_every=2, validation_episodes=1, adaptive=True)
+    save = tmp_path / 'm.pt'
+    trained = train(updates=2, save=save, log=tmp_path / 'a.jsonl', **options)
+    assert (tmp_path / 'm.resume.pt').exists()
+    # Resuming a finished run changes nothing.
+    resumed = train(updates=2, save=save, log=tmp_path / 'a.jsonl', resume=True, **options)
+    for key, value in trained.state_dict().items():
+        torch.testing.assert_close(value, resumed.state_dict()[key])
+    # --init trains more on top of the weights; update numbers continue from the checkpoint.
+    train(updates=2, save=tmp_path / 'more.pt', log=tmp_path / 'b.jsonl', init=save, **options)
+    records = [json.loads(line) for line in (tmp_path / 'b.jsonl').read_text().splitlines()]
+    assert records[-1]['update'] == 4

@@ -12,7 +12,7 @@ A GRU cell per token carries its state; a shared readout turns each token into i
 give depth: one step's carries can settle before the next step uses them. Probe questions (the first examples,
 masked from themselves) are answered too, for extra training signal, exactly as in the loop model.
 """
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 import torch
 from torch import Tensor, nn
@@ -21,7 +21,7 @@ from torch.utils.checkpoint import checkpoint
 
 from ..config import CONTEXT_SIZE
 from .data import to_bits
-from .loop_model import LoopPrediction, _Bilinear, _Gated
+from .loop_model import LoopPrediction, _Bilinear, _Gated, step_loss
 
 
 class BitTokenConfig(TypedDict):
@@ -31,6 +31,7 @@ class BitTokenConfig(TypedDict):
     width: int
     probes: int
     steps: int
+    stepwise: NotRequired[bool]
 
 
 class _BitLayer(nn.Module):
@@ -72,12 +73,12 @@ class _BitLayer(nn.Module):
 
 class BitTokenModel(nn.Module):
     def __init__(self, hidden: int = 128, heads: int = 4, layers: int = 2, width: int = 8, probes: int = 64,
-                 steps: int = 8) -> None:
+                 steps: int = 8, stepwise: bool = False) -> None:
         super().__init__()
         if hidden % heads or not 0 < probes <= CONTEXT_SIZE or min(layers, width, steps) < 1:
             raise ValueError('hidden must divide into heads; probes in 1..999; layers, width, steps >= 1')
         self.config: BitTokenConfig = {'hidden': hidden, 'heads': heads, 'layers': layers, 'width': width,
-                                       'probes': probes, 'steps': steps}
+                                       'probes': probes, 'steps': steps, 'stepwise': stepwise}
         self.example = nn.Sequential(_Bilinear(3 * width, hidden), nn.GELU(), nn.Linear(hidden, hidden),
                                      nn.LayerNorm(hidden))
         self.ask = _Bilinear(3 * width, hidden)  # (a, b, current guess), shared by the question's bit tokens
@@ -87,6 +88,8 @@ class BitTokenModel(nn.Module):
         self.values = nn.ModuleList([nn.Linear(hidden, hidden) for _ in range(layers)])
         self.cell = nn.GRUCell(hidden, hidden)
         self.readout = nn.Sequential(nn.LayerNorm(hidden), nn.Linear(hidden, 1))
+        if stepwise:  # "the steps are finished", read from the mean of the question's bit tokens
+            self.done = nn.Sequential(nn.LayerNorm(hidden), nn.Linear(hidden, 1))
 
     def forward(self, context: Tensor, query: Tensor, width: int, target: Tensor | None = None,
                 steps: int | None = None) -> LoopPrediction:
@@ -96,7 +99,10 @@ class BitTokenModel(nn.Module):
         rounds = self.config['steps'] if steps is None else steps
         bits = torch.cat([to_bits(context[..., i], width) for i in range(3)], -1) * 2 - 1
         asked = torch.cat([to_bits(query[..., i], width) for i in range(2)], -1) * 2 - 1
-        return LoopPrediction(self.forward_bits(bits, asked, rounds), query.shape[1])
+        self._done_logits: list[Tensor] = []
+        logits = self.forward_bits(bits, asked, rounds)
+        done = torch.stack(self._done_logits) if self._done_logits else None
+        return LoopPrediction(logits, query.shape[1], done=done)
 
     def forward_bits(self, bits: Tensor, asked: Tensor, rounds: int) -> Tensor:
         """Examples [B, 999, 3W] and questions [B, Q, 2W] in {-1, 1} -> logits [T, B, Q + P, W]."""
@@ -122,6 +128,8 @@ class BitTokenModel(nn.Module):
             else:
                 state, logits = self._round(asked, guess, state, keys, values, allowed)
             outputs.append(logits)
+            if self.config.get('stepwise', False):
+                self._done_logits.append(self.done(state.view(batch, items, width, hidden).mean(2)).squeeze(-1))
             guess = torch.tanh(logits / 2)
         return torch.stack(outputs)
 
@@ -142,8 +150,12 @@ class BitTokenModel(nn.Module):
         logits = self.readout(state).view(batch, items, width)
         return state, logits
 
-    def loss(self, prediction: LoopPrediction, context: Tensor, target: Tensor, width: int) -> Tensor:
-        """Per-bit cross-entropy after every round, later rounds weighted more; queries and probes."""
+    def loss(self, prediction: LoopPrediction, context: Tensor, target: Tensor, width: int,
+             steps: Tensor | None = None, step_counts: Tensor | None = None) -> Tensor:
+        """Per-bit cross-entropy after every round, later rounds weighted more; queries and probes. With `steps`,
+        step-by-step training instead (see `step_loss`)."""
+        if steps is not None and step_counts is not None and prediction.done is not None:
+            return step_loss(prediction, steps, step_counts, width)
         probes = to_bits(context[:, :prediction.logits.shape[2] - prediction.queries, 2], width)
         truth = torch.cat([to_bits(target, width), probes], 1).expand_as(prediction.logits)
         per_round = F.binary_cross_entropy_with_logits(prediction.logits, truth, reduction='none').mean((1, 2, 3))

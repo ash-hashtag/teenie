@@ -33,7 +33,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
           layers: int = 2, steps: int = 8, train_set: str = 'base', channels: int = 16,
           informed: bool = True, multiplicative: bool = False, clock: bool = False,
           adaptive: bool = False, init: str | Path | None = None, resume: bool = False,
-          scratch: int = 0, halting: bool = False) -> AnyBitModel:
+          scratch: int = 0, halting: bool = False, stepwise: bool = False) -> AnyBitModel:
     """`init` starts from saved weights and trains `updates` more (fresh optimizer and schedule; update numbers
     continue from the checkpoint). `resume` continues an interrupted run exactly from `<save>.resume.pt`, which
     every log step writes: weights, optimizer, schedule, sampling weights and random state."""
@@ -48,14 +48,14 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
     watched = tuple(f for name, group in test_groups(train_set).items() if name != 'train' for f in group)
     model: AnyBitModel
     if architecture == 'bittoken':
-        model = BitTokenModel(hidden, heads, layers, width, probes, steps).to(selected)
+        model = BitTokenModel(hidden, heads, layers, width, probes, steps, stepwise).to(selected)
     elif architecture == 'program':
         model = ProgramModel(hidden, channels, width, steps, informed).to(selected)
     elif architecture == 'think':
         model = ThinkModel(hidden, heads, layers, width, steps).to(selected)
     elif architecture == 'loop':
         model = LoopModel(hidden, heads, layers, width, probes, steps, multiplicative, clock, scratch,
-                          halting).to(selected)
+                          halting, stepwise).to(selected)
     elif architecture == 'serial':
         model = BitModel(hidden, heads, probes=probes).to(selected)
     else:
@@ -99,13 +99,16 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
                        {'architecture': architecture, 'train_set': train_set, 'width': width, 'update': 0, 'seed': seed})
     for update in range(start + 1, end + 1):
         model.train()
-        episode = sampler.sample(batch_size, queries).to(selected)
+        episode = sampler.sample(batch_size, queries, steps=stepwise).to(selected)
         optimizer.zero_grad(set_to_none=True)
         # Teacher forcing (true earlier c bits, training only) applies to the serial model.
         if isinstance(model, ProgramModel):
             planned = model.forward(episode.context, episode.query, width)
             loss = model.loss(planned, episode.context, episode.target, width)
-        elif isinstance(model, (LoopModel, ThinkModel, BitTokenModel)):
+        elif isinstance(model, (LoopModel, BitTokenModel)):
+            looped = model.forward(episode.context, episode.query, width)
+            loss = model.loss(looped, episode.context, episode.target, width, episode.steps, episode.step_counts)
+        elif isinstance(model, ThinkModel):
             looped = model.forward(episode.context, episode.query, width)
             loss = model.loss(looped, episode.context, episode.target, width)
         else:
@@ -137,7 +140,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
             running = 0.
             metadata: dict[str, object] = {
                 'architecture': architecture, 'multiplicative': multiplicative, 'clock': clock, 'adaptive': adaptive,
-                'scratch': scratch, 'halting': halting,
+                'scratch': scratch, 'halting': halting, 'stepwise': stepwise,
                 'train_set': train_set, 'width': width, 'update': update, 'seed': seed, 'known_exact': score}
             save_bit_model(path, model, metadata)
             if snapshot_dir:
@@ -186,6 +189,8 @@ def main() -> None:
                         help='loop: per-question memory slots carried between rounds, never scored')
     parser.add_argument('--halting', action='store_true',
                         help='loop: learn when to stop; --steps becomes the maximum number of rounds')
+    parser.add_argument('--stepwise', action='store_true',
+                        help='loop/bittoken: train each round against the next intermediate step, plus a "done" signal')
     parser.add_argument('--init', help='start from these weights and train --updates more (fresh optimizer)')
     parser.add_argument('--resume', action='store_true',
                         help='continue an interrupted run exactly from <save>.resume.pt')
@@ -203,7 +208,7 @@ def main() -> None:
           snapshots=args.snapshots, architecture=args.architecture, layers=args.layers, steps=args.steps,
           train_set=args.train_set, channels=args.channels, informed=not args.blank,
           multiplicative=args.multiplicative, clock=args.clock, adaptive=args.adaptive, init=args.init,
-          resume=args.resume, scratch=args.scratch, halting=args.halting)
+          resume=args.resume, scratch=args.scratch, halting=args.halting, stepwise=args.stepwise)
 
 
 if __name__ == '__main__':

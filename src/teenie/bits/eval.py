@@ -40,7 +40,7 @@ def evaluate_family(model: AnyBitModel | None, family: Family, *, width: int = 8
             report.setdefault('bit', []).append(bits.flatten())
             report.setdefault('sure', []).append(sure.flatten())
             report.setdefault('sure_correct', []).append(correct[sure])
-            if isinstance(prediction, LoopPrediction) and prediction.halts is not None:
+            if isinstance(prediction, LoopPrediction) and (prediction.halts is not None or prediction.done is not None):
                 report.setdefault('rounds', []).append(prediction.stop().flatten().float() + 1)
         if baselines:
             report.setdefault('nearest', []).append((nearest(episode) == episode.target).flatten())

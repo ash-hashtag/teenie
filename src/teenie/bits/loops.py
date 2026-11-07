@@ -27,37 +27,58 @@ def _count(b: Tensor, count_bits: int) -> Tensor:
     return b & ((1 << count_bits) - 1)
 
 
-def accumulate(init: Tree, body: Tree, count_bits: int) -> Callable[[Tensor, Tensor, int], Tensor]:
-    def run(a: Tensor, b: Tensor, width: int) -> Tensor:
+Steps = Callable[[Tensor, Tensor, int], tuple[Tensor, Tensor]]
+
+
+def _iterate(start: Callable[[Tensor, Tensor, int], list[Tensor]],
+             update: Callable[[list[Tensor], Tensor, int, int], list[Tensor]], count_bits: int) -> Steps:
+    """Run a loop n = b & (2**count_bits - 1) times; each iteration is one step. The loop's answer is its first
+    state variable. Returns its value after every iteration (questions with fewer iterations keep their final
+    value) and the number of iterations (at least 1)."""
+    def run(a: Tensor, b: Tensor, width: int) -> tuple[Tensor, Tensor]:
         n = _count(b, count_bits)
-        acc = evaluate_with(init, {'a': a}, width)
+        state = start(a, b, width)
+        values = []
         for i in range(int(n.max()) if n.numel() else 0):
-            step = evaluate_with(body, {'acc': acc, 'a': a, 'i': torch.full_like(a, i)}, width)
-            acc = torch.where(i < n, step, acc)
-        return acc
+            following = update(state, a, i, width)
+            state = [torch.where(i < n, new, old) for new, old in zip(following, state)]
+            values.append(state[0])
+        trace = torch.stack(values) if values else state[0][None]
+        return trace, n.clamp(min=1)
     return run
+
+
+def accumulate_steps(init: Tree, body: Tree, count_bits: int) -> Steps:
+    return _iterate(lambda a, b, w: [evaluate_with(init, {'a': a}, w)],
+                    lambda s, a, i, w: [evaluate_with(body, {'acc': s[0], 'a': a, 'i': torch.full_like(a, i)}, w)],
+                    count_bits)
+
+
+def repeat_steps(step: Tree, count_bits: int) -> Steps:
+    return _iterate(lambda a, b, w: [a & ((1 << w) - 1)],
+                    lambda s, a, i, w: [evaluate_with(step, {'x': s[0]}, w)], count_bits)
+
+
+def recurrence_steps(init: Tree, step: Tree, count_bits: int) -> Steps:
+    """Term 0 is a, term 1 is init; each iteration moves one term on. The answer (state[0]) is term n."""
+    return _iterate(lambda a, b, w: [a & ((1 << w) - 1), evaluate_with(init, {'a': a}, w)],
+                    lambda s, a, i, w: [s[1], evaluate_with(step, {'x': s[1], 'y': s[0]}, w)], count_bits)
+
+
+def _final(steps: Steps) -> Callable[[Tensor, Tensor, int], Tensor]:
+    return lambda a, b, w: steps(a, b, w)[0][-1]
+
+
+def accumulate(init: Tree, body: Tree, count_bits: int) -> Callable[[Tensor, Tensor, int], Tensor]:
+    return _final(accumulate_steps(init, body, count_bits))
 
 
 def repeat(step: Tree, count_bits: int) -> Callable[[Tensor, Tensor, int], Tensor]:
-    def run(a: Tensor, b: Tensor, width: int) -> Tensor:
-        n = _count(b, count_bits)
-        x = a & ((1 << width) - 1)
-        for i in range(int(n.max()) if n.numel() else 0):
-            x = torch.where(i < n, evaluate_with(step, {'x': x}, width), x)
-        return x
-    return run
+    return _final(repeat_steps(step, count_bits))
 
 
 def recurrence(init: Tree, step: Tree, count_bits: int) -> Callable[[Tensor, Tensor, int], Tensor]:
-    def run(a: Tensor, b: Tensor, width: int) -> Tensor:
-        n = _count(b, count_bits)
-        y = a & ((1 << width) - 1)  # term 0
-        x = evaluate_with(init, {'a': a}, width)  # term 1
-        for i in range(int(n.max()) if n.numel() else 0):
-            following = evaluate_with(step, {'x': x, 'y': y}, width)
-            x, y = torch.where(i < n, following, x), torch.where(i < n, x, y)
-        return y
-    return run
+    return _final(recurrence_steps(init, step, count_bits))
 
 
 def popcount(x: Tensor, width: int) -> Tensor:
@@ -86,29 +107,33 @@ HIDDEN_BIT_LOOPS: dict[str, Callable[[Tensor, Tensor, int], Tensor]] = {
 }
 
 
-def _fixed(name: str, f: Callable[[Tensor, Tensor, int], Tensor]) -> Family:
-    relation = Relation(name, f)
+def _fixed(name: str, f: Callable[[Tensor, Tensor, int], Tensor], steps: Steps | None = None) -> Family:
+    relation = Relation(name, f, steps)
     return Family(name, lambda generator, width: relation)
+
+
+def _fixed_loop(name: str, steps: Steps) -> Family:
+    return _fixed(name, _final(steps), steps)
 
 
 def hidden_loops(count_bits: int) -> tuple[Family, ...]:
     """Loop bodies never generated for training (checked by behaviour at the training length too)."""
     suffix = LENGTHS[count_bits]
     return (
-        _fixed(f'sum a..a+n-1 {suffix}', accumulate(0, ('+', 'acc', ('+', 'a', 'i')), count_bits)),
-        _fixed(f'a^n {suffix}', accumulate(1, ('*', 'acc', 'a'), count_bits)),
-        _fixed(f'fib(a,a) {suffix}', recurrence('a', ('+', 'x', 'y'), count_bits)),
-        _fixed(f'x->3x+1 {suffix}', repeat(('+', ('*', 'x', 3), 1), count_bits)),
-        _fixed(f'acc=(acc<<1)^a {suffix}', accumulate('a', ('^', ('<<1', 'acc'), 'a'), count_bits)),
+        _fixed_loop(f'sum a..a+n-1 {suffix}', accumulate_steps(0, ('+', 'acc', ('+', 'a', 'i')), count_bits)),
+        _fixed_loop(f'a^n {suffix}', accumulate_steps(1, ('*', 'acc', 'a'), count_bits)),
+        _fixed_loop(f'fib(a,a) {suffix}', recurrence_steps('a', ('+', 'x', 'y'), count_bits)),
+        _fixed_loop(f'x->3x+1 {suffix}', repeat_steps(('+', ('*', 'x', 3), 1), count_bits)),
+        _fixed_loop(f'acc=(acc<<1)^a {suffix}', accumulate_steps('a', ('^', ('<<1', 'acc'), 'a'), count_bits)),
     )
 
 
-def _draw_loop(build: Callable[[torch.Generator, int], tuple[str, Callable[[Tensor, Tensor, int], Tensor]]],
+def _draw_loop(build: Callable[[torch.Generator, int], tuple[str, Steps]],
                forbidden: tuple[Family, ...], generator: torch.Generator, width: int) -> Relation:
     banned = _banned(forbidden, width)
     for _ in range(300):
-        name, run = build(generator, width)
-        relation = Relation(name, run)
+        name, steps = build(generator, width)
+        relation = Relation(name, _final(steps), steps)
         outputs = fingerprint(relation, width)
         # The repeat count must matter: compare with the same loop run zero times.
         a, b = _probe(width)
@@ -136,16 +161,16 @@ def loop_family(kind: str, count_bits: int, forbidden: tuple[Family, ...]) -> Fa
     """Fresh random loops of one kind per episode; `forbidden` relations are redrawn."""
     suffix = LENGTHS[count_bits]
 
-    def build(generator: torch.Generator, width: int) -> tuple[str, Callable[[Tensor, Tensor, int], Tensor]]:
+    def build(generator: torch.Generator, width: int) -> tuple[str, Steps]:
         if kind == 'accumulate':
             init, body = _start(generator, width), _tree(generator, width, ('acc', 'a', 'i'), ('acc',))
-            return f'acc={show(init)}; n: acc={show(body)}', accumulate(init, body, count_bits)
+            return f'acc={show(init)}; n: acc={show(body)}', accumulate_steps(init, body, count_bits)
         if kind == 'repeat':
             step = _tree(generator, width, ('x',), ('x',))
-            return f'x=a; n: x={show(step)}', repeat(step, count_bits)
+            return f'x=a; n: x={show(step)}', repeat_steps(step, count_bits)
         if kind == 'recurrence':
             init, step = _start(generator, width), _tree(generator, width, ('x', 'y'), ('x', 'y'))
-            return f'y,x=a,{show(init)}; n: x={show(step)}', recurrence(init, step, count_bits)
+            return f'y,x=a,{show(init)}; n: x={show(step)}', recurrence_steps(init, step, count_bits)
         raise ValueError(kind)
 
     def make(generator: torch.Generator, width: int) -> Relation:

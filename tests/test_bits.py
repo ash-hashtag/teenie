@@ -298,3 +298,58 @@ def test_halting_distribution_sums_to_one_and_stops_early_when_confident():
         model.halt[1].bias.fill_(20.)
         assert int(model.forward(episode.context, episode.query, 8).stop().max()) == 0
         assert model.forward(episode.context, episode.query, 8, steps=9).logits.shape[0] == 9
+
+
+def test_steps_for_expressions_loops_and_episodes():
+    from teenie.bits.expressions import named, tree_steps
+    from teenie.bits.loops import hidden_loops
+    from teenie.bits.sets import TRAIN_SETS
+
+    a, b = torch.tensor([3, 200]), torch.tensor([5, 7])
+    trace, counts = tree_steps(('+', ('*', 'a', 'b'), 'b'))(a, b, 8)
+    assert trace.tolist() == [[15, 1400 % 256], [20, (1400 + 7) % 256]] and counts.tolist() == [2, 2]
+    total = hidden_loops(4)[0].make(torch.Generator(), 8)  # sum a..a+n-1 with n = b & 15
+    assert total.steps is not None
+    trace, counts = total.steps(torch.tensor([10, 1]), torch.tensor([3, 0]), 8)
+    assert trace.tolist() == [[10, 0], [21, 0], [33, 0]] and counts.tolist() == [3, 1]  # n = 0: empty sum
+    assert trace[-1].tolist() == total(torch.tensor([10, 1]), torch.tensor([3, 0]), 8).tolist()
+    episode = BitSampler(TRAIN_SETS['mix4'], seed=0).sample(3, queries=4, steps=True)
+    assert episode.steps is not None and episode.step_counts is not None
+    assert episode.steps.shape[0] == 3 and episode.steps.shape[2] == 999 + 4
+    # The last step is always the answer, for examples and questions alike.
+    torch.testing.assert_close(episode.steps[:, -1, :999], episode.context[..., 2])
+    torch.testing.assert_close(episode.steps[:, -1, 999:], episode.target)
+    assert int(episode.step_counts.min()) >= 1 and int(episode.step_counts.max()) <= episode.steps.shape[1]
+
+
+def test_stepwise_loop_model_trains_and_stops_when_done():
+    from teenie.bits.sets import TRAIN_SETS
+
+    torch.manual_seed(0)
+    model = LoopModel(hidden=16, heads=2, layers=1, probes=8, steps=6, multiplicative=True, stepwise=True)
+    episode = BitSampler(TRAIN_SETS['mix4'], seed=1).sample(2, queries=3, steps=True)
+    prediction = model.forward(episode.context, episode.query, 8)
+    assert prediction.done is not None and prediction.done.shape == (6, 2, 3 + 8)
+    model.loss(prediction, episode.context, episode.target, 8, episode.steps, episode.step_counts).backward()
+    with torch.no_grad():
+        model.done[1].bias.fill_(20.)  # always "done" -> answers from round 1
+        assert int(model.forward(episode.context, episode.query, 8).stop().max()) == 0
+        model.done[1].bias.fill_(-20.)  # never "done" -> answers at the cap
+        assert int(model.forward(episode.context, episode.query, 8).stop().min()) == 5
+
+
+def test_stepwise_bit_token_model_trains_and_stops():
+    from teenie.bits.bit_token_model import BitTokenModel
+    from teenie.bits.sets import TRAIN_SETS
+
+    torch.manual_seed(0)
+    model = BitTokenModel(hidden=16, heads=2, layers=1, probes=8, steps=4, stepwise=True)
+    episode = BitSampler(TRAIN_SETS['mix4'], seed=2).sample(2, queries=3, steps=True)
+    model.train()
+    prediction = model.forward(episode.context, episode.query, 8)
+    assert prediction.done is not None and prediction.done.shape == (4, 2, 3 + 8)
+    model.loss(prediction, episode.context, episode.target, 8, episode.steps, episode.step_counts).backward()
+    model.eval()
+    with torch.no_grad():
+        model.done[1].bias.fill_(20.)
+        assert int(model.forward(episode.context, episode.query, 8).stop().max()) == 0

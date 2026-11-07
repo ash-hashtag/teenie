@@ -121,8 +121,29 @@ def fingerprint(f: Callable[[Tensor, Tensor, int], Tensor], width: int) -> tuple
     return tuple((f(a, b, width) & ((1 << width) - 1)).tolist())
 
 
+def tree_steps(tree: Tree) -> Callable[[Tensor, Tensor, int], tuple[Tensor, Tensor]]:
+    """Every operation's value in evaluation order (children before parents): step k is the k-th operation."""
+    def run(a: Tensor, b: Tensor, width: int) -> tuple[Tensor, Tensor]:
+        mask = (1 << width) - 1
+        values: list[Tensor] = []
+
+        def walk(node: Tree) -> Tensor:
+            if not isinstance(node, tuple):
+                return evaluate_with(node, {'a': a, 'b': b}, width)
+            op, children = _parts(node)
+            inputs = [walk(child) for child in children]
+            value = (UNARY[op](inputs[0]) if len(inputs) == 1 else BINARY[op](inputs[0], inputs[1])) & mask
+            values.append(value)
+            return value
+
+        final = walk(tree)
+        trace = torch.stack(values) if values else final[None]
+        return trace, torch.full_like(a, len(trace))
+    return run
+
+
 def tree_relation(name: str, tree: Tree) -> Relation:
-    return Relation(name, lambda a, b, w: evaluate(tree, a, b, w))
+    return Relation(name, lambda a, b, w: evaluate(tree, a, b, w), tree_steps(tree))
 
 
 def named(name: str, tree: Tree) -> Family:

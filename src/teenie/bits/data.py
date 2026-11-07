@@ -27,10 +27,15 @@ class BitEpisodes:
     target: Tensor  # [B, Q] int64
     names: list[str]
     width: int
+    # With `sample(..., steps=True)`: intermediate values for every example and question, [B, S, 999 + Q]
+    # (padded with the final answer), and how many steps each one takes, [B, 999 + Q].
+    steps: Tensor | None = None
+    step_counts: Tensor | None = None
 
     def to(self, device: torch.device | str) -> 'BitEpisodes':
-        return BitEpisodes(self.context.to(device), self.query.to(device), self.target.to(device),
-                           self.names, self.width)
+        return BitEpisodes(self.context.to(device), self.query.to(device), self.target.to(device), self.names,
+                           self.width, None if self.steps is None else self.steps.to(device),
+                           None if self.step_counts is None else self.step_counts.to(device))
 
 
 class BitSampler:
@@ -57,8 +62,10 @@ class BitSampler:
             chosen = chosen[torch.randperm(len(chosen), generator=self.generator)[:count]]
         return chosen >> self.width, chosen & ((1 << self.width) - 1)
 
-    def sample(self, batch_size: int, queries: int = 1) -> BitEpisodes:
+    def sample(self, batch_size: int, queries: int = 1, steps: bool = False) -> BitEpisodes:
         contexts, query_pairs, targets, names = [], [], [], []
+        values: list[Tensor] = []
+        counts: list[Tensor] = []
         for _ in range(batch_size):
             if bool((self.weights == self.weights[0]).all()):  # uniform: same draws as before weights existed
                 index = int(torch.randint(0, len(self.families), (), generator=self.generator))
@@ -68,8 +75,20 @@ class BitSampler:
             relation = family.make(self.generator, self.width)
             a, b = self.pairs(CONTEXT_SIZE + queries)
             c = relation(a, b, self.width)
+            if steps:
+                if relation.steps is None:
+                    trace, count = c[None], torch.ones_like(c)
+                else:
+                    trace, count = relation.steps(a, b, self.width)
+                values.append(trace & ((1 << self.width) - 1))
+                counts.append(count)
             contexts.append(torch.stack([a, b, c], -1)[:CONTEXT_SIZE])
             query_pairs.append(torch.stack([a, b], -1)[CONTEXT_SIZE:])
             targets.append(c[CONTEXT_SIZE:])
             names.append(relation.name)
-        return BitEpisodes(torch.stack(contexts), torch.stack(query_pairs), torch.stack(targets), names, self.width)
+        episodes = BitEpisodes(torch.stack(contexts), torch.stack(query_pairs), torch.stack(targets), names, self.width)
+        if steps:
+            longest = max(len(v) for v in values)  # pad every trace by repeating its final answer
+            episodes.steps = torch.stack([torch.cat([v, v[-1:].expand(longest - len(v), -1)]) for v in values])
+            episodes.step_counts = torch.stack(counts)
+        return episodes

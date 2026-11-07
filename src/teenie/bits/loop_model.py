@@ -32,6 +32,7 @@ class LoopConfig(TypedDict):
     clock: NotRequired[bool]
     scratch: NotRequired[int]
     halting: NotRequired[bool]
+    stepwise: NotRequired[bool]
 
 
 @dataclass
@@ -39,15 +40,20 @@ class LoopPrediction:
     logits: Tensor  # [T, B, Q + P, W] after each round, bit index order
     queries: int
     halts: Tensor | None = None  # [T, B, Q + P] probability of stopping at each round, if the model halts itself
+    done: Tensor | None = None  # [T, B, Q + P] logits of "the steps are finished", for step-trained models
 
     def stop(self) -> Tensor:
-        """Round each question answers at, [B, Q]: the first round by which stopping is more likely than not
-        (the median of its halting distribution); the last round when the model does not halt itself."""
-        if self.halts is None:
-            return torch.full(self.logits.shape[1:2] + (self.queries,), len(self.logits) - 1,
-                              device=self.logits.device, dtype=torch.long)
-        reached = self.halts[:, :, :self.queries].cumsum(0) >= .5
-        return reached.float().argmax(0)
+        """Round each question answers at, [B, Q]: for halting models the median of the stopping distribution; for
+        step-trained models the first round that says it is done; otherwise the last round."""
+        last = len(self.logits) - 1
+        if self.halts is not None:
+            reached = self.halts[:, :, :self.queries].cumsum(0) >= .5
+            return reached.float().argmax(0)
+        if self.done is not None:
+            finished = self.done[:, :, :self.queries] > 0
+            finished[-1] = True  # the cap
+            return finished.float().argmax(0)
+        return torch.full(self.logits.shape[1:2] + (self.queries,), last, device=self.logits.device, dtype=torch.long)
 
     def probabilities(self, round: int | None = None) -> Tensor:
         """Probability that each query bit is 1, [B, Q, W]: after a given round, or by default at the round each
@@ -64,6 +70,25 @@ class LoopPrediction:
         """Certainty of the least certain bit, in [0.5, 1]."""
         p = self.probabilities()
         return torch.maximum(p, 1 - p).amin(-1)
+
+
+def step_loss(prediction: LoopPrediction, steps: Tensor, step_counts: Tensor, width: int) -> Tensor:
+    """Step-by-step training: round t is scored against intermediate step t (then the final answer, also at the
+    last round), and `done` against whether the steps are finished. Shared by the loop and bit-token models."""
+    assert prediction.done is not None
+    rounds, queries = len(prediction.logits), prediction.queries
+    probes = prediction.logits.shape[2] - queries
+    # Items are ordered like the models': the questions (after the 999 examples), then the probe examples.
+    values = torch.cat([steps[:, :, CONTEXT_SIZE:], steps[:, :, :probes]], 2)  # [B, S, I]
+    counts = torch.cat([step_counts[:, CONTEXT_SIZE:], step_counts[:, :probes]], 1)  # [B, I]
+    available = values.shape[1]
+    index = torch.arange(rounds, device=values.device).clamp(max=available - 1)
+    index[-1] = available - 1
+    targets = to_bits(values[:, index].transpose(0, 1), width)  # [T, B, I, W]
+    answer = F.binary_cross_entropy_with_logits(prediction.logits, targets)
+    finished = (torch.arange(rounds, device=values.device)[:, None, None] >= counts[None] - 1).float()
+    finished[-1] = 1.
+    return answer + .5 * F.binary_cross_entropy_with_logits(prediction.done, finished)
 
 
 HALT_COST = .005  # per round, in bits of cross-entropy: a round has to buy a real improvement to be worth it
@@ -160,13 +185,13 @@ class _Within(nn.Module):
 class LoopModel(nn.Module):
     def __init__(self, hidden: int = 128, heads: int = 4, layers: int = 2, width: int = 8, probes: int = 64,
                  steps: int = 8, multiplicative: bool = False, clock: bool = False, scratch: int = 0,
-                 halting: bool = False) -> None:
+                 halting: bool = False, stepwise: bool = False) -> None:
         super().__init__()
         if hidden % heads or not 0 < probes <= CONTEXT_SIZE or min(layers, width, steps) < 1:
             raise ValueError('hidden must divide into heads; probes in 1..999; layers, width, steps >= 1')
         self.config: LoopConfig = {'hidden': hidden, 'heads': heads, 'layers': layers, 'width': width,
                                    'probes': probes, 'steps': steps, 'multiplicative': multiplicative,
-                                   'clock': clock, 'scratch': scratch, 'halting': halting}
+                                   'clock': clock, 'scratch': scratch, 'halting': halting, 'stepwise': stepwise}
         # `clock` tells every round which round it is (a fixed sinusoid, no parameters) and scores mostly the last
         # round, so earlier rounds are free to hold partial work instead of a finished answer.
         # `multiplicative` adds bilinear inputs and gated feed-forward layers: generic units that can multiply
@@ -188,6 +213,11 @@ class LoopModel(nn.Module):
             halt_out = nn.Linear(hidden, 1)
             nn.init.constant_(halt_out.bias, -2.)  # start out preferring to keep going
             self.halt = nn.Sequential(nn.LayerNorm(hidden), halt_out)
+        # `stepwise`: trained on the relation's intermediate values — round t's guess is scored against step t (then
+        # the final answer) and a `done` output learns when the steps are finished. One round = one step, so a
+        # loop of n iterations takes n rounds; answers are read at the first round that says it is done.
+        if stepwise:
+            self.done = nn.Sequential(nn.LayerNorm(hidden), nn.Linear(hidden, 1))
         if scratch:
             self.slot_identity = nn.Parameter(torch.randn(scratch, hidden) * .02)
             self.within = _Within(hidden, heads)
@@ -202,6 +232,7 @@ class LoopModel(nn.Module):
         bits = torch.cat([to_bits(context[..., i], width) for i in range(3)], -1) * 2 - 1  # [B, N, 3W]
         asked = torch.cat([to_bits(query[..., i], width) for i in range(2)], -1) * 2 - 1  # [B, Q, 2W]
         self._halt_logits: list[Tensor] = []
+        self._done_logits: list[Tensor] = []
         logits = self.forward_bits(bits, asked, rounds)
         halts = None
         if self.config.get('halting', False):
@@ -211,7 +242,8 @@ class LoopModel(nn.Module):
             h = torch.cat([h[:-1], torch.ones_like(h[-1:])])
             survive = torch.cumprod(torch.cat([torch.ones_like(h[:1]), 1 - h[:-1]]), 0)
             halts = h * survive
-        return LoopPrediction(logits, query.shape[1], halts)
+        done = torch.stack(self._done_logits) if self._done_logits else None
+        return LoopPrediction(logits, query.shape[1], halts, done)
 
     def forward_bits(self, bits: Tensor, asked: Tensor, rounds: int) -> Tensor:
         """The model on bits in {-1, 1}: examples [B, 999, 3W] and questions [B, Q, 2W]. Returns logits after every
@@ -247,6 +279,8 @@ class LoopModel(nn.Module):
             outputs.append(logits)
             if self.config.get('halting', False):
                 self._halt_logits.append(self.halt(state).view(batch, items))
+            if self.config.get('stepwise', False):
+                self._done_logits.append(self.done(state).view(batch, items))
             guess = torch.tanh(logits / 2)  # = 2 * sigmoid(logits) - 1
         return torch.stack(outputs)
 
@@ -257,8 +291,12 @@ class LoopModel(nn.Module):
             cast(_Look, look).attention = store if enabled else None
         return stores
 
-    def loss(self, prediction: LoopPrediction, context: Tensor, target: Tensor, width: int) -> Tensor:
-        """Per-bit cross-entropy after every round, later rounds weighted more; queries and probes."""
+    def loss(self, prediction: LoopPrediction, context: Tensor, target: Tensor, width: int,
+             steps: Tensor | None = None, step_counts: Tensor | None = None) -> Tensor:
+        """Per-bit cross-entropy after every round, later rounds weighted more; queries and probes. With `steps`
+        (step-trained models), round t is scored against step t instead and `done` against the step count."""
+        if steps is not None and step_counts is not None and prediction.done is not None:
+            return step_loss(prediction, steps, step_counts, width)
         probes = to_bits(context[:, :prediction.logits.shape[2] - prediction.queries, 2], width)
         truth = torch.cat([to_bits(target, width), probes], 1).expand_as(prediction.logits)
         if prediction.halts is not None:

@@ -10,12 +10,16 @@ import torch
 from torch import Tensor
 
 IntFunction = Callable[[Tensor, Tensor, int], Tensor]
+# Intermediate values of a relation, for step-by-step training: (values [S, N], steps taken [N]). Each column holds
+# the value after step 1, 2, ... and then repeats its final answer; steps taken is at least 1.
+StepFunction = Callable[[Tensor, Tensor, int], tuple[Tensor, Tensor]]
 
 
 @dataclass(frozen=True)
 class Relation:
     name: str
     f: IntFunction
+    steps: StepFunction | None = None  # None: the relation counts as a single step
 
     def __call__(self, a: Tensor, b: Tensor, width: int) -> Tensor:
         return self.f(a, b, width) & ((1 << width) - 1)

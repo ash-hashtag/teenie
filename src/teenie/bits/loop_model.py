@@ -30,6 +30,7 @@ class LoopConfig(TypedDict):
     steps: int
     multiplicative: NotRequired[bool]
     clock: NotRequired[bool]
+    scratch: NotRequired[int]
 
 
 @dataclass
@@ -113,15 +114,35 @@ class _Look(nn.Module):
         return result
 
 
+class _Within(nn.Module):
+    """Self-attention among one question's own tokens (its main token and its scratch slots)."""
+
+    def __init__(self, hidden: int, heads: int) -> None:
+        super().__init__()
+        self.heads = heads
+        self.norm = nn.LayerNorm(hidden)
+        self.qkv = nn.Linear(hidden, 3 * hidden)
+        self.out = nn.Linear(hidden, hidden)
+        self.feed = _Gated(hidden)
+
+    def forward(self, x: Tensor) -> Tensor:
+        groups, tokens, hidden = x.shape
+        q, k, v = self.qkv(self.norm(x)).view(groups, tokens, 3, self.heads, hidden // self.heads).permute(2, 0, 3, 1, 4)
+        found = F.scaled_dot_product_attention(q, k, v)
+        x = x + self.out(found.transpose(1, 2).reshape(groups, tokens, hidden))
+        result: Tensor = x + self.feed(x)
+        return result
+
+
 class LoopModel(nn.Module):
     def __init__(self, hidden: int = 128, heads: int = 4, layers: int = 2, width: int = 8, probes: int = 64,
-                 steps: int = 8, multiplicative: bool = False, clock: bool = False) -> None:
+                 steps: int = 8, multiplicative: bool = False, clock: bool = False, scratch: int = 0) -> None:
         super().__init__()
         if hidden % heads or not 0 < probes <= CONTEXT_SIZE or min(layers, width, steps) < 1:
             raise ValueError('hidden must divide into heads; probes in 1..999; layers, width, steps >= 1')
         self.config: LoopConfig = {'hidden': hidden, 'heads': heads, 'layers': layers, 'width': width,
                                    'probes': probes, 'steps': steps, 'multiplicative': multiplicative,
-                                   'clock': clock}
+                                   'clock': clock, 'scratch': scratch}
         # `clock` tells every round which round it is (a fixed sinusoid, no parameters) and scores mostly the last
         # round, so earlier rounds are free to hold partial work instead of a finished answer.
         # `multiplicative` adds bilinear inputs and gated feed-forward layers: generic units that can multiply
@@ -133,6 +154,13 @@ class LoopModel(nn.Module):
         self.looks = nn.ModuleList([_Look(hidden, heads, multiplicative) for _ in range(layers)])
         self.cell = nn.GRUCell(hidden, hidden)
         self.readout = nn.Sequential(nn.LayerNorm(hidden), nn.Linear(hidden, width))
+        # `scratch` slots: per-question memory carried between rounds and never scored, for intermediate results
+        # (a partial product, a running total, a counter). Only the main token reads the examples; the slots
+        # exchange information with it through `within`. Each slot has a learned identity added every round.
+        if scratch:
+            self.slot_identity = nn.Parameter(torch.randn(scratch, hidden) * .02)
+            self.within = _Within(hidden, heads)
+            self.slot_cell = nn.GRUCell(hidden, hidden)
 
     def forward(self, context: Tensor, query: Tensor, width: int, target: Tensor | None = None,
                 steps: int | None = None) -> LoopPrediction:
@@ -152,6 +180,8 @@ class LoopModel(nn.Module):
         hidden = self.config['hidden']
         state = asked.new_zeros(batch * items, hidden)
         guess = asked.new_zeros(batch, items, width)  # in [-1, 1]; 0 = undecided
+        slots = self.config.get('scratch', 0)
+        slot_state = asked.new_zeros(batch * items * slots, hidden)
         outputs = []
         for step in range(rounds):
             x = self.ask(torch.cat([asked, guess], -1)) + state.view(batch, items, hidden)
@@ -159,6 +189,11 @@ class LoopModel(nn.Module):
                 x = x + round_signal(step, hidden, context.device)
             for look in self.looks:
                 x = look(x, examples, allowed)
+            if slots:
+                memory = slot_state.view(batch * items, slots, hidden) + self.slot_identity
+                mixed = self.within(torch.cat([x.reshape(batch * items, 1, hidden), memory], 1))
+                x = mixed[:, 0].view(batch, items, hidden)
+                slot_state = self.slot_cell(mixed[:, 1:].reshape(-1, hidden), slot_state)
             state = self.cell(x.reshape(-1, hidden), state)
             logits = self.readout(state).view(batch, items, width)
             outputs.append(logits)

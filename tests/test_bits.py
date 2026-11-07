@@ -64,10 +64,11 @@ def test_model_shapes_masking_and_checkpoint(tmp_path):
     assert 0 <= value < 256 and .5 <= confidence <= 1
 
 
-@pytest.mark.parametrize('multiplicative', [False, True])
-def test_loop_model_rounds_probe_masking_and_checkpoint(tmp_path, multiplicative):
+@pytest.mark.parametrize('multiplicative,scratch', [(False, 0), (True, 0), (True, 3)])
+def test_loop_model_rounds_probe_masking_and_checkpoint(tmp_path, multiplicative, scratch):
     torch.manual_seed(0)
-    model = LoopModel(hidden=16, heads=2, layers=1, probes=8, steps=3, multiplicative=multiplicative)
+    model = LoopModel(hidden=16, heads=2, layers=1, probes=8, steps=3, multiplicative=multiplicative,
+                      scratch=scratch)
     episode = BitSampler(seed=0).sample(2, queries=3)
     prediction = model.forward(episode.context, episode.query, 8)
     assert prediction.logits.shape == (3, 2, 3 + 8, 8)
@@ -84,6 +85,7 @@ def test_loop_model_rounds_probe_masking_and_checkpoint(tmp_path, multiplicative
     loaded, _ = load_bit_model(tmp_path / 'loop.pt')
     assert isinstance(loaded, LoopModel) and loaded.config['steps'] == 3
     assert loaded.config.get('multiplicative', False) == multiplicative
+    assert loaded.config.get('scratch', 0) == scratch
 
 
 def test_think_model_questions_are_independent_and_checkpoint(tmp_path):

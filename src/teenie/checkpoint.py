@@ -1,36 +1,31 @@
-"""Portable model weights and experiment metadata; no pickled model objects."""
-
+"""Portable versioned weights. V5 uses explicit residual fitting; older architectures are rejected."""
 from pathlib import Path
+from typing import cast
 
 import torch
 
-from .model import RecursiveArithModel
+from .config import CONTEXT_SIZE
+from .model import ContextModel, ModelConfig
+
+Metadata = dict[str, object]
 
 
-def save_checkpoint(path, model, *, ops, adaptive, epoch, seed, seen_ops=None):
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    checkpoint = {
-        "version": 1,
-        "model_config": {"num_range": model.num_range,
-                         "hidden": model.hidden,
-                         "max_steps": model.max_steps,
-                         "representation": model.representation},
-        "state_dict": {k: v.detach().cpu() for k, v in model.state_dict().items()},
-        "ops": [int(op) for op in ops],
-        "seen_ops": sorted({int(op) for op in (ops if seen_ops is None else seen_ops)}),
-        "adaptive": bool(adaptive), "epoch": int(epoch), "seed": int(seed),
-    }
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    torch.save(checkpoint, temporary)
-    temporary.replace(path)
+def save_model(path: str | Path, model: ContextModel, metadata: Metadata | None = None) -> None:
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_suffix(destination.suffix + '.tmp')
+    torch.save({'format': 'teenie-residual-v5-fixed999', 'config': model.config, 'context_size': CONTEXT_SIZE,
+                'state_dict': {k: v.detach().cpu() for k, v in model.state_dict().items()},
+                'metadata': metadata or {}}, temporary)
+    temporary.replace(destination)
 
 
-def load_checkpoint(path, device="cpu"):
-    checkpoint = torch.load(path, map_location="cpu", weights_only=True)
-    if checkpoint.get("version") != 1:
-        raise ValueError("unsupported checkpoint version")
-    model = RecursiveArithModel(**checkpoint["model_config"])
-    model.load_state_dict(checkpoint["state_dict"], strict=True)
-    model.to(device).eval()
-    return model, checkpoint
+def load_model(path: str | Path, device: str | torch.device = 'cpu') -> tuple[ContextModel, Metadata]:
+    payload = torch.load(path, map_location='cpu', weights_only=True)
+    if (not isinstance(payload, dict) or payload.get('format') != 'teenie-residual-v5-fixed999'
+            or payload.get('context_size') != CONTEXT_SIZE):
+        raise ValueError('not a fixed-999 float-loop checkpoint; retrain using the current CLI')
+    config = cast(ModelConfig, payload['config'])
+    model = ContextModel(**config)
+    model.load_state_dict(payload['state_dict'])
+    return model.to(device).eval(), cast(Metadata, payload['metadata'])

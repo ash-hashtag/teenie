@@ -1,166 +1,127 @@
-"""Small reproducible training runner; emits JSONL metrics to stdout."""
-
+"""Train IEEE float32 recurrent regression from custom scalar functions."""
 import argparse
+from collections.abc import Sequence
 import json
-import sys
+import time
 from pathlib import Path
 
 import torch
-from torch.utils.data import DataLoader
 
-from .data import Op, make_dataset, split_dataset
-from .loop import compute_loss
-from .model import RecursiveArithModel
-from .checkpoint import load_checkpoint, save_checkpoint
-
-
-def parse_ops(value):
-    aliases = {op.name.lower(): op for op in Op} | {str(int(op)): op for op in Op}
-    try:
-        ops = tuple(aliases[item.strip().lower()] for item in value.split(","))
-    except KeyError as exc:
-        raise argparse.ArgumentTypeError("use add,sub,mul or 0,1,2") from exc
-    if len(set(ops)) != len(ops):
-        raise argparse.ArgumentTypeError("operations must be unique")
-    return ops
+from .checkpoint import Metadata, save_model
+from .config import CONTEXT_SIZE
+from .data import EpisodeSampler, FunctionTask, load_tasks
+from .families import bounded_basics
+from .metrics import measure, training_loss
+from .model import ContextModel
 
 
-def select_device(name):
-    if name == "auto":
-        name = "cuda" if torch.cuda.is_available() else "cpu"
-    if name == "cuda" and not torch.cuda.is_available():
-        raise ValueError("CUDA requested but unavailable; use --device cpu or check your GPU/driver")
+def select_device(name: str) -> torch.device:
+    if name == 'auto':
+        name = 'cuda' if torch.cuda.is_available() else 'cpu'
+    if name == 'cuda' and not torch.cuda.is_available():
+        raise ValueError('CUDA requested but unavailable')
     return torch.device(name)
 
 
-@torch.no_grad()
-def evaluate(model, loader, adaptive=True):
-    correct = total = steps_total = 0
-    by_op = {}
-    device = next(model.parameters()).device
-    for a, b, op, target in loader:
-        a, b, op, target = (x.to(device) for x in (a, b, op, target))
-        result, steps = model.predict(a, b, op, adaptive=adaptive)
-        correct += (result == target).sum().item()
-        steps_total += steps.sum().item()
-        total += len(target)
-        for value in op.unique().tolist():
-            mask = op == value
-            counts = by_op.setdefault(Op(value).name.lower(), [0, 0])
-            counts[0] += (result[mask] == target[mask]).sum().item()
-            counts[1] += mask.sum().item()
-    return {"accuracy": correct / total, "steps": steps_total / total,
-            "per_op": {name: {"accuracy": c / n, "count": n} for name, (c, n) in by_op.items()}}
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--epochs", type=int, default=100)
-    parser.add_argument("--num-range", type=int)
-    parser.add_argument("--hidden", type=int)
-    parser.add_argument("--max-steps", type=int)
-    parser.add_argument("--representation", choices=("embedding", "numeric"),
-                        help="Operand/output representation; default: embedding")
-    parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--weight-decay", type=float, default=1e-4)
-    parser.add_argument("--lr-schedule", choices=("constant", "cosine"), default="constant")
-    parser.add_argument("--ponder-weight", type=float, default=0.01)
-    parser.add_argument("--batch-size", type=int, default=256)
-    parser.add_argument("--seed", type=int)
-    parser.add_argument("--log-every", type=int, default=100)
-    parser.add_argument("--no-loop", action="store_true")
-    parser.add_argument("--no-ponder", action="store_true", default=None,
-                        help="Disable adaptive halting; train and evaluate the final step")
-    parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
-    parser.add_argument("--ops", type=parse_ops, help="Training operations, e.g. add,sub,mul (default: add)")
-    parser.add_argument("--save", default="checkpoints/model.pt", help="Output checkpoint path")
-    parser.add_argument("--load", help="Load weights/config for evaluation or fresh-optimizer fine-tuning")
-    parser.add_argument("--eval-only", action="store_true", help="Evaluate --load without training or saving")
-    args = parser.parse_args()
-    if min(args.epochs, args.batch_size, args.log_every) < 1:
-        parser.error("epochs, batch-size and log-every must be positive")
-    if not args.lr > 0 or not args.weight_decay >= 0 or not args.ponder_weight >= 0:
-        parser.error("lr must be positive; weight-decay and ponder-weight must be nonnegative")
-    if args.eval_only and not args.load:
-        parser.error("--eval-only requires --load")
-    if args.load and (args.no_loop or any(x is not None for x in
-                                        (args.num_range, args.hidden, args.max_steps, args.representation))):
-        parser.error("--load restores architecture; omit range, hidden and loop overrides")
-    if args.eval_only and any(x is not None for x in (args.ops, args.seed, args.no_ponder)):
-        parser.error("--eval-only uses saved ops, seed and halting settings")
-    try:
-        device = select_device(args.device)
-    except ValueError as exc:
-        parser.error(str(exc))
-    checkpoint = None
-    if args.load:
-        model, checkpoint = load_checkpoint(args.load, device)
-    seed = args.seed if args.seed is not None else (checkpoint["seed"] if checkpoint else 0)
-    ops = args.ops if args.ops is not None else tuple(Op(x) for x in checkpoint["ops"]) if checkpoint else (Op.ADD,)
-    adaptive = not args.no_ponder if args.no_ponder is not None else (checkpoint["adaptive"] if checkpoint else True)
-    seen_ops = set(ops)
-    if checkpoint:
-        seen_ops.update(Op(x) for x in checkpoint.get("seen_ops", checkpoint["ops"]))
+def train(tasks: Sequence[FunctionTask] | None = None, *, device: str = 'auto', updates: int = 3000,
+          batch_size: int = 8, knots: int = 16, steps: int = 256, queries: int = 16,
+          lr: float = .0003, seed: int = 0, log_every: int = 500,
+          save: str | Path = 'checkpoints/residual.pt', validation_batches: int = 16) -> ContextModel:
+    selected = bounded_basics() if tasks is None else list(tasks)
+    use_curriculum = tasks is None
+    if min(updates, batch_size, log_every, validation_batches, queries) < 1 or not 0 < lr < float('inf'):
+        raise ValueError('counts and finite lr must be positive')
+    if not selected or len({t.name for t in selected}) != len(selected):
+        raise ValueError('provide nonempty tasks with unique names')
     torch.manual_seed(seed)
     torch.set_num_threads(1)
-    if checkpoint is None:
-        model = RecursiveArithModel(
-            10 if args.num_range is None else args.num_range,
-            128 if args.hidden is None else args.hidden,
-            1 if args.no_loop else (4 if args.max_steps is None else args.max_steps),
-            representation=args.representation or "embedding",
-        ).to(device)
-    print(f"device={device}; ops={','.join(op.name.lower() for op in ops)}", file=sys.stderr)
-    train, val = split_dataset(make_dataset(model.num_range, ops), seed=seed)
-    train_loader = DataLoader(train, batch_size=args.batch_size, shuffle=True)
-    val_loader = DataLoader(val, batch_size=args.batch_size)
-    loaders = {"train": train_loader, "val": val_loader}
-    for op in Op:
-        prefix = "all" if op in ops else ("previously_trained" if op in seen_ops else "zero_shot")
-        loaders[f"{prefix}_{op.name.lower()}"] = DataLoader(
-            make_dataset(model.num_range, (op,)), batch_size=args.batch_size)
-
-    def report(epoch):
-        model.eval()
-        metrics = {name: evaluate(model, loader, adaptive) for name, loader in loaders.items()}
-        print(json.dumps({"epoch": epoch, **metrics}), flush=True)
-        return metrics["val"]["accuracy"]
-
-    if args.eval_only:
-        report(checkpoint["epoch"])
-        return
-    opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    scheduler = (torch.optim.lr_scheduler.CosineAnnealingLR(opt, args.epochs, eta_min=args.lr * 0.01)
-                 if args.lr_schedule == "cosine" else None)
-    best_accuracy = -1.0
-    save_path = Path(args.save)
-    best_path = save_path.with_name(save_path.stem + ".best" + save_path.suffix)
-    for epoch in range(1, args.epochs + 1):
+    selected_device = select_device(device)
+    model = ContextModel(knots, steps).to(selected_device)
+    sampler = EpisodeSampler(selected, seed)
+    validation = {task.name: [EpisodeSampler([task], seed + 100000 + j).sample(batch_size).to(selected_device)
+                             for j in range(validation_batches)] for task in selected}
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
+    schedule = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, updates, eta_min=lr * .1)
+    maximum = 16.
+    gate_streak = 0
+    started = time.perf_counter()
+    best = float('inf')
+    path = Path(save)
+    best_path = path.with_name(path.stem + '.best' + path.suffix)
+    for update in range(1, updates + 1):
         model.train()
-        for a, b, op, target in train_loader:
-            a, b, op, target = (x.to(device) for x in (a, b, op, target))
-            opt.zero_grad(set_to_none=True)
-            logits, halts = model(a, b, op)
-            if not adaptive:
-                loss = compute_loss(logits[:, -1:], halts[:, -1:], target, model.result_bound,
-                                    ponder_weight=0, representation=model.representation)
-            else:
-                loss = compute_loss(logits, halts, target, model.result_bound,
-                                    ponder_weight=args.ponder_weight, representation=model.representation)
-            loss.backward()
-            opt.step()
-        if scheduler:
-            scheduler.step()
-        if epoch == 1 or epoch % args.log_every == 0 or epoch == args.epochs:
-            accuracy = report(epoch)
-            save_checkpoint(args.save, model, ops=ops, adaptive=adaptive, epoch=epoch,
-                            seed=seed, seen_ops=seen_ops)
-            if accuracy > best_accuracy:
-                best_accuracy = accuracy
-                save_checkpoint(best_path, model, ops=ops, adaptive=adaptive, epoch=epoch,
-                                seed=seed, seen_ops=seen_ops)
-    print(f"best validation accuracy={best_accuracy:.4%}; checkpoint={best_path}", file=sys.stderr)
+        if use_curriculum:
+            sampler.tasks = bounded_basics(maximum)
+        episode = sampler.sample_queries(batch_size, queries=queries).to(selected_device)
+        optimizer.zero_grad(set_to_none=True)
+        prediction = model.forward(episode.context, episode.query, steps=steps)
+        # Supervise only the endpoint: intermediate memory states need not already be answers.
+        loss = training_loss(prediction, episode.target)
+        if not torch.isfinite(loss):
+            raise RuntimeError('nonfinite loss: training aborted before updating weights')
+        loss.backward()  # type: ignore[no-untyped-call]  # PyTorch's backward stub is untyped.
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1., error_if_nonfinite=True)
+        optimizer.step()
+        schedule.step()
+        if update == 1 or update % log_every == 0 or update == updates:
+            model.eval()
+            metrics = {name: measure(model, batches) for name, batches in validation.items()}
+            with torch.no_grad():
+                score = sum(float(training_loss(model.forward(e.context, e.query), e.target))
+                            for batches in validation.values() for e in batches) / (len(selected) * validation_batches)
+            gate: dict[str, float] = {}
+            trained_maximum = maximum
+            if use_curriculum:
+                for task in bounded_basics(maximum):
+                    batches = [EpisodeSampler([task], seed+200000+j).sample(batch_size).to(selected_device)
+                               for j in range(validation_batches)]
+                    gate[task.name] = float(measure(model, batches)['accuracy'] or 0.)
+                gate_streak = gate_streak + 1 if min(gate.values()) >= .90 else 0
+                if gate_streak >= 2 and maximum < 256:
+                    maximum = 64. if maximum == 16. else 256.
+                    gate_streak = 0
+            record: Metadata = {'update': update, 'training_maximum': trained_maximum if use_curriculum else None, 'next_maximum': maximum if use_curriculum else None, 'curriculum_gate': gate, 'loss': loss.item(), 'validation_loss': score, 'elapsed_seconds': time.perf_counter()-started, 'val': metrics}
+            print(json.dumps(record, allow_nan=False), flush=True)
+            metadata: Metadata = {'training_functions': [t.name for t in selected],
+                                  'ranges': {t.name: [list(t.a_range), list(t.b_range)] for t in selected},
+                                  'distributions': {t.name: t.distribution for t in selected},
+                                  'seed': seed, 'context_size': CONTEXT_SIZE,
+                                  'curriculum': [16.,64.,256.] if use_curriculum else None,
+                                  'families': [],
+                                  'queries_per_context': queries, 'validation_batches': validation_batches, 'update_rule': 'designed conjugate gradient; learned features',
+                                  'loop_budgets': [steps],
+                                  'parameters': sum(p.numel() for p in model.parameters()),
+                                  'training_contexts': update*batch_size, 'training_examples': update*batch_size*queries,
+                                  'selection': 'training-family validation only; no held-out structures or deeper recurrences', 'numeric_contract': 'IEEE float32; nan=undefined', **record}
+            save_model(path, model, metadata)
+            if score < best:
+                best = score
+                save_model(best_path, model, metadata)
+    return model
 
 
-if __name__ == "__main__":
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--functions', help='Trusted TASKS file; overrides the default bounded basic curriculum')
+    parser.add_argument('--device', choices=['auto', 'cuda', 'cpu'], default='auto')
+    parser.add_argument('--updates', type=int, default=3000)
+    parser.add_argument('--batch-size', type=int, default=8)
+    parser.add_argument('--knots', type=int, default=16)
+    parser.add_argument('--steps', type=int, default=256)
+    parser.add_argument('--queries', type=int, default=16)
+    parser.add_argument('--lr', type=float, default=.0003)
+    parser.add_argument('--seed', type=int, default=0)
+    parser.add_argument('--log-every', type=int, default=500)
+    parser.add_argument('--validation-batches', type=int, default=16)
+    parser.add_argument('--save', default='checkpoints/residual.pt')
+    args = parser.parse_args()
+    try:
+        train(load_tasks(args.functions) if args.functions else None, device=args.device, updates=args.updates, batch_size=args.batch_size,
+              knots=args.knots, steps=args.steps, queries=args.queries, lr=args.lr, seed=args.seed,
+              log_every=args.log_every, save=args.save, validation_batches=args.validation_batches)
+    except ValueError as exc:
+        parser.error(str(exc))
+
+
+if __name__ == '__main__':
     main()

@@ -1,43 +1,141 @@
-"""Integer-valued inputs; class indices are an internal model/loss detail."""
+"""Typed scalar callables generate IEEE float32 context episodes."""
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+import math
+from pathlib import Path
+import random
+import runpy
+from typing import Literal, SupportsFloat, cast
 
-from enum import IntEnum
-from itertools import product
-
+import numpy as np
 import torch
-from torch.utils.data import TensorDataset, random_split
+from torch import Tensor
+
+from .config import CONTEXT_SIZE
+from .numeric import F32_MAX, F32_MIN
+
+ScalarFunction = Callable[[np.float32, np.float32], SupportsFloat]
+Bounds = tuple[float, float]
+Distribution = Literal['mixed', 'uniform']
 
 
-class Op(IntEnum):
-    ADD = 0
-    SUB = 1
-    MUL = 2
+@dataclass(frozen=True)
+class FunctionTask:
+    name: str
+    f: ScalarFunction
+    a_range: Bounds = (0., F32_MAX)
+    b_range: Bounds = (0., F32_MAX)
+    distribution: Distribution = 'mixed'
+
+    def __post_init__(self) -> None:
+        if not self.name or not callable(self.f):
+            raise ValueError('task needs a name and callable f(a,b)')
+        for low, high in (self.a_range, self.b_range):
+            if not (math.isfinite(low) and math.isfinite(high) and 0 <= low < high <= F32_MAX):
+                raise ValueError('input ranges must satisfy 0 <= low < high <= max float32')
+        if self.distribution not in ('mixed', 'uniform'):
+            raise ValueError('unknown distribution')
 
 
-def result_bound(num_range: int) -> int:
-    if num_range < 1:
-        raise ValueError("num_range must be positive")
-    return max(2 * num_range, num_range**2)
+def add(a: np.float32, b: np.float32) -> np.float32:
+    return np.float32(a + b)
 
 
-def make_dataset(num_range: int = 10, ops=(Op.ADD,)) -> TensorDataset:
-    """Enumerate (a, b, op, result), with signed integer results."""
-    result_bound(num_range)
-    ops = tuple(Op(op) for op in ops)
-    if not ops or len(set(ops)) != len(ops):
-        raise ValueError("ops must be nonempty and unique")
-    rows = []
-    for a, b, op in product(range(-num_range, num_range + 1),
-                            range(-num_range, num_range + 1), ops):
-        result = {Op.ADD: a + b, Op.SUB: a - b, Op.MUL: a * b}[op]
-        rows.append((a, b, int(op), result))
-    return TensorDataset(*torch.tensor(rows, dtype=torch.long).unbind(1))
+def sub(a: np.float32, b: np.float32) -> np.float32:
+    return np.float32(a - b)
 
 
-def split_dataset(dataset, train_fraction: float = 0.8, seed: int = 0):
-    if not 0 < train_fraction < 1:
-        raise ValueError("train_fraction must be between zero and one")
-    n = int(len(dataset) * train_fraction)
-    if n == 0 or n == len(dataset):
-        raise ValueError("both splits must be nonempty")
-    return random_split(dataset, [n, len(dataset) - n],
-                        generator=torch.Generator().manual_seed(seed))
+def mul(a: np.float32, b: np.float32) -> np.float32:
+    return np.float32(a * b)
+
+
+def div(a: np.float32, b: np.float32) -> np.float32:
+    return np.float32(a / b)
+
+
+DEFAULT_TASKS: tuple[FunctionTask, ...] = tuple(FunctionTask(name, f) for name, f in
+                                               [('add', add), ('sub', sub), ('mul', mul), ('div', div)])
+
+
+def function_value(task: FunctionTask, a: float, b: float) -> float:
+    # NumPy scalar arithmetic implements float32 overflow and zero-division.
+    # Exceptions from custom Python code are NOT silently converted to NaN.
+    with np.errstate(all='ignore'):
+        return float(np.float32(task.f(np.float32(a), np.float32(b))))
+
+
+def load_tasks(path: str | Path | None = None) -> list[FunctionTask]:
+    tasks: object = DEFAULT_TASKS if path is None else runpy.run_path(str(path)).get('TASKS')
+    if not isinstance(tasks, (list, tuple)) or not tasks or not all(isinstance(t, FunctionTask) for t in tasks):
+        raise ValueError('task file must define a nonempty TASKS list of FunctionTask objects')
+    result = list(cast(Sequence[FunctionTask], tasks))
+    if len({t.name for t in result}) != len(result):
+        raise ValueError('task names must be unique')
+    return result
+
+
+@dataclass
+class Episode:
+    context: Tensor  # [B,K,3]; a,b finite; c may be inf/-inf/nan
+    query: Tensor    # [B,2] or [B,Q,2]; no target
+    target: Tensor   # [B] or [B,Q]; never passed to model
+
+    def to(self, device: str | torch.device) -> 'Episode':
+        return Episode(self.context.to(device), self.query.to(device), self.target.to(device))
+
+
+class EpisodeSampler:
+    def __init__(self, tasks: Sequence[FunctionTask] | None = None, seed: int = 0,
+                 task_factory: Callable[[random.Random], FunctionTask] | None = None) -> None:
+        self.tasks = list(DEFAULT_TASKS if tasks is None else tasks)
+        if not self.tasks:
+            raise ValueError('at least one task required')
+        self.rng = random.Random(seed)
+        self.task_factory = task_factory
+
+    def _operand(self, bounds: Bounds, distribution: Distribution) -> float:
+        low, high = bounds
+        if distribution == 'uniform':
+            return float(np.float32(self.rng.uniform(low, high)))
+        p = self.rng.random()
+        if p < .10:
+            candidates = [low, high, F32_MIN, 0., 1., 2., 256.]
+            return float(np.float32(self.rng.choice([v for v in candidates if low <= v <= high])))
+        if p < .40 and low < min(high, 256.):
+            return float(np.float32(self.rng.uniform(low, min(high, 256.))))
+        return float(np.float32(math.exp(self.rng.uniform(math.log(max(low, F32_MIN)), math.log(high)))))
+
+    def sample(self, batch_size: int = 16) -> Episode:
+        episode = self.sample_queries(batch_size, queries=1)
+        return Episode(episode.context, episode.query[:, 0], episode.target[:, 0])
+
+    def sample_queries(self, batch_size: int = 16, *, queries: int = 16) -> Episode:
+        if queries < 1:
+            raise ValueError("queries must be positive")
+        if batch_size < 1:
+            raise ValueError('batch size must be positive')
+        contexts: list[list[list[float]]] = []
+        query_rows: list[list[list[float]]] = []
+        targets: list[list[float]] = []
+        for _ in range(batch_size):
+            task = self.task_factory(self.rng) if self.task_factory else self.rng.choice(self.tasks)
+            rows: list[list[float]] = []
+            seen: set[tuple[float, float]] = set()
+            for _ in range((CONTEXT_SIZE + queries) * 20):
+                a = self._operand(task.a_range, task.distribution)
+                b = self._operand(task.b_range, task.distribution)
+                if (a, b) in seen:
+                    continue
+                seen.add((a, b))
+                rows.append([a, b, function_value(task, a, b)])
+                if len(rows) == CONTEXT_SIZE + queries:
+                    break
+            if len(rows) != CONTEXT_SIZE + queries:
+                raise ValueError('range has too few distinct float32 pairs')
+            # Randomly select query so boundary atoms have the same opportunity as supports.
+            held_out = [rows.pop(self.rng.randrange(len(rows))) for _ in range(queries)]
+            contexts.append(rows)
+            query_rows.append([row[:2] for row in held_out])
+            targets.append([row[2] for row in held_out])
+        return Episode(torch.tensor(contexts, dtype=torch.float32), torch.tensor(query_rows, dtype=torch.float32),
+                       torch.tensor(targets, dtype=torch.float32))

@@ -9,3 +9,6 @@ wheels/
 # Virtual environments
 .venv
 checkpoints/
+
+# Historical local experiments (source also remains in git history)
+archive/

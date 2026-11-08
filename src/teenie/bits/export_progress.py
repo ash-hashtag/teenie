@@ -77,12 +77,16 @@ EXPERIMENTS: list[tuple[str, str, str, str, tuple[str, ...]]] = [
      'experiments/bt/bt-hintfade-eval.json', ('experiments/bt/bt-hintfade-train.jsonl',)),
     ('bt-mix7', 'More concepts', 'bit tokens + division, remainder, comparisons, variable shifts, squares, bit counts',
      'experiments/bt/bt-mix7-eval.json', ('experiments/bt/bt-mix7-train.jsonl',)),
+    ('wide-mix', 'Wide numbers', 'width-free bit tokens, 8/12/16 bits — scored at 16 bits',
+     'experiments/wide/wide-mix-w16-eval.json', ('experiments/wide/wide-mix-train.jsonl',)),
+    ('wide-32', 'Wide numbers', '+ 24- and 32-bit episodes — scored at 32 bits',
+     'experiments/wide/wide-32-w32-eval.json', ('experiments/wide/wide-32-train.jsonl',)),
 ]
 
 # Architectures shown on the site besides the current model: (id, title, checkpoint).
 ARCHITECTURES = [('bittoken', 'Bit tokens', 'checkpoints/steps/bittoken-mix4.pt')]
 
-LADDER = ('T1', 'T2', 'T3', 'T4', 'T5a', 'T5b', 'hidden', 'near')
+LADDER = ('target', 'T1', 'T2', 'T3', 'T4', 'T5a', 'T5b', 'hidden', 'near')
 HIGHLIGHTS = ('a*b', 'a*b+a', 'min', '3a', 'transducer')
 
 

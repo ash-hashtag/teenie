@@ -457,6 +457,40 @@ All candidates of this round, on the 24 everyday functions of `sealed.py` that w
 - Hard for every model: `(a*b)>>4` (0–2%, the high half of a product), `(a+b)*(a-b)`, `a*b-a-b`, `7a+3b`,
   `(a|1)*(b|1)` (19–31%), popcounts (25–34%).
 
+## 22. A width-free model, trained on 8, 12 and 16 bits (`experiments/wide/wide-mix-*`)
+
+From here on the headline is wide numbers: at 8 bits the 999 examples cover 1.5% of all (a, b) pairs and lookup
+baselines answer 35% of the sealed set; at 32 bits they cover ~0.00000002% and a wrong guess is 1 in 4 billion.
+Results are quoted next to the best of five lookup baselines at the same width.
+
+**Model** (`wide_model.py`, 939,001 parameters at every width): every answer bit and every example bit sees the
+numbers relative to its own position (±31 bits) and from the lowest bit (bits 0–31), with an "exists" channel,
+through a bilinear layer computed as a 1-D convolution — no layer depends on the width, so the same weights answer
+any width up to 32. Bit-aligned reading, 2 layers, 8 rounds. Trained 12,000 updates on `mix7`, cycling 8-, 12- and
+16-bit episodes (0.25 s per update at 8 bits, 0.52 s at 16 on the RTX 3050).
+
+| | 8 bits | 12 bits | 16 bits | 24 (untrained) | 32 (untrained) | lookup, 16 / 32 bits |
+|---|---|---|---|---|---|---|
+| target: `((a*b)^(a>>3))\|(b+9)` | 17.8% | 4.5% | 1.0% | 0% | 0% | 0.8 / 0.1% |
+| target: T6, random 4–6 ops | 53.0% | 31.2% | 22.9% | 8.6% | 6.7% | ~10 / ~11% |
+| T2 / T3 | 51.5 / 52.1% | 37.3 / 30.8% | 24.1 / 16.7% | 18.2 / 7.0% | 7.7 / 7.1% | 25 / 10%, 17 / 14% |
+| T4 (unseen operations) | 79.0% | 73.3% | 70.8% | 20.0% | 4.3% | |
+| product, then a step | 37.2% | 9.1% | 2.2% | 0% | 0% | |
+| sealed | | | 43.5% | | | 24% (16 bits) |
+
+Sure answers stay 98–100% right at every width.
+
+- **One model for every width it was trained on.** At 8 bits it matches the best 8-bit-only model (hidden 65.8%
+  vs 64.2%). Bit distances beyond 15 were never trained, so 24 and 32 bits are not free.
+- **Multiplication on its own reached the top bit at 16 bits** suddenly, between 7,000 and 10,000 updates (a*b
+  exact at 16 bits 7% → 73%); before that the low bits were right at every width and accuracy fell off at bits 5–7.
+- **Composition is the block.** Per bit at 16 bits, `a*b` is 96–100% right on every bit, but `a*b+b` and
+  `(a*b)^a` are right only up to bit 4 and coin flips from bit 6 up — the same frontier as before multiplication was
+  learned. For a relation that is not one it has learned to recognise whole, the model reads the answer from the
+  examples bit by bit, which only reaches low bits; it does not use its product as an intermediate value. At 8
+  bits that fallback covers most bits, which hid the problem. The target needs exactly this: a product, then more
+  steps.
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

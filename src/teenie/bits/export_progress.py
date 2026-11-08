@@ -14,7 +14,7 @@ from torch import nn
 from .bit_token_model import BitTokenModel
 from .checkpoint import load_bit_model
 from .eval import Report, summarise
-from .sets import TIERS, regroup
+from .sets import TARGET, TIERS, regroup
 
 # (id, chapter, title, evaluation file, training logs in order)
 EXPERIMENTS: list[tuple[str, str, str, str, tuple[str, ...]]] = [
@@ -98,6 +98,7 @@ def _tier_names() -> dict[str, list[str]]:
     names = {tier: [f.name for f in families] for tier, families in TIERS.items()}
     names['hidden'] = ['a*b+a', 'a*a', '(a+1)*(b+1)', '(a^b)*3', '|a-b|', '(a+b)>>1', '(a*b)^b', '(a<<1)+(b>>1)']
     names['near'] = ['a*b+b', 'a*b+5', 'a*b-a', '(a*b)^a']
+    names['target'] = [f.name for f in TARGET]
     return names
 
 

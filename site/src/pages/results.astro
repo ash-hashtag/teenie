@@ -112,7 +112,7 @@ const cell = (e: Experiment | undefined, name: string) => e?.families[name]?.exa
         <h2>During training</h2>
         <p>Mean exact match per tier on fixed validation episodes (128 questions per relation), every 500 updates.</p>
         <div class="grid-2">
-          {ladder.map((t) => (
+          {ladder.filter((t) => withCurves.some((e) => e.curve.some((p) => typeof p[t] === 'number'))).map((t) => (
             <div class="card">
               <p class="eyebrow">{TIER_LABELS[t]}</p>
               <LineChart

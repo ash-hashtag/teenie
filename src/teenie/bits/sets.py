@@ -1,7 +1,7 @@
 """Named training sets and the test groups that go with them."""
 Report = dict[str, float | None]
 from .expressions import (CONCEPTS, HIDDEN_FAMILIES, NEAR_FAMILIES, Pair, composed_family, expression_family,
-                          pair_family, product_step_family)
+                          named, pair_family, product_step_family)
 from .loops import NEW_OPERATIONS, bit_loop_family, hidden_bit_loops, hidden_loops, loop_family
 from .sealed import SEALED_FAMILIES
 from .relations import (BLOCK_FAMILIES, HELDOUT_FAMILIES, MULTIPLY, NAMED, STRESS_FAMILIES, TRAIN_FAMILIES,
@@ -35,7 +35,15 @@ LOOPS31: tuple[Family, ...] = tuple(loop_family(kind, 5, LOOP_FORBIDDEN + hidden
 # product-then-a-step family: a basic shape the model should recognise. Every unseen test relation — including the T4
 # operations and the sealed set — is forbidden by behaviour, so e.g. a//b itself is never drawn, only expressions
 # that use //.
-CONCEPT_FORBIDDEN: tuple[Family, ...] = FORBIDDEN + NEW_OPERATIONS + SEALED_FAMILIES
+# The target (from 2026-11-08): unseen expressions of several operations, at up to 32 bits, where a right answer
+# cannot be luck. One written by the user, and random 4-6 operation expressions over every concept, always with a
+# held-out operation pair. Both are excluded from training by behaviour.
+TARGET: tuple[Family, ...] = (
+    named('((a*b)^(a>>3))|(b+9)', ('|', ('^', ('*', 'a', 'b'), ('>>v', 'a', 3)), ('+', 'b', 9))),
+)
+CONCEPT_FORBIDDEN: tuple[Family, ...] = FORBIDDEN + NEW_OPERATIONS + SEALED_FAMILIES + TARGET
+TARGET += (expression_family((4, 6), CONCEPT_FORBIDDEN, 'T6 4-6 ops, all concepts', 2., HELD_PAIRS,
+                             require_pair=True, vocabulary=CONCEPTS),)
 CONCEPT_STEPS: tuple[Family, ...] = tuple(expression_family(n, CONCEPT_FORBIDDEN, f'concepts{n}', 2., HELD_PAIRS,
                                                             vocabulary=CONCEPTS) for n in range(1, 6))
 # The difficulty ladder (see docs/findings.md): T1-T3 always contain a held-out combination.
@@ -81,7 +89,7 @@ TRAIN_SETS: dict[str, tuple[Family, ...]] = {
 }
 
 ALL_NAMED: dict[str, Family] = {**NAMED, **{f.name: f for f in HIDDEN_FAMILIES + NEAR_FAMILIES + EXPRESSIONS + DEEPER
-                                              + STEPS + DEEPER2 + LOOPS + (PRODUCT_STEP, PAIRS) + LOOPS31 + CONCEPT_STEPS
+                                              + STEPS + DEEPER2 + LOOPS + (PRODUCT_STEP, PAIRS) + LOOPS31 + CONCEPT_STEPS + TARGET
                                               + SEALED_FAMILIES
                                               + tuple(f for tier in TIERS.values() for f in tier)}}
 
@@ -99,5 +107,5 @@ def test_groups(train_set: str) -> dict[str, tuple[Family, ...]]:
     if train_set == 'mix2':
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER2}
     if train_set in ('mix3', 'mix4', 'mix5', 'mix6', 'mix7'):
-        groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES} | TIERS
+        groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES} | TIERS | {'target': TARGET}
     return groups

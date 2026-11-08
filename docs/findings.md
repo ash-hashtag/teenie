@@ -315,3 +315,20 @@ evaluation.
 
 **16 rounds at answer time** for the 8-round model: every tier within ±0.8 points — the model settles within its
 trained rounds and does not use extra ones.
+
+## 14. Answer-time improvements, no training (`teenie.bits.vote`, `experiments/bt/vote-seeds-eval.*`)
+
+**Voting** — averaging the bit probabilities of the two bit-token seeds:
+
+| | seed 0 | seed 1 | vote |
+|---|---|---|---|
+| hidden | 57.5% | 52.6% | **58.4%** |
+| T1 / T2 / T3 | 61.3 / 46.9 / 45.6% | 59.2 / 43.8 / 45.1% | **61.5** / 46.7 / **46.7%** |
+| T4 / T5 | 72.7 / 46.0% | 72.3 / 46.1% | **74.5 / 47.4%** |
+
+At or above the better seed almost everywhere (+1–2 points), sure answers right 98.6–100%; costs only twice the
+answer time.
+
+**Fit check** — "sure" also requires reproducing ≥75% of the probe examples (each hidden from itself). It nearly
+removes the confidently wrong answers on `a*(b&63)`, which the model mistakes for `a*b` (sure 24% at 75% right →
+sure 0.5%), at the cost of being sure less often overall (mean coverage 16.4% → 11.3%).

@@ -227,7 +227,7 @@ def test_loops_tiers_and_held_combinations():
             assert seen[-1][1] == require
             assert relation.name
     # Generated loops (not the fixed bit loops, whose counts take few values) vary enough.
-    for family in LOOPS[:3] + TIERS['T5'][15:21]:
+    for family in LOOPS[:3] + TIERS['T5b'][10:16]:
         assert len(set(fingerprint_of(family.make(generator, 8)))) >= 8
 
 

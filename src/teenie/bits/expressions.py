@@ -2,6 +2,8 @@
 
 Operations (every intermediate result wraps to `width` bits):
 binary  + - * xor and or min max      unary  <<1  >>1  not
+More concepts (only drawn when asked for, see `CONCEPTS`):
+binary  // %  < >  <<v >>v (shift by y & 7)      unary  square  popcount
 
 `expression_family(ops)` draws a fresh tree with exactly `ops` operations per episode. Trees that
 are (nearly) constant, or that behave like any hidden test relation, are redrawn: equivalence is
@@ -29,6 +31,25 @@ BINARY: dict[str, Callable[[Tensor, Tensor], Tensor]] = {
 UNARY: dict[str, Callable[[Tensor], Tensor]] = {
     '<<1': lambda x: x << 1, '>>1': lambda x: x >> 1, '~': torch.bitwise_not,
 }
+# The original operations, in draw order; existing families draw from exactly these.
+BASE: tuple[tuple[str, ...], tuple[str, ...]] = (tuple(BINARY), tuple(UNARY))
+
+
+def _popcount(x: Tensor) -> Tensor:
+    return sum(((x >> i) & 1 for i in range(31)), torch.zeros_like(x))
+
+
+# Values reaching an operation are already wrapped to the width, so these need no width of their own.
+# Division by zero gives all ones (masked to the width) and x % 0 gives x, as in the Try it page.
+BINARY |= {
+    '//': lambda x, y: torch.where(y == 0, -1, x // torch.clamp(y, min=1)),
+    '%': lambda x, y: torch.where(y == 0, x, x % torch.clamp(y, min=1)),
+    '<': lambda x, y: (x < y).long(), '>': lambda x, y: (x > y).long(),
+    '<<v': lambda x, y: x << (y & 7), '>>v': lambda x, y: x >> (y & 7),
+}
+UNARY |= {'sq': lambda x: x * x, 'pop': _popcount}
+# The operations plus the more concepts: division, remainder, comparisons, variable shifts, squares, bit counts.
+CONCEPTS: tuple[tuple[str, ...], tuple[str, ...]] = (tuple(BINARY), tuple(UNARY))
 
 
 def _parts(tree: Tree) -> tuple[str, list[Tree]]:
@@ -72,24 +93,28 @@ def show(tree: Tree) -> str:
     op, children = _parts(tree)
     shown = [show(child) for child in children]
     if len(shown) == 1:
-        return f'~{shown[0]}' if op == '~' else f'({shown[0]}){op}'
+        return {'~': f'~{shown[0]}', 'sq': f'({shown[0]})²', 'pop': f'popcount({shown[0]})'}.get(op, f'({shown[0]}){op}')
+    if op in ('<<v', '>>v'):
+        return f'({shown[0]}{op[:2]}({shown[1]}&7))'
     if op in ('min', 'max'):
         return f'{op}({shown[0]}, {shown[1]})'
     return f'({shown[0]}{op}{shown[1]})'
 
 
 def random_tree(ops: int, generator: torch.Generator, width: int, product_weight: float = 1.,
-                leaves: tuple[str, ...] = ('a', 'b')) -> Tree:
+                leaves: tuple[str, ...] = ('a', 'b'), vocabulary: tuple[tuple[str, ...], tuple[str, ...]] = BASE) -> Tree:
     """`product_weight` > 1 draws `*` more often than each other binary operation. Leaves are a variable
-    (84%, evenly among `leaves`) or a constant."""
+    (84%, evenly among `leaves`) or a constant. `vocabulary` is the (binary, unary) operations to draw from."""
+    binary, unary = vocabulary
+
     def pick(options: list[str]) -> str:
         return options[int(torch.randint(0, len(options), (), generator=generator))]
 
     def pick_binary() -> str:
         if product_weight == 1.:  # keeps the original draws for the `mix` set
-            return pick(list(BINARY))
-        weights = torch.tensor([product_weight if op == '*' else 1. for op in BINARY])
-        return list(BINARY)[int(torch.multinomial(weights, 1, generator=generator))]
+            return pick(list(binary))
+        weights = torch.tensor([product_weight if op == '*' else 1. for op in binary])
+        return binary[int(torch.multinomial(weights, 1, generator=generator))]
 
     if ops == 0:
         roll = float(torch.rand((), generator=generator))
@@ -97,10 +122,10 @@ def random_tree(ops: int, generator: torch.Generator, width: int, product_weight
             return leaves[min(int(roll / .84 * len(leaves)), len(leaves) - 1)]
         return int(torch.randint(1, 1 << width, (), generator=generator))
     if float(torch.rand((), generator=generator)) < .2:
-        return (pick(list(UNARY)), random_tree(ops - 1, generator, width, product_weight, leaves))
+        return (pick(list(unary)), random_tree(ops - 1, generator, width, product_weight, leaves, vocabulary))
     left = int(torch.randint(0, ops, (), generator=generator))
-    return (pick_binary(), random_tree(left, generator, width, product_weight, leaves),
-            random_tree(ops - 1 - left, generator, width, product_weight, leaves))
+    return (pick_binary(), random_tree(left, generator, width, product_weight, leaves, vocabulary),
+            random_tree(ops - 1 - left, generator, width, product_weight, leaves, vocabulary))
 
 
 def has_variable(tree: Tree, names: tuple[str, ...] = ('a', 'b')) -> bool:
@@ -192,12 +217,13 @@ def _draw(draw: Callable[[torch.Generator, int], Tree], forbidden: tuple[Family,
 
 def expression_family(ops: int | tuple[int, int], forbidden: tuple[Family, ...], name: str | None = None,
                       product_weight: float = 1., banned_pairs: frozenset[Pair] = frozenset(),
-                      require_pair: bool = False) -> Family:
+                      require_pair: bool = False,
+                      vocabulary: tuple[tuple[str, ...], tuple[str, ...]] = BASE) -> Family:
     """A fresh random expression per episode with `ops` operations (or a number drawn from an inclusive
     range), never equivalent to `forbidden`; see `_draw` for `banned_pairs` / `require_pair`."""
     def draw(generator: torch.Generator, width: int) -> Tree:
         count = ops if isinstance(ops, int) else int(torch.randint(ops[0], ops[1] + 1, (), generator=generator))
-        return random_tree(count, generator, width, product_weight)
+        return random_tree(count, generator, width, product_weight, vocabulary=vocabulary)
 
     def make(generator: torch.Generator, width: int) -> Relation:
         return _draw(draw, forbidden, generator, width, banned_pairs, require_pair)
@@ -214,7 +240,7 @@ def composed_family(forbidden: tuple[Family, ...], product_weight: float = 2.,
                 return tree
 
     def draw(generator: torch.Generator, width: int) -> Tree:
-        op = list(BINARY)[int(torch.randint(0, len(BINARY), (), generator=generator))]
+        op = BASE[0][int(torch.randint(0, len(BASE[0]), (), generator=generator))]
         return (op, piece(generator, width), piece(generator, width))
 
     def make(generator: torch.Generator, width: int) -> Relation:
@@ -248,8 +274,8 @@ def product_step_family(forbidden: tuple[Family, ...], banned_pairs: frozenset[P
         product = ('*', piece(generator, width, True), piece(generator, width, True))
         roll = int(torch.randint(0, 5, (), generator=generator))
         if roll == 4:
-            return (list(UNARY)[int(torch.randint(0, len(UNARY), (), generator=generator))], product)
-        op = list(BINARY)[int(torch.randint(0, len(BINARY), (), generator=generator))]
+            return (BASE[1][int(torch.randint(0, len(BASE[1]), (), generator=generator))], product)
+        op = BASE[0][int(torch.randint(0, len(BASE[0]), (), generator=generator))]
         other = piece(generator, width, False)
         return (op, product, other) if roll < 2 else (op, other, product)
 
@@ -261,13 +287,13 @@ def product_step_family(forbidden: tuple[Family, ...], banned_pairs: frozenset[P
 def pair_family(forbidden: tuple[Family, ...], banned_pairs: frozenset[Pair], name: str = 'pairs') -> Family:
     """Every allowed (parent, child) operation pair equally often: pick a pair uniformly, put the child under the
     parent, and fill the remaining slots with leaves or one-operation pieces."""
-    operations = list(BINARY) + list(UNARY)
+    operations = list(BASE[0]) + list(BASE[1])
     allowed = [(p, c) for p in operations for c in operations if (p, c) not in banned_pairs]
 
     def node(op: str, generator: torch.Generator, width: int, child: Tree | None = None) -> Tree:
         def piece() -> Tree:
             return random_tree(int(torch.randint(0, 2, (), generator=generator)), generator, width)
-        if op in UNARY:
+        if op in BASE[1]:
             return (op, child if child is not None else piece())
         first, second = (child, piece()) if child is not None else (piece(), piece())
         if child is not None and bool(torch.randint(0, 2, (), generator=generator)):

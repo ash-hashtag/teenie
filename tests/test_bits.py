@@ -386,3 +386,14 @@ def test_aligned_bit_tokens_pairs_long_loops_and_hint_fade(tmp_path):
     stepwise.hint = 0.
     faded = stepwise.loss(prediction, episode.context, episode.target, 8, episode.steps, episode.step_counts)
     assert torch.isfinite(full) and torch.isfinite(faded) and not torch.equal(full, faded)
+
+
+def test_concept_operations():
+    from teenie.bits.expressions import evaluate
+    a, b = torch.tensor([200, 7, 9]), torch.tensor([0, 3, 10])
+    assert evaluate(('//', 'a', 'b'), a, b, 8).tolist() == [255, 2, 0]
+    assert evaluate(('%', 'a', 'b'), a, b, 8).tolist() == [200, 1, 9]
+    assert evaluate(('<', 'a', 'b'), a, b, 8).tolist() == [0, 0, 1]
+    assert evaluate(('<<v', 'a', 'b'), a, b, 8).tolist() == [200, 56, (9 << 2) & 255]
+    assert evaluate(('sq', 'a'), a, b, 8).tolist() == [(200 * 200) & 255, 49, 81]
+    assert evaluate(('pop', 'a'), a, b, 8).tolist() == [3, 3, 2]

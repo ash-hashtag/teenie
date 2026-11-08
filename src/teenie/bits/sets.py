@@ -2,6 +2,7 @@
 from .expressions import (HIDDEN_FAMILIES, NEAR_FAMILIES, Pair, composed_family, expression_family,
                           pair_family, product_step_family)
 from .loops import NEW_OPERATIONS, bit_loop_family, hidden_bit_loops, hidden_loops, loop_family
+from .sealed import SEALED_FAMILIES
 from .relations import (BLOCK_FAMILIES, HELDOUT_FAMILIES, MULTIPLY, NAMED, STRESS_FAMILIES, TRAIN_FAMILIES,
                         Family)
 
@@ -57,11 +58,15 @@ TRAIN_SETS: dict[str, tuple[Family, ...]] = {
 
 ALL_NAMED: dict[str, Family] = {**NAMED, **{f.name: f for f in HIDDEN_FAMILIES + NEAR_FAMILIES + EXPRESSIONS + DEEPER
                                               + STEPS + DEEPER2 + LOOPS + (PRODUCT_STEP, PAIRS) + LOOPS31
+                                              + SEALED_FAMILIES
                                               + tuple(f for tier in TIERS.values() for f in tier)}}
 
 
 def test_groups(train_set: str) -> dict[str, tuple[Family, ...]]:
-    """Trained families, then everything held out from that set, split by kind."""
+    """Trained families, then everything held out from that set, split by kind. 'sealed' is the sealed set of
+    everyday functions (see sealed.py), only to be read at the end of a round of experiments."""
+    if train_set == 'sealed':
+        return {'sealed': SEALED_FAMILIES}
     trained = TRAIN_SETS[train_set]
     groups = {'train': trained, 'heldout': HELDOUT_FAMILIES,
               'stress': tuple(f for f in STRESS_FAMILIES if f not in trained)}

@@ -332,3 +332,17 @@ answer time.
 **Fit check** — "sure" also requires reproducing ≥75% of the probe examples (each hidden from itself). It nearly
 removes the confidently wrong answers on `a*(b&63)`, which the model mistakes for `a*b` (sure 24% at 75% right →
 sure 0.5%), at the cost of being sure less often overall (mean coverage 16.4% → 11.3%).
+
+## Guardrails against fitting our own benchmarks (from 2026-11-08)
+
+Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes
+choices to those tests even though no run trains on them. From here on:
+
+- **Sealed set** (`src/teenie/bits/sealed.py`, `--tests sealed`): 24 everyday functions written independently —
+  e.g. `(a+b)*(a-b)`, `(a*b)>>4`, `gcd(a,b)`, a sum of squares, `popcount(a)+popcount(b)`, division by repeated
+  subtraction — several with operations the generator never produces. It is evaluated only at the end of a round of
+  experiments and never used to make a decision.
+- **Decide on broad averages**, not single relations; differences under ~5 points are within seed-to-seed spread.
+- **No data families aimed at one failing test.** General coverage instead (`mix5`: every allowed operation pair
+  equally often). The product-step family in `mix4` was motivated by one weak test group and is flagged as such.
+- **Try it** (`uv run teenie-serve`): any function a person types remains the final check of generality.

@@ -78,7 +78,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description='Exact-match accuracy of a bit-relation checkpoint')
     parser.add_argument('--load', help='checkpoint; omitted = baselines only')
     parser.add_argument('--device', default='cpu')
-    parser.add_argument('--families', nargs='*', default=None, help=f'names from {sorted(ALL_NAMED)}')
+    parser.add_argument('--families', nargs='*', default=None, help='names from ' + str(sorted(ALL_NAMED)).replace('%', '%%'))
     parser.add_argument('--episodes', type=int, default=32)
     parser.add_argument('--queries', type=int, default=16)
     parser.add_argument('--seed', type=int, default=50000)

@@ -1,7 +1,0 @@
-[selected]
-  a*b+b        exact= 46.3 bit= 92.8 sure_coverage=  0.0
-  a*b+5        exact= 46.8 bit= 92.5 sure_coverage=  0.0
-  a*b-a        exact= 43.5 bit= 91.7 sure_coverage=  0.0
-  (a*b)^a      exact= 47.7 bit= 92.6 sure_coverage=  0.0
-  a*b+a        exact=  7.0 bit= 61.9 sure_coverage=  0.0
-selected exact= 38.2%  sure-right=   -  

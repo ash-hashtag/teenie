@@ -12,3 +12,6 @@ checkpoints/
 
 # Historical local experiments (source also remains in git history)
 archive/
+
+# Console logs from runs; the .json/.jsonl next to them hold the results
+experiments/**/*.out

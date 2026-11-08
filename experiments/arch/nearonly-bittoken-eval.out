@@ -1,7 +1,0 @@
-[selected]
-  a*b+b        exact= 99.4 bit= 99.9 sure_coverage= 88.4 sure_accuracy=100.0
-  a*b+5        exact=100.0 bit=100.0 sure_coverage= 93.6 sure_accuracy=100.0
-  a*b-a        exact= 99.4 bit= 99.9 sure_coverage= 94.1 sure_accuracy=100.0
-  (a*b)^a      exact= 99.3 bit= 99.9 sure_coverage= 92.4 sure_accuracy=100.0
-  a*b+a        exact= 12.3 bit= 62.5 sure_coverage= 89.7 sure_accuracy= 13.3
-selected exact= 82.1%  sure-right= 83.0%  

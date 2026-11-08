@@ -362,6 +362,14 @@ outside the ~5-point seed spread, and beats the 20,000-update model with half th
 to clear the bar (≥50% with sure answers right ≥95%) on T1, T2, T3 and T4 together. Sure answers stay honest
 (99–100% right on every test group). Unseen loop bodies (T5a) do not improve. One seed so far.
 
+## 16. Every operation pair equally often (`mix5`, `experiments/bt/bt-pairs-*`)
+
+`mix4` plus a family that picks every allowed (parent, child) operation pair uniformly — general coverage of
+two-step shapes, including "a product, then another step", instead of a family aimed at one test. Bit tokens,
+10,000 updates: hidden 58.7%, product-then-step 32.1%, T1–T5b 59.7 / 47.7 / 45.9 / 73.3 / 39.3 / 49.1%. **No
+change** — every group within ~2 points of the same-budget `mix4` model, well inside seed spread. Two-step shapes
+are already common enough in the data; more of them does not help.
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

@@ -87,6 +87,9 @@ TRAIN_SETS: dict[str, tuple[Family, ...]] = {
     'mix6': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS31 + (PRODUCT_STEP,),
     'mix7': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + (PRODUCT_STEP,) + CONCEPT_STEPS,
     'near-only': NEAR_FAMILIES,  # diagnostic: can the model compute "a product, then another step" at all?
+    # diagnostic: random products-then-a-step only; tested on fresh ones (fit) and on hidden compositions such as
+    # a*b+a or (a*b)^b that the generator never produces (generalization).
+    'product-step-only': (PRODUCT_STEP,),
 }
 
 ALL_NAMED: dict[str, Family] = {**NAMED, **{f.name: f for f in HIDDEN_FAMILIES + NEAR_FAMILIES + EXPRESSIONS + DEEPER
@@ -107,6 +110,8 @@ def test_groups(train_set: str) -> dict[str, tuple[Family, ...]]:
         groups |= {'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER}
     if train_set == 'mix2':
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER2}
+    if train_set == 'product-step-only':
+        groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES}
     if train_set in ('mix3', 'mix4', 'mix5', 'mix6', 'mix7'):
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES} | TIERS | {'target': TARGET}
     return groups

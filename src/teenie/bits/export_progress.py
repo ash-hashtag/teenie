@@ -65,6 +65,18 @@ EXPERIMENTS: list[tuple[str, str, str, str, tuple[str, ...]]] = [
      'experiments/bt/bt-continue-eval.json', ('experiments/bt/bt-continue-train.jsonl',)),
     ('bt-rounds16', 'Bit tokens', 'bit tokens, fine-tuned with 16 rounds',
      'experiments/bt/bt-rounds16-eval.json', ('experiments/bt/bt-rounds16-train.jsonl',)),
+    ('bt-aligned', 'Bit tokens', 'bit tokens, each bit reads its own bit of the examples',
+     'experiments/bt/bt-aligned-eval.json', ('experiments/bt/bt-aligned-train.jsonl',)),
+    ('bt-pairs', 'Bit tokens', 'bit tokens + every operation pair equally often (mix5)',
+     'experiments/bt/bt-pairs-eval.json', ('experiments/bt/bt-pairs-train.jsonl',)),
+    ('bt-loops31', 'Bit tokens', 'bit tokens, training loops up to 31 iterations (mix6)',
+     'experiments/bt/bt-loops31-eval.json', ('experiments/bt/bt-loops31-train.jsonl',)),
+    ('bt-width12', 'Bit tokens', 'bit tokens, trained on 12-bit numbers',
+     'experiments/bt/bt-width12-eval.json', ('experiments/bt/bt-width12-train.jsonl',)),
+    ('bt-hintfade', 'Bit tokens', 'bit tokens, step-by-step hints faded out',
+     'experiments/bt/bt-hintfade-eval.json', ('experiments/bt/bt-hintfade-train.jsonl',)),
+    ('bt-mix7', 'More concepts', 'bit tokens + division, remainder, comparisons, variable shifts, squares, bit counts',
+     'experiments/bt/bt-mix7-eval.json', ('experiments/bt/bt-mix7-train.jsonl',)),
 ]
 
 # Architectures shown on the site besides the current model: (id, title, checkpoint).

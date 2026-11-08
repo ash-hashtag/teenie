@@ -370,6 +370,19 @@ two-step shapes, including "a product, then another step", instead of a family a
 change** — every group within ~2 points of the same-budget `mix4` model, well inside seed spread. Two-step shapes
 are already common enough in the data; more of them does not help.
 
+## 17. Training loops up to 31 iterations (`mix6`, `experiments/bt/bt-loops31-*`)
+
+`mix4` with the trained loop kinds run up to 31 times instead of 15 (63 and 255 stay longer than trained). Bit
+tokens, 10,000 updates: hidden 56.1%, T1–T4 61.3 / 46.3 / 46.0 / 71.6%, **T5a 36.0%** (39.7% for `mix4`), **T5b
+49.4%** (49.2%). **No help** for loops — longer training loops do not teach the model to run a step further.
+
+**T5b mostly measures loops whose answer stops depending on the count.** Per relation (this run / `mix4`):
+`acc=(acc<<1)^a` 81 / 85% at 63 and 91 / 94% at 255 — after 8 iterations every earlier bit has been shifted out,
+so the answer no longer depends on the count; `a^n` 62–65% — powers of an even number reach 0 mod 256. The loops
+whose answer keeps changing with the count stay near chance: sum of a..a+n−1 at 255 iterations 5.5%, `fib(a,a)`
+5.6%. T5b's ~49% is therefore not evidence of iteration; the honest loop measures are T5a and these per-relation
+scores.
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

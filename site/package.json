@@ -16,5 +16,10 @@
     "@astrojs/check": "^0.9.12",
     "@types/node": "^26.6.6",
     "typescript": "^6.0.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "@emnapi/runtime": "1.11.3"
+    }
   }
 }

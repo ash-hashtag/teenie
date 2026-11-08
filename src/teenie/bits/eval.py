@@ -91,7 +91,7 @@ def main() -> None:
     args = parser.parse_args()
     model, metadata = load_bit_model(args.load, args.device) if args.load else (None, {})
     width = args.width or int(metadata.get('width', 8))  # type: ignore[call-overload]
-    if args.width and not isinstance(model, WideBitModel) and args.width != int(metadata.get('width', 8)):  # type: ignore[call-overload]
+    if args.width and model is not None and not isinstance(model, WideBitModel) and args.width != int(metadata.get('width', 8)):  # type: ignore[call-overload]
         raise SystemExit('--width other than the trained width needs a width-free model')
     groups = test_groups(args.tests or str(metadata.get('train_set', 'base')))
     if args.families:

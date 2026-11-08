@@ -403,6 +403,16 @@ to 16 bits (within ~10 points of 8-bit). A product's carries run across every bi
 sequential work per round or more rounds; simply widening the current model does not scale. The next attempt at
 width should combine bit-aligned reading (section 15), mixed widths in training, and more or adaptive rounds.
 
+## 19. Step-by-step hints that fade out (`--stepwise --hint-fade 5000`, `experiments/bt/bt-hintfade-*`)
+
+Bit tokens on `mix4`, trained to produce one step of the computation per round (as in section 11), but the
+step-by-step targets fade out linearly over the first 5,000 updates so the rounds are free to organise themselves
+afterwards; answers are read at the first round that says it is done. 10,000 updates: trained 82.1%, hidden
+38.0%, product-then-step 18.1%, T1–T5b 50.2 / 36.2 / 39.0 / 64.3 / 32.4 / 42.1%, a*b 71.4%. **Worse on every
+group** — 7 to 20 points below the same-budget model trained on final answers only — and sure answers on
+product-then-step are right only 87.5% of the time. Step supervision, whether kept (section 11) or faded, does
+not help: intermediate values never appear in the 999 examples, so the model cannot check them there.
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

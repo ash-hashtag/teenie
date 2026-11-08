@@ -413,6 +413,22 @@ group** — 7 to 20 points below the same-budget model trained on final answers 
 product-then-step are right only 87.5% of the time. Step supervision, whether kept (section 11) or faded, does
 not help: intermediate values never appear in the 999 examples, so the model cannot check them there.
 
+## 20. More math concepts (`mix7`, `experiments/bt/bt-mix7-*`)
+
+`mix4` plus five families of 1–5 operation expressions that may also use division, remainder, comparisons, shifts
+by a variable amount (`x<<(y&7)`, `x>>(y&7)`), squares and bit counts. Rotations and conditionals stay unseen;
+every T4 relation and every sealed function is excluded by behaviour, so `a//b` itself is never drawn. Bit tokens,
+10,000 updates.
+
+- **The new concepts are learned:** generated expressions using them 95 / 76 / 71 / 66 / 59% exact at 1–5
+  operations (the original families: 94% at 1, 82% at 3).
+- **Nothing else is lost:** hidden 56.0%, T1–T5b 60.9 / 47.3 / 47.8 / 74.2 / 40.7 / 48.7% — all within ~2 points of
+  `mix4` (57.5%, 61.3 / 46.9 / 45.6 / 72.7 / 39.7 / 49.2%). Product-then-step 27.9% (30.7%).
+- `a//b` 79.9% (73.2% without the concepts), `a%b` 61.3% (60.1%): knowing the operation helps little with the exact
+  unseen function. `a*b` 78.9% — single-relation scores swing widely between runs (92–98% for `mix4` seeds).
+
+The broader vocabulary costs nothing at the same budget, so the final configuration uses it.
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

@@ -1,0 +1,16 @@
+// Cloudflare Workers config for the static docs site.
+// Deployed through the Cloudflare GitHub integration (Workers Builds) with:
+//   Root directory: site
+//   Build command:  pnpm build
+//   Deploy command: npx wrangler deploy
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "teenie",
+  "compatibility_date": "2026-11-01",
+  // No Worker script: serve the Astro output in dist/ as static assets.
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none"
+  }
+}

@@ -20,6 +20,14 @@ def from_bits(bits: Tensor) -> Tensor:
     return (bits.long() * weights).sum(-1)
 
 
+def _first_rows(rows: Tensor) -> tuple[Tensor, Tensor]:
+    """Distinct rows and, in their original order, the index of each one's first occurrence."""
+    unique, inverse = torch.unique(rows, dim=0, return_inverse=True)
+    first = torch.full((len(unique),), len(rows), dtype=torch.long).scatter_reduce(
+        0, inverse, torch.arange(len(rows)), 'amin')
+    return unique, first.sort().values
+
+
 @dataclass
 class BitEpisodes:
     context: Tensor  # [B, 999, 3] int64 (a, b, c)
@@ -40,8 +48,8 @@ class BitEpisodes:
 
 class BitSampler:
     def __init__(self, families: Sequence[Family] = TRAIN_FAMILIES, width: int = 8, seed: int = 0) -> None:
-        if not families or not 1 <= width <= 31:
-            raise ValueError('need families and 1 <= width <= 31')
+        if not families or not 1 <= width <= 32:
+            raise ValueError('need families and 1 <= width <= 32')
         self.families = list(families)
         # Relative chance of drawing each family; uniform unless training reweights it.
         self.weights = torch.ones(len(self.families))
@@ -49,6 +57,14 @@ class BitSampler:
         self.generator = torch.Generator().manual_seed(seed)
 
     def pairs(self, count: int) -> tuple[Tensor, Tensor]:
+        if self.width > 15:  # draw a and b separately; a repeated pair is all but impossible, but still removed
+            chosen = torch.empty(0, 2, dtype=torch.long)
+            while len(chosen) < count:
+                drawn = torch.randint(0, 1 << self.width, (count, 2), generator=self.generator)
+                chosen = torch.cat([chosen, drawn])
+                unique, first = _first_rows(chosen)
+                chosen = chosen[first]
+            return chosen[:count, 0], chosen[:count, 1]
         space = 1 << (2 * self.width)
         if count > space:
             raise ValueError(f'{count} distinct pairs do not exist at width {self.width}')

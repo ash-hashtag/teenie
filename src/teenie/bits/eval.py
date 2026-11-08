@@ -15,6 +15,7 @@ from .relations import Family
 from .sets import ALL_NAMED, test_groups
 from .program_model import ProgramModel
 from .think_model import ThinkModel
+from .wide_model import WideBitModel
 
 Report = dict[str, float | None]
 SURE = .99
@@ -32,7 +33,7 @@ def evaluate_family(model: AnyBitModel | None, family: Family, *, width: int = 8
         episode = sampler.sample(1, queries).to(device)
         if model is not None:
             prediction = (model.forward(episode.context, episode.query, width, steps=steps)
-                          if isinstance(model, (LoopModel, ThinkModel, ProgramModel, BitTokenModel)) else model.forward(episode.context, episode.query, width))
+                          if isinstance(model, (LoopModel, ThinkModel, ProgramModel, BitTokenModel, WideBitModel)) else model.forward(episode.context, episode.query, width))
             correct = prediction.values() == episode.target
             sure = prediction.confidence() >= SURE
             bits = (prediction.probabilities() > .5).float() == to_bits(episode.target, width)
@@ -85,10 +86,13 @@ def main() -> None:
     parser.add_argument('--no-baselines', action='store_true')
     parser.add_argument('--tests', help='use the test groups of this training set (default: the checkpoint\'s own)')
     parser.add_argument('--steps', type=int, help='refinement rounds for a loop model (default: as trained)')
+    parser.add_argument('--width', type=int, help='bits per number for a width-free model (default: as trained)')
     parser.add_argument('--output')
     args = parser.parse_args()
     model, metadata = load_bit_model(args.load, args.device) if args.load else (None, {})
-    width = int(metadata.get('width', 8))  # type: ignore[call-overload]
+    width = args.width or int(metadata.get('width', 8))  # type: ignore[call-overload]
+    if args.width and not isinstance(model, WideBitModel) and args.width != int(metadata.get('width', 8)):  # type: ignore[call-overload]
+        raise SystemExit('--width other than the trained width needs a width-free model')
     groups = test_groups(args.tests or str(metadata.get('train_set', 'base')))
     if args.families:
         groups = {'selected': tuple(ALL_NAMED[n] for n in args.families)}

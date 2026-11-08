@@ -58,12 +58,21 @@ class _BitLayer(nn.Module):
         # the question's bit tokens (inspection only).
         self.attention: list[Tensor] | None = None
 
+    def _offsets(self, width: int) -> Tensor:
+        """Index into `distance` for each pair of bit positions; for another width than built for (the
+        width-free model), offsets beyond the learned range share the outermost bias."""
+        span = len(self.offsets)
+        if width == span:
+            return self.offsets
+        position = torch.arange(width, device=self.offsets.device)
+        return (position[:, None] - position[None, :]).clamp(1 - span, span - 1) + span - 1
+
     def forward(self, x: Tensor, keys: Tensor, values: Tensor, allowed: Tensor) -> Tensor:
         batch, items, width, hidden = x.shape
         d = hidden // self.heads
         # 1. Bit tokens of one question attend to each other.
         q, k, v = self.qkv(self.norm_self(x)).view(batch * items, width, 3, self.heads, d).permute(2, 0, 3, 1, 4)
-        bias = self.distance[:, self.offsets]  # [heads, W, W]
+        bias = self.distance[:, self._offsets(width)]  # [heads, W, W]
         mixed = F.scaled_dot_product_attention(q, k, v, attn_mask=bias)
         x = x + self.out_self(mixed.transpose(1, 2).reshape(batch, items, width, hidden))
         # 2. Every bit token reads the examples.
@@ -204,8 +213,13 @@ class BitTokenModel(nn.Module):
         step-by-step training instead (see `step_loss`)."""
         if steps is not None and step_counts is not None and prediction.done is not None:
             return step_loss(prediction, steps, step_counts, width, self.hint)
-        probes = to_bits(context[:, :prediction.logits.shape[2] - prediction.queries, 2], width)
-        truth = torch.cat([to_bits(target, width), probes], 1).expand_as(prediction.logits)
-        per_round = F.binary_cross_entropy_with_logits(prediction.logits, truth, reduction='none').mean((1, 2, 3))
-        weights = torch.arange(1, len(per_round) + 1, device=per_round.device, dtype=per_round.dtype)
-        return (per_round * weights).sum() / weights.sum()
+        return answer_loss(prediction, context, target, width)
+
+
+def answer_loss(prediction: LoopPrediction, context: Tensor, target: Tensor, width: int) -> Tensor:
+    """Per-bit cross-entropy after every round, later rounds weighted more; queries and probes."""
+    probes = to_bits(context[:, :prediction.logits.shape[2] - prediction.queries, 2], width)
+    truth = torch.cat([to_bits(target, width), probes], 1).expand_as(prediction.logits)
+    per_round = F.binary_cross_entropy_with_logits(prediction.logits, truth, reduction='none').mean((1, 2, 3))
+    weights = torch.arange(1, len(per_round) + 1, device=per_round.device, dtype=per_round.dtype)
+    return (per_round * weights).sum() / weights.sum()

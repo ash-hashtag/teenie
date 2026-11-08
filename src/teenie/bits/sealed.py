@@ -37,15 +37,9 @@ def _sum_of_squares(a: Tensor, b: Tensor, w: int) -> Tensor:
 
 
 def _count_down(a: Tensor, b: Tensor, w: int) -> Tensor:
-    """Subtract b from a until it would go below b; how many times (a // b, by repetition)."""
-    steps, x = torch.zeros_like(a), a.clone()
-    d = torch.clamp(b, min=1)
-    for _ in range(1 << w):
-        go = x >= d
-        if not bool(go.any()):
-            break
-        x, steps = torch.where(go, x - d, x), steps + go.long()
-    return steps
+    """Subtract b from a until it would go below b; how many times (a // b, by repetition). The count is
+    computed directly, so it stays fast at any width; b = 0 is treated as 1, as the repetition did."""
+    return a // torch.clamp(b, min=1)
 
 
 SEALED_FAMILIES: tuple[Family, ...] = (

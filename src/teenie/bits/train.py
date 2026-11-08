@@ -6,6 +6,7 @@
 """
 import argparse
 import json
+from collections.abc import Sequence
 from typing import Literal
 import time
 from pathlib import Path
@@ -22,13 +23,14 @@ from .model import BitModel
 from .sets import TRAIN_SETS, test_groups
 from .program_model import ProgramModel
 from .think_model import ThinkModel
+from .wide_model import WideBitModel
 
 
 def step_loss(model: AnyBitModel, episode: BitEpisodes, width: int) -> torch.Tensor:
     """Forward pass and loss for one batch of episodes."""
     if isinstance(model, ProgramModel):
         return model.loss(model.forward(episode.context, episode.query, width), episode.context, episode.target, width)
-    if isinstance(model, (LoopModel, BitTokenModel)):
+    if isinstance(model, (LoopModel, BitTokenModel, WideBitModel)):
         prediction = model.forward(episode.context, episode.query, width)
         return model.loss(prediction, episode.context, episode.target, width, episode.steps, episode.step_counts)
     if isinstance(model, ThinkModel):
@@ -43,15 +45,17 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
           seed: int = 0, log_every: int = 250, validation_episodes: int = 8,
           save: str | Path = 'checkpoints/bits.pt', log: str | Path | None = None,
           snapshots: str | Path | None = None,
-          architecture: Literal['serial', 'loop', 'think', 'program', 'bittoken'] = 'serial',
+          architecture: Literal['serial', 'loop', 'think', 'program', 'bittoken', 'wide'] = 'serial',
           layers: int = 2, steps: int = 8, train_set: str = 'base', channels: int = 16,
           informed: bool = True, multiplicative: bool = False, clock: bool = False,
           adaptive: bool = False, init: str | Path | None = None, resume: bool = False,
           scratch: int = 0, halting: bool = False, stepwise: bool = False, bf16: bool = False,
-          recompute: bool = True, aligned: bool = False, hint_fade: int = 0) -> AnyBitModel:
+          recompute: bool = True, aligned: bool = False, hint_fade: int = 0,
+          widths: Sequence[int] = ()) -> AnyBitModel:
     """`init` starts from saved weights and trains `updates` more (fresh optimizer and schedule; update numbers
     continue from the checkpoint). `resume` continues an interrupted run exactly from `<save>.resume.pt`, which
-    every log step writes: weights, optimizer, schedule, sampling weights and random state."""
+    every log step writes: weights, optimizer, schedule, sampling weights and random state. `widths` (width-free
+    model only) trains on several widths in turn; validation and checkpoints use the widest."""
     if min(updates, batch_size, queries, log_every, validation_episodes) < 1 or not lr > 0:
         raise ValueError('counts and lr must be positive')
     torch.manual_seed(seed)
@@ -65,7 +69,13 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
     # Everything not trained on is only watched: never used to select checkpoints.
     watched = tuple(f for name, group in test_groups(train_set).items() if name != 'train' for f in group)
     model: AnyBitModel
-    if architecture == 'bittoken':
+    widths = tuple(widths) or (width,)
+    if len(widths) > 1 and architecture != 'wide':
+        raise ValueError('several widths need the width-free architecture')
+    width = max(widths)
+    if architecture == 'wide':
+        model = WideBitModel(hidden, heads, layers, probes, steps).to(selected)
+    elif architecture == 'bittoken':
         model = BitTokenModel(hidden, heads, layers, width, probes, steps, stepwise, aligned).to(selected)
     elif architecture == 'program':
         model = ProgramModel(hidden, channels, width, steps, informed).to(selected)
@@ -78,7 +88,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
         model = BitModel(hidden, heads, probes=probes).to(selected)
     else:
         raise ValueError(f'unknown architecture {architecture!r}')
-    if isinstance(model, BitTokenModel):
+    if isinstance(model, (BitTokenModel, WideBitModel)):
         model.recompute = recompute
     path = Path(save)
     best_path = path.with_name(path.stem + '.best' + path.suffix)
@@ -96,7 +106,8 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
         model.load_state_dict(loaded.state_dict())
         start = int(str(init_metadata.get('update', 0)))
     end = start + updates
-    sampler = BitSampler(families, width, seed)
+    samplers = [BitSampler(families, w, seed + i) for i, w in enumerate(widths)]
+    sampler = samplers[-1]  # the widest; every sampler shares its sampling weights
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     schedule = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr, total_steps=updates, pct_start=.05)
     best = -1.
@@ -106,7 +117,9 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
         optimizer.load_state_dict(state['optimizer'])
         schedule.load_state_dict(state['schedule'])
         sampler.weights = state['sampler_weights']
-        sampler.generator.set_state(state['generator'])
+        generators = state['generator'] if isinstance(state['generator'], list) else [state['generator']]
+        for each, generator_state in zip(samplers[::-1], generators[::-1]):
+            each.generator.set_state(generator_state)
         torch.set_rng_state(state['torch_rng'])
         start, end, best = state['update'], state['end'], state['best']
     log_path = Path(log) if log else None
@@ -124,11 +137,13 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
         model.train()
         if hint_fade and isinstance(model, BitTokenModel):
             model.hint = max(0., 1 - (update - start) / hint_fade)  # step hints fade out over `hint_fade` updates
-        episode = sampler.sample(batch_size, queries, steps=stepwise).to(selected)
+        current = samplers[update % len(samplers)]
+        current.weights = sampler.weights
+        episode = current.sample(batch_size, queries, steps=stepwise).to(selected)
         optimizer.zero_grad(set_to_none=True)
         # bf16 autocast runs matmuls and attention in bfloat16 (weights and optimizer stay float32).
         with torch.autocast(selected.type, dtype=torch.bfloat16, enabled=bf16):
-            loss = step_loss(model, episode, width)
+            loss = step_loss(model, episode, current.width)
         if not torch.isfinite(loss):
             raise RuntimeError('nonfinite loss: training aborted before updating weights')
         loss.backward()  # type: ignore[no-untyped-call]  # PyTorch's backward stub is untyped.
@@ -157,7 +172,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
                 'architecture': architecture, 'multiplicative': multiplicative, 'clock': clock, 'adaptive': adaptive,
                 'scratch': scratch, 'halting': halting, 'stepwise': stepwise, 'bf16': bf16, 'aligned': aligned,
                 'hint_fade': hint_fade,
-                'train_set': train_set, 'width': width, 'update': update, 'seed': seed, 'known_exact': score}
+                'train_set': train_set, 'width': width, 'widths': list(widths), 'update': update, 'seed': seed, 'known_exact': score}
             save_bit_model(path, model, metadata)
             if snapshot_dir:
                 save_bit_model(snapshot_dir / f'update-{update:05d}.pt', model, metadata)
@@ -167,7 +182,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
             temporary = resume_path.with_suffix('.tmp')
             torch.save({'model': model.state_dict(), 'optimizer': optimizer.state_dict(),
                         'schedule': schedule.state_dict(), 'sampler_weights': sampler.weights,
-                        'generator': sampler.generator.get_state(), 'torch_rng': torch.get_rng_state(),
+                        'generator': [s.generator.get_state() for s in samplers], 'torch_rng': torch.get_rng_state(),
                         'update': update, 'end': end, 'best': best}, temporary)
             temporary.replace(resume_path)
             print(json.dumps(record), flush=True)
@@ -192,7 +207,9 @@ def main() -> None:
     parser.add_argument('--log-every', type=int, default=250)
     parser.add_argument('--save', default='checkpoints/bits.pt')
     parser.add_argument('--log')
-    parser.add_argument('--architecture', choices=['serial', 'loop', 'think', 'program', 'bittoken'],
+    parser.add_argument('--widths', type=int, nargs='+', default=(),
+                        help='wide: train on these widths in turn (overrides --width)')
+    parser.add_argument('--architecture', choices=['serial', 'loop', 'think', 'program', 'bittoken', 'wide'],
                         default='serial')
     parser.add_argument('--channels', type=int, default=16, help='program: calculator channels per kind')
     parser.add_argument('--multiplicative', action='store_true',
@@ -233,7 +250,7 @@ def main() -> None:
           multiplicative=args.multiplicative, clock=args.clock, adaptive=args.adaptive, init=args.init,
           resume=args.resume, scratch=args.scratch, halting=args.halting, stepwise=args.stepwise, bf16=args.bf16,
           recompute=not args.no_recompute, validation_episodes=args.validation_episodes, aligned=args.aligned,
-          hint_fade=args.hint_fade)
+          hint_fade=args.hint_fade, widths=args.widths)
 
 
 if __name__ == '__main__':

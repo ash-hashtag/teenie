@@ -397,3 +397,18 @@ def test_concept_operations():
     assert evaluate(('<<v', 'a', 'b'), a, b, 8).tolist() == [200, 56, (9 << 2) & 255]
     assert evaluate(('sq', 'a'), a, b, 8).tolist() == [(200 * 200) & 255, 49, 81]
     assert evaluate(('pop', 'a'), a, b, 8).tolist() == [3, 3, 2]
+
+
+def test_wide_model_any_width():
+    from teenie.bits.data import BitSampler
+    from teenie.bits.sets import TRAIN_SETS
+    from teenie.bits.wide_model import WideBitModel
+    torch.manual_seed(0)
+    model = WideBitModel(hidden=32, heads=2, layers=1, probes=2, steps=2)
+    for width in (8, 17, 32):
+        episode = BitSampler(TRAIN_SETS['mix7'], width, 0).sample(2, 3)
+        pairs = torch.cat([episode.context[..., :2], episode.query], 1)
+        assert all(len(torch.unique(p, dim=0)) == len(p) for p in pairs)
+        prediction = model(episode.context, episode.query, width)
+        assert prediction.logits.shape == (2, 2, 5, width)
+        assert torch.isfinite(model.loss(prediction, episode.context, episode.target, width))

@@ -36,7 +36,7 @@ BASE: tuple[tuple[str, ...], tuple[str, ...]] = (tuple(BINARY), tuple(UNARY))
 
 
 def _popcount(x: Tensor) -> Tensor:
-    return sum(((x >> i) & 1 for i in range(31)), torch.zeros_like(x))
+    return sum(((x >> i) & 1 for i in range(32)), torch.zeros_like(x))
 
 
 # Values reaching an operation are already wrapped to the width, so these need no width of their own.

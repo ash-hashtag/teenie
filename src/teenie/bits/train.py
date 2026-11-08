@@ -51,11 +51,13 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
           adaptive: bool = False, init: str | Path | None = None, resume: bool = False,
           scratch: int = 0, halting: bool = False, stepwise: bool = False, bf16: bool = False,
           recompute: bool = True, aligned: bool = False, hint_fade: int = 0,
-          widths: Sequence[int] = ()) -> AnyBitModel:
+          widths: Sequence[int] = (), recompute_above: int = 32) -> AnyBitModel:
     """`init` starts from saved weights and trains `updates` more (fresh optimizer and schedule; update numbers
     continue from the checkpoint). `resume` continues an interrupted run exactly from `<save>.resume.pt`, which
     every log step writes: weights, optimizer, schedule, sampling weights and random state. `widths` (width-free
-    model only) trains on several widths in turn; validation and checkpoints use the widest."""
+    model only) trains on several widths in turn — repeat a width to train on it more often; validation and
+    checkpoints use the widest. Episodes wider than `recompute_above` bits always recompute activations to fit in
+    memory."""
     if min(updates, batch_size, queries, log_every, validation_episodes) < 1 or not lr > 0:
         raise ValueError('counts and lr must be positive')
     torch.manual_seed(seed)
@@ -107,7 +109,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
         start = int(str(init_metadata.get('update', 0)))
     end = start + updates
     samplers = [BitSampler(families, w, seed + i) for i, w in enumerate(widths)]
-    sampler = samplers[-1]  # the widest; every sampler shares its sampling weights
+    sampler = max(samplers, key=lambda s: s.width)  # the widest; every sampler shares its sampling weights
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     schedule = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr, total_steps=updates, pct_start=.05)
     best = -1.
@@ -139,6 +141,8 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
             model.hint = max(0., 1 - (update - start) / hint_fade)  # step hints fade out over `hint_fade` updates
         current = samplers[update % len(samplers)]
         current.weights = sampler.weights
+        if isinstance(model, WideBitModel):
+            model.recompute = recompute or current.width > recompute_above
         episode = current.sample(batch_size, queries, steps=stepwise).to(selected)
         optimizer.zero_grad(set_to_none=True)
         # bf16 autocast runs matmuls and attention in bfloat16 (weights and optimizer stay float32).
@@ -208,7 +212,9 @@ def main() -> None:
     parser.add_argument('--save', default='checkpoints/bits.pt')
     parser.add_argument('--log')
     parser.add_argument('--widths', type=int, nargs='+', default=(),
-                        help='wide: train on these widths in turn (overrides --width)')
+                        help='wide: train on these widths in turn, repeats allowed (overrides --width)')
+    parser.add_argument('--recompute-above', type=int, default=32,
+                        help='wide: recompute activations for episodes wider than this, even with --no-recompute')
     parser.add_argument('--architecture', choices=['serial', 'loop', 'think', 'program', 'bittoken', 'wide'],
                         default='serial')
     parser.add_argument('--channels', type=int, default=16, help='program: calculator channels per kind')
@@ -250,7 +256,7 @@ def main() -> None:
           multiplicative=args.multiplicative, clock=args.clock, adaptive=args.adaptive, init=args.init,
           resume=args.resume, scratch=args.scratch, halting=args.halting, stepwise=args.stepwise, bf16=args.bf16,
           recompute=not args.no_recompute, validation_episodes=args.validation_episodes, aligned=args.aligned,
-          hint_fade=args.hint_fade, widths=args.widths)
+          hint_fade=args.hint_fade, widths=args.widths, recompute_above=args.recompute_above)
 
 
 if __name__ == '__main__':

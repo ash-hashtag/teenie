@@ -12,7 +12,7 @@ const pages = [
   { href: '/', label: 'Overview' },
   { href: '/model/', label: 'Model' },
   { href: '/results/', label: 'Results' },
-  { href: '/try/', label: 'Try it' },
+  ...(__TEENIE_RELAY__ ? [{ href: '/try/', label: 'Try it' }] : []),
   { href: '/changelog/', label: 'Changelog' },
 ];
 const current = Astro.url.pathname.replace(base, '') || '/';

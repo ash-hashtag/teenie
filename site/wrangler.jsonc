@@ -1,7 +1,7 @@
 // Cloudflare Workers config for the static docs site.
 // Deployed through the Cloudflare GitHub integration (Workers Builds) with:
 //   Root directory: site
-//   Build command:  pnpm build
+//   Build command:  pnpm build:static   (no Try it page: it needs the local Python relay)
 //   Deploy command: npx wrangler deploy
 {
   "$schema": "node_modules/wrangler/config-schema.json",

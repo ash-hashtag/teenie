@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro check && astro build",
+    "build:static": "TEENIE_STATIC=1 astro check && TEENIE_STATIC=1 astro build",
     "preview": "astro preview",
     "check": "astro check"
   },
@@ -13,6 +14,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
+    "@types/node": "^26.6.6",
     "typescript": "^6.0.3"
   }
 }

@@ -209,7 +209,7 @@ def test_loops_tiers_and_held_combinations():
     assert longer(torch.tensor([1]), torch.tensor([20]), 8).tolist() == [sum(range(1, 21)) % 256]
     assert popcount(torch.tensor([255, 6]), 8).tolist() == [8, 2]
     assert reverse(torch.tensor([1, 6]), 8).tolist() == [128, 96]
-    assert all(f in TRAIN_SETS['mix3'] for f in STEPS3 + LOOPS) and len(TIERS) == 5
+    assert all(f in TRAIN_SETS['mix3'] for f in STEPS3 + LOOPS) and len(TIERS) == 6
     assert {('^', '*')} <= HELD_PAIRS and pairs(('^', ('*', 'a', 'b'), 'a')) == {('^', '*')}
     # Training draws never contain a held-out combination; tier draws always do.
     from teenie.bits.expressions import _draw, random_tree

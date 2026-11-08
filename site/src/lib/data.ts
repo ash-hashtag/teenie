@@ -157,7 +157,8 @@ export const TIER_LABELS: Record<string, string> = {
   T2: 'T2 · 3–4 operations',
   T3: 'T3 · 5–7 operations',
   T4: 'T4 · new operation types',
-  T5: 'T5 · loops',
+  T5a: 'T5a · unseen loop bodies',
+  T5b: 'T5b · longer loops (stretch)',
   hidden: 'hidden compositions',
   near: 'product, then a step',
 };

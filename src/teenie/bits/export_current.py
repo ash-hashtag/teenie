@@ -21,7 +21,7 @@ from .eval import summarise
 from .bit_token_model import BitTokenModel
 from .export_progress import bit_token_parts
 from .loop_model import LoopModel
-from .sets import ALL_NAMED
+from .sets import ALL_NAMED, regroup
 
 TRACED = ('add', 'a*b', 'max', '(a+b)>>1', 'a*a', 'a//b', 'sum a..a+n-1 n15', 'a*b+a')
 WIDTH = 8
@@ -101,7 +101,7 @@ def main() -> None:
     if not isinstance(model, (LoopModel, BitTokenModel)):
         raise SystemExit('the current-model export expects a loop or bit-token model checkpoint')
     evaluation = json.loads(Path(args.evaluation).read_text())
-    summary = {group: summarise(reports) for group, reports in evaluation['results'].items()}
+    summary = {group: summarise(reports) for group, reports in regroup(evaluation['results']).items()}
     families = {name: report.get('exact') for reports in evaluation['results'].values() for name, report in reports.items()}
     out = Path(args.out)
     (out / 'src/data').mkdir(parents=True, exist_ok=True)

@@ -44,9 +44,9 @@ const cell = (e: Experiment | undefined, name: string) => e?.families[name]?.exa
           <span class="note">never generated for training</span>
         </div>
         <div class="card stat">
-          <span class="label">Loops (T5)</span>
-          <span class="value">{pct(latest.groups.T5?.exact)}</span>
-          <span class="note">hidden bodies and longer loops than trained</span>
+          <span class="label">Unseen loop bodies (T5a)</span>
+          <span class="value">{pct(latest.groups.T5a?.exact)}</span>
+          <span class="note">{`at the trained length; loops run longer than trained (T5b, a stretch): ${pct(latest.groups.T5b?.exact)}`}</span>
         </div>
       </div>
     )
@@ -100,9 +100,9 @@ const cell = (e: Experiment | undefined, name: string) => e?.families[name]?.exa
     <p>
       <b>T1–T3</b>: random expressions of 2, 3–4 and 5–7 operations that always contain a combination never shown in
       training (a xor of a product, a product of a difference, a min of a sum, a shift of a xor). <b>T4</b>: operation
-      types never trained — division, modulo, rotations, conditionals. <b>T5</b>: loops whose
-      repeat count comes from b — five hidden loop bodies at counts up to 15, 63 and 255, trained loop kinds run longer
-      than in training, and hidden bit loops. <b>Product, then a step</b>: a*b+b, a*b+5, a*b−a, (a*b)^a.
+      types never trained — division, modulo, rotations, conditionals. <b>T5a</b>: loop bodies never generated (repeat
+      count from b, up to 15 as in training) and unseen bit loops — recognising a new loop. <b>T5b</b>: loops run 63 or 255
+      times, longer than anything trained — repeating a step further than trained, a research stretch. <b>Product, then a step</b>: a*b+b, a*b+5, a*b−a, (a*b)^a.
     </p>
   </div>
 

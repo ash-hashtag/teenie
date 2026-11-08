@@ -1,4 +1,5 @@
 """Named training sets and the test groups that go with them."""
+Report = dict[str, float | None]
 from .expressions import (HIDDEN_FAMILIES, NEAR_FAMILIES, Pair, composed_family, expression_family,
                           pair_family, product_step_family)
 from .loops import NEW_OPERATIONS, bit_loop_family, hidden_bit_loops, hidden_loops, loop_family
@@ -35,11 +36,25 @@ TIERS: dict[str, tuple[Family, ...]] = {
     'T2': (expression_family((3, 4), FORBIDDEN, 'T2 3-4 ops', 2., HELD_PAIRS, require_pair=True),),
     'T3': (expression_family((5, 7), FORBIDDEN, 'T3 5-7 ops', 2., HELD_PAIRS, require_pair=True),),
     'T4': NEW_OPERATIONS,
-    'T5': hidden_loops(4) + hidden_loops(6) + hidden_loops(8)
-          + tuple(loop_family(kind, bits, LOOP_FORBIDDEN + hidden_loops(bits))
-                  for bits in (6, 8) for kind in ('accumulate', 'repeat', 'recurrence'))
-          + hidden_bit_loops(),
+    # T5a: loop bodies never generated, at the trained length (up to 15 iterations), and unseen bit loops —
+    # recognising a new loop's pattern. T5b: loops run longer than any trained (63 and 255 iterations) —
+    # repeating a step further than trained, a research stretch rather than a pass/fail target.
+    'T5a': hidden_loops(4) + hidden_bit_loops(),
+    'T5b': hidden_loops(6) + hidden_loops(8)
+           + tuple(loop_family(kind, bits, LOOP_FORBIDDEN + hidden_loops(bits))
+                   for bits in (6, 8) for kind in ('accumulate', 'repeat', 'recurrence')),
 }
+
+
+def regroup(results: dict[str, dict[str, Report]]) -> dict[str, dict[str, Report]]:
+    """Re-sort an evaluation's relations into the current ladder tiers by name, so evaluations written before a
+    tier was split (e.g. one 'T5') report the current tiers."""
+    tier_of = {f.name: tier for tier, families in TIERS.items() for f in families}
+    regrouped: dict[str, dict[str, Report]] = {}
+    for group, reports in results.items():
+        for name, report in reports.items():
+            regrouped.setdefault(tier_of.get(name, group), {})[name] = report
+    return regrouped
 
 # `mul` shows a*b, `blocks` only its pieces, `mix` adds random 1-3 operation expressions to `mul`.
 TRAIN_SETS: dict[str, tuple[Family, ...]] = {

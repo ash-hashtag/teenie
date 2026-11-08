@@ -99,9 +99,14 @@
    "sure_accuracy": 0.9991015255826075,
    "won": true
   },
-  "T5": {
-   "exact": 0.4601236979166667,
-   "sure_accuracy": 0.9892654049976126,
+  "T5a": {
+   "exact": 0.3970947265625,
+   "sure_accuracy": 0.9861111144224802,
+   "won": false
+  },
+  "T5b": {
+   "exact": 0.49163818359375,
+   "sure_accuracy": 0.9898288109053515,
    "won": false
   }
  },

@@ -14,7 +14,7 @@ from torch import nn
 from .bit_token_model import BitTokenModel
 from .checkpoint import load_bit_model
 from .eval import Report, summarise
-from .sets import TIERS
+from .sets import TIERS, regroup
 
 # (id, chapter, title, evaluation file, training logs in order)
 EXPERIMENTS: list[tuple[str, str, str, str, tuple[str, ...]]] = [
@@ -70,7 +70,7 @@ EXPERIMENTS: list[tuple[str, str, str, str, tuple[str, ...]]] = [
 # Architectures shown on the site besides the current model: (id, title, checkpoint).
 ARCHITECTURES = [('bittoken', 'Bit tokens', 'checkpoints/steps/bittoken-mix4.pt')]
 
-LADDER = ('T1', 'T2', 'T3', 'T4', 'T5', 'hidden', 'near')
+LADDER = ('T1', 'T2', 'T3', 'T4', 'T5a', 'T5b', 'hidden', 'near')
 HIGHLIGHTS = ('a*b', 'a*b+a', 'min', '3a', 'transducer')
 
 
@@ -87,7 +87,7 @@ def _tier_names() -> dict[str, list[str]]:
 
 def experiment(identifier: str, chapter: str, title: str, evaluation: Path, logs: list[Path]) -> dict[str, object]:
     data = json.loads(evaluation.read_text())
-    results: dict[str, dict[str, Report]] = data['results']
+    results: dict[str, dict[str, Report]] = regroup(data['results'])
     groups = {group: summarise(reports) for group, reports in results.items()}
     flat = {name: report for reports in results.values() for name, report in reports.items()}
     highlights = {name: flat[name].get('exact') for name in HIGHLIGHTS if name in flat}

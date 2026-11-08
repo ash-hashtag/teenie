@@ -1,0 +1,166 @@
+{
+  "checkpoint": "checkpoints/wide/wide-32.pt",
+  "train_set": "mix7",
+  "tests": "sealed",
+  "width": 32,
+  "episodes": 64,
+  "queries": 16,
+  "seed": 61000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {
+    "sealed": {
+      "exact": 0.3779703776041667,
+      "sure_accuracy": 0.9993688221507491,
+      "won": false
+    }
+  },
+  "results": {
+    "sealed": {
+      "(a+b)*(a-b)": {
+        "exact": 0.0,
+        "bit": 0.58544921875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*b)>>4": {
+        "exact": 0.0,
+        "bit": 0.500701904296875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a+b)^2": {
+        "exact": 0.0,
+        "bit": 0.599609375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*b-a-b": {
+        "exact": 0.0,
+        "bit": 0.583770751953125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "7a+3b": {
+        "exact": 0.0,
+        "bit": 0.587188720703125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*(a+b)": {
+        "exact": 0.0,
+        "bit": 0.588897705078125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a-b)^2": {
+        "exact": 0.0,
+        "bit": 0.59619140625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "2max-min": {
+        "exact": 0.421875,
+        "bit": 0.937408447265625,
+        "sure_coverage": 0.0009765625,
+        "sure_accuracy": 1.0
+      },
+      "((a+b)>>1)^b": {
+        "exact": 0.32421875,
+        "bit": 0.94647216796875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a&b)*2+(a^b)": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9970703125,
+        "sure_accuracy": 1.0
+      },
+      "a>>(b&7)": {
+        "exact": 0.244140625,
+        "bit": 0.772216796875,
+        "sure_coverage": 0.1669921875,
+        "sure_accuracy": 1.0
+      },
+      "a<<(b&3)": {
+        "exact": 0.7275390625,
+        "bit": 0.946014404296875,
+        "sure_coverage": 0.53515625,
+        "sure_accuracy": 0.9981752038002014
+      },
+      "a if a odd else b": {
+        "exact": 0.9404296875,
+        "bit": 0.99652099609375,
+        "sure_coverage": 0.380859375,
+        "sure_accuracy": 1.0
+      },
+      "a>b ? a*2 : b*3": {
+        "exact": 0.68359375,
+        "bit": 0.96148681640625,
+        "sure_coverage": 0.2705078125,
+        "sure_accuracy": 1.0
+      },
+      "popcount(a)+popcount(b)": {
+        "exact": 0.2138671875,
+        "bit": 0.951690673828125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "popcount(a*b)": {
+        "exact": 0.09765625,
+        "bit": 0.92401123046875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a % (b|1)": {
+        "exact": 0.49609375,
+        "bit": 0.81329345703125,
+        "sure_coverage": 0.34375,
+        "sure_accuracy": 1.0
+      },
+      "a // (b|1) + b": {
+        "exact": 0.5986328125,
+        "bit": 0.9708251953125,
+        "sure_coverage": 0.2265625,
+        "sure_accuracy": 1.0
+      },
+      "gcd(a,b)": {
+        "exact": 0.7822265625,
+        "bit": 0.99066162109375,
+        "sure_coverage": 0.0078125,
+        "sure_accuracy": 0.75
+      },
+      "a + sum i^2, i<b&7": {
+        "exact": 0.9541015625,
+        "bit": 0.997772216796875,
+        "sure_coverage": 0.5595703125,
+        "sure_accuracy": 1.0
+      },
+      "a // b by repeated subtraction": {
+        "exact": 0.5869140625,
+        "bit": 0.979644775390625,
+        "sure_coverage": 0.1708984375,
+        "sure_accuracy": 1.0
+      },
+      "a*b*b": {
+        "exact": 0.0,
+        "bit": 0.605499267578125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a|1)*(b|1)": {
+        "exact": 0.0,
+        "bit": 0.623809814453125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "~(a+b)": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9814453125,
+        "sure_accuracy": 1.0
+      }
+    }
+  }
+}

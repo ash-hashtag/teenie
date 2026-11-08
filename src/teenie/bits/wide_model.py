@@ -12,8 +12,14 @@ A bilinear layer over both views can pair bit k-i of one number with bit i of an
 a product needs at every k (the alignment idea of Abacus embeddings and position coupling, applied to bits). Answer
 bit k reads only the examples' bit-k tokens (bit-aligned reading, findings section 15); bit tokens attend to each
 other with a bias per bit distance; rounds, memory and readout are as in the bit-token model. Widths up to `span`.
+
+`peers`: the examples are read through one shallow layer, so a relation that can only be checked by computing
+something deep on an example (is c = a*b + b? needs a*b) cannot be recognised from them. The probe examples, though,
+are worked through with full depth every round, like the questions. With `peers`, every round each question's bit k
+also reads the probes' bit-k tokens together with their true answer bit — examples worked out in depth next to
+what they should have given — and no probe sees its own answer.
 """
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 import torch
 from torch import Tensor, nn
@@ -33,6 +39,40 @@ class WideConfig(TypedDict):
     probes: int
     steps: int
     span: int
+    peers: NotRequired[bool]
+
+
+class _Peers(nn.Module):
+    """Bit k of every question and probe attends to bit k of the probes, each with its true answer bit; a probe
+    never attends to itself."""
+
+    def __init__(self, hidden: int, heads: int) -> None:
+        super().__init__()
+        self.heads = heads
+        self.norm = nn.LayerNorm(hidden)
+        self.answer = nn.Linear(1, hidden)
+        self.query = nn.Linear(hidden, hidden)
+        self.key = nn.Linear(hidden, hidden)
+        self.value = nn.Linear(hidden, hidden)
+        self.out = nn.Linear(hidden, hidden)
+
+    def forward(self, x: Tensor, known: Tensor) -> Tensor:
+        """x [B, items, W, H] (questions first, then probes); known [B, P, W] true probe bits in {-1, 1}."""
+        batch, items, width, hidden = x.shape
+        probes, d = known.shape[1], hidden // self.heads
+        normed = self.norm(x)
+        peers = normed[:, items - probes:] + self.answer(known[..., None])  # [B, P, W, H]
+
+        def split(t: Tensor) -> Tensor:  # [B, N, W, H] -> [B * W, heads, N, d]
+            return t.permute(0, 2, 1, 3).reshape(batch * width, -1, self.heads, d).transpose(1, 2)
+
+        rows = torch.arange(items, device=x.device)[:, None] - (items - probes)
+        allowed = rows != torch.arange(probes, device=x.device)[None, :]  # [items, P]
+        found = F.scaled_dot_product_attention(split(self.query(normed)), split(self.key(peers)),
+                                               split(self.value(peers)), attn_mask=allowed)
+        found = found.transpose(1, 2).reshape(batch, width, items, hidden).transpose(1, 2)
+        result: Tensor = x + self.out(found)
+        return result
 
 
 def views(numbers: Tensor, span: int) -> Tensor:
@@ -72,12 +112,12 @@ class _Seen(nn.Module):
 
 class WideBitModel(nn.Module):
     def __init__(self, hidden: int = 128, heads: int = 4, layers: int = 2, probes: int = 16, steps: int = 8,
-                 span: int = 32) -> None:
+                 span: int = 32, peers: bool = False) -> None:
         super().__init__()
         if hidden % heads or not 0 < probes <= CONTEXT_SIZE or min(layers, steps, span) < 1:
             raise ValueError('hidden must divide into heads; probes in 1..999; layers, steps, span >= 1')
         self.config: WideConfig = {'hidden': hidden, 'heads': heads, 'layers': layers, 'probes': probes,
-                                   'steps': steps, 'span': span}
+                                   'steps': steps, 'span': span, 'peers': peers}
         self.example = nn.Sequential(_Seen(span, hidden), nn.GELU(), nn.Linear(hidden, hidden), nn.LayerNorm(hidden))
         self.ask = _Seen(span, hidden)  # (a, b, current guess) as seen from each answer bit
         self.layers = nn.ModuleList([_BitLayer(hidden, heads, span) for _ in range(layers)])
@@ -85,11 +125,17 @@ class WideBitModel(nn.Module):
         self.values = nn.ModuleList([nn.Linear(hidden, hidden) for _ in range(layers)])
         self.cell = nn.GRUCell(hidden, hidden)
         self.readout = nn.Sequential(nn.LayerNorm(hidden), nn.Linear(hidden, 1))
+        if peers:
+            self.peers = nn.ModuleList([_Peers(hidden, heads) for _ in range(layers)])
         self.recompute = True
         self.hint = 1.
 
     def loss(self, prediction: LoopPrediction, context: Tensor, target: Tensor, width: int,
              steps: Tensor | None = None, step_counts: Tensor | None = None) -> Tensor:
+        if self.config.get('peers', False):
+            # Through two hops a probe can see its own answer (it reads a peer that has read it), so with peers only
+            # the questions — whose answers are never in the context — are trained.
+            prediction = LoopPrediction(prediction.logits[:, :, :prediction.queries], prediction.queries)
         return answer_loss(prediction, context, target, width)
 
     def forward(self, context: Tensor, query: Tensor, width: int, target: Tensor | None = None,
@@ -115,6 +161,7 @@ class WideBitModel(nn.Module):
         values = [BitTokenModel._split(v(flat), heads, d) for v in self.values]
         queries = asked.shape[1]
         asked = torch.cat([asked, bits[:, :probes, :2]], 1)
+        known = bits[:, :probes, 2]  # [B, P, W]
         items = asked.shape[1]
         rows = torch.arange(items, device=bits.device)[:, None] - queries
         allowed = (rows != torch.arange(CONTEXT_SIZE, device=bits.device)[None, :]).repeat_interleave(width, 0)
@@ -123,21 +170,23 @@ class WideBitModel(nn.Module):
         outputs = []
         for _ in range(rounds):
             if self.training and self.recompute:
-                state, logits = checkpoint(self._round, asked, guess, state, keys, values, allowed,
+                state, logits = checkpoint(self._round, asked, guess, state, keys, values, allowed, known,
                                            use_reentrant=False)
             else:
-                state, logits = self._round(asked, guess, state, keys, values, allowed)
+                state, logits = self._round(asked, guess, state, keys, values, allowed, known)
             outputs.append(logits)
             guess = torch.tanh(logits / 2)
         return torch.stack(outputs)
 
     def _round(self, asked: Tensor, guess: Tensor, state: Tensor, keys: list[Tensor], values: list[Tensor],
-               allowed: Tensor) -> tuple[Tensor, Tensor]:
+               allowed: Tensor, known: Tensor) -> tuple[Tensor, Tensor]:
         batch, items, width = guess.shape
         hidden = self.config['hidden']
         x = self.ask(torch.cat([asked, guess[:, :, None]], 2)) + state.view(batch, items, width, hidden)
-        for layer, k, v in zip(self.layers, keys, values):
+        for i, (layer, k, v) in enumerate(zip(self.layers, keys, values)):
             x = layer(x, k, v, allowed)
+            if self.config.get('peers', False):
+                x = self.peers[i](x, known)
         state = self.cell(x.reshape(-1, hidden), state)
         logits = self.readout(state).view(batch, items, width)
         return state, logits

@@ -51,7 +51,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
           adaptive: bool = False, init: str | Path | None = None, resume: bool = False,
           scratch: int = 0, halting: bool = False, stepwise: bool = False, bf16: bool = False,
           recompute: bool = True, aligned: bool = False, hint_fade: int = 0,
-          widths: Sequence[int] = (), recompute_above: int = 32) -> AnyBitModel:
+          widths: Sequence[int] = (), recompute_above: int = 32, peers: bool = False) -> AnyBitModel:
     """`init` starts from saved weights and trains `updates` more (fresh optimizer and schedule; update numbers
     continue from the checkpoint). `resume` continues an interrupted run exactly from `<save>.resume.pt`, which
     every log step writes: weights, optimizer, schedule, sampling weights and random state. `widths` (width-free
@@ -76,7 +76,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
         raise ValueError('several widths need the width-free architecture')
     width = max(widths)
     if architecture == 'wide':
-        model = WideBitModel(hidden, heads, layers, probes, steps).to(selected)
+        model = WideBitModel(hidden, heads, layers, probes, steps, peers=peers).to(selected)
     elif architecture == 'bittoken':
         model = BitTokenModel(hidden, heads, layers, width, probes, steps, stepwise, aligned).to(selected)
     elif architecture == 'program':
@@ -101,11 +101,15 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
     if init is not None:
         loaded, init_metadata = load_bit_model(init, selected)
         # Rounds reuse the same weights, so continuing with a different number of rounds is allowed.
-        same = {k: v for k, v in loaded.config.items() if k != 'steps'} == {k: v for k, v in model.config.items()
-                                                                            if k != 'steps'}
+        # Rounds reuse the same weights; a width-free model may also gain peer reading (its new layers start fresh).
+        optional = {'steps', 'peers'}
+        same = ({k: v for k, v in loaded.config.items() if k not in optional}
+                == {k: v for k, v in model.config.items() if k not in optional})
         if type(loaded) is not type(model) or not same:
             raise ValueError(f'{init} has a different architecture or size: {loaded.config}')
-        model.load_state_dict(loaded.state_dict())
+        missing, unexpected = model.load_state_dict(loaded.state_dict(), strict=False)
+        if unexpected or any(not k.startswith('peers.') for k in missing):
+            raise ValueError(f'{init} does not match: missing {missing}, unexpected {unexpected}')
         start = int(str(init_metadata.get('update', 0)))
     end = start + updates
     samplers = [BitSampler(families, w, seed + i) for i, w in enumerate(widths)]
@@ -175,7 +179,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
             metadata: dict[str, object] = {
                 'architecture': architecture, 'multiplicative': multiplicative, 'clock': clock, 'adaptive': adaptive,
                 'scratch': scratch, 'halting': halting, 'stepwise': stepwise, 'bf16': bf16, 'aligned': aligned,
-                'hint_fade': hint_fade,
+                'hint_fade': hint_fade, 'peers': peers,
                 'train_set': train_set, 'width': width, 'widths': list(widths), 'update': update, 'seed': seed, 'known_exact': score}
             save_bit_model(path, model, metadata)
             if snapshot_dir:
@@ -213,6 +217,8 @@ def main() -> None:
     parser.add_argument('--log')
     parser.add_argument('--widths', type=int, nargs='+', default=(),
                         help='wide: train on these widths in turn, repeats allowed (overrides --width)')
+    parser.add_argument('--peers', action='store_true',
+                        help='wide: questions also read the probes, worked through in depth, with their true answers')
     parser.add_argument('--recompute-above', type=int, default=32,
                         help='wide: recompute activations for episodes wider than this, even with --no-recompute')
     parser.add_argument('--architecture', choices=['serial', 'loop', 'think', 'program', 'bittoken', 'wide'],
@@ -256,7 +262,8 @@ def main() -> None:
           multiplicative=args.multiplicative, clock=args.clock, adaptive=args.adaptive, init=args.init,
           resume=args.resume, scratch=args.scratch, halting=args.halting, stepwise=args.stepwise, bf16=args.bf16,
           recompute=not args.no_recompute, validation_episodes=args.validation_episodes, aligned=args.aligned,
-          hint_fade=args.hint_fade, widths=args.widths, recompute_above=args.recompute_above)
+          hint_fade=args.hint_fade, widths=args.widths, recompute_above=args.recompute_above,
+          peers=args.peers)
 
 
 if __name__ == '__main__':

@@ -412,3 +412,21 @@ def test_wide_model_any_width():
         prediction = model(episode.context, episode.query, width)
         assert prediction.logits.shape == (2, 2, 5, width)
         assert torch.isfinite(model.loss(prediction, episode.context, episode.target, width))
+
+
+def test_wide_peers_never_show_a_question_its_answer():
+    from teenie.bits.data import BitSampler
+    from teenie.bits.sets import TRAIN_SETS
+    from teenie.bits.wide_model import WideBitModel
+    torch.manual_seed(0)
+    model = WideBitModel(hidden=32, heads=2, layers=2, probes=3, steps=2, peers=True).eval()
+    episode = BitSampler(TRAIN_SETS['mix7'], 12, 0).sample(1, 2)
+    before = model(episode.context, episode.query, 12).logits
+    changed = episode.context.clone()
+    changed[:, 3:, 2] ^= 5  # answers of every non-probe example
+    assert torch.allclose(before, model(changed, episode.query, 12).logits) is False  # examples matter
+    probes_changed = episode.context.clone()
+    probes_changed[:, :3, 2] ^= 5  # probe answers reach the questions through peers
+    assert not torch.allclose(before[:, :, :2], model(probes_changed, episode.query, 12).logits[:, :, :2])
+    loss = model.loss(model(episode.context, episode.query, 12), episode.context, episode.target, 12)
+    assert torch.isfinite(loss)

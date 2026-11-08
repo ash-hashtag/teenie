@@ -1,0 +1,603 @@
+{
+  "checkpoint": "checkpoints/wide/wide-32.pt",
+  "train_set": "mix7",
+  "tests": null,
+  "width": 8,
+  "episodes": 64,
+  "queries": 16,
+  "seed": 60000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {
+    "train": {
+      "exact": 0.8914388020833334,
+      "sure_accuracy": 0.9995647233335947,
+      "won": true
+    },
+    "heldout": {
+      "exact": 0.999609375,
+      "sure_accuracy": 1.0,
+      "won": true
+    },
+    "stress": {
+      "exact": 0.50390625,
+      "sure_accuracy": 0.582263708114624,
+      "won": false
+    },
+    "near": {
+      "exact": 0.375732421875,
+      "sure_accuracy": 1.0,
+      "won": false
+    },
+    "hidden": {
+      "exact": 0.6822509765625,
+      "sure_accuracy": 0.9999999670202945,
+      "won": true
+    },
+    "T1": {
+      "exact": 0.78515625,
+      "sure_accuracy": 1.0,
+      "won": true
+    },
+    "T2": {
+      "exact": 0.5185546875,
+      "sure_accuracy": 0.9909502863883972,
+      "won": true
+    },
+    "T3": {
+      "exact": 0.5703125,
+      "sure_accuracy": 0.981249988079071,
+      "won": true
+    },
+    "T4": {
+      "exact": 0.8118024553571429,
+      "sure_accuracy": 0.9997409278247023,
+      "won": true
+    },
+    "T5a": {
+      "exact": 0.4508056640625,
+      "sure_accuracy": 0.9807692101914367,
+      "won": false
+    },
+    "T5b": {
+      "exact": 0.52777099609375,
+      "sure_accuracy": 0.9847477529493682,
+      "won": true
+    },
+    "target": {
+      "exact": 0.37939453125,
+      "sure_accuracy": 0.9967427009091704,
+      "won": false
+    }
+  },
+  "results": {
+    "train": {
+      "add": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 1.0,
+        "sure_accuracy": 1.0
+      },
+      "sub": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9990234375,
+        "sure_accuracy": 1.0
+      },
+      "b-a": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9970703125,
+        "sure_accuracy": 1.0
+      },
+      "xor": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 1.0,
+        "sure_accuracy": 1.0
+      },
+      "and": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.998046875,
+        "sure_accuracy": 1.0
+      },
+      "or": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 1.0,
+        "sure_accuracy": 1.0
+      },
+      "a+2b": {
+        "exact": 0.9990234375,
+        "bit": 0.9998779296875,
+        "sure_coverage": 0.99609375,
+        "sure_accuracy": 1.0
+      },
+      "2a+b": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 1.0,
+        "sure_accuracy": 1.0
+      },
+      "max": {
+        "exact": 0.9970703125,
+        "bit": 0.99951171875,
+        "sure_coverage": 0.9716796875,
+        "sure_accuracy": 1.0
+      },
+      "a<<1": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 1.0,
+        "sure_accuracy": 1.0
+      },
+      "a+const": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 1.0,
+        "sure_accuracy": 1.0
+      },
+      "b^const": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 1.0,
+        "sure_accuracy": 1.0
+      },
+      "transducer": {
+        "exact": 0.83203125,
+        "bit": 0.9676513671875,
+        "sure_coverage": 0.435546875,
+        "sure_accuracy": 1.0
+      },
+      "a*b": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.966796875,
+        "sure_accuracy": 1.0
+      },
+      "steps1": {
+        "exact": 0.99609375,
+        "bit": 0.99951171875,
+        "sure_coverage": 0.953125,
+        "sure_accuracy": 0.9999999403953552
+      },
+      "steps2": {
+        "exact": 0.9130859375,
+        "bit": 0.984619140625,
+        "sure_coverage": 0.74609375,
+        "sure_accuracy": 1.0
+      },
+      "steps3": {
+        "exact": 0.8720703125,
+        "bit": 0.9730224609375,
+        "sure_coverage": 0.66796875,
+        "sure_accuracy": 1.0
+      },
+      "steps4": {
+        "exact": 0.7470703125,
+        "bit": 0.9415283203125,
+        "sure_coverage": 0.4912109375,
+        "sure_accuracy": 0.9980118870735168
+      },
+      "steps5": {
+        "exact": 0.6650390625,
+        "bit": 0.9268798828125,
+        "sure_coverage": 0.361328125,
+        "sure_accuracy": 0.9972973465919495
+      },
+      "composed": {
+        "exact": 0.78125,
+        "bit": 0.9542236328125,
+        "sure_coverage": 0.4501953125,
+        "sure_accuracy": 0.9978308081626892
+      },
+      "accumulate n15": {
+        "exact": 0.86328125,
+        "bit": 0.9725341796875,
+        "sure_coverage": 0.6748046875,
+        "sure_accuracy": 0.9985527992248535
+      },
+      "repeat n15": {
+        "exact": 0.9150390625,
+        "bit": 0.9840087890625,
+        "sure_coverage": 0.7763671875,
+        "sure_accuracy": 1.0
+      },
+      "recurrence n15": {
+        "exact": 0.8876953125,
+        "bit": 0.9775390625,
+        "sure_coverage": 0.703125,
+        "sure_accuracy": 1.0
+      },
+      "bit loops": {
+        "exact": 0.8447265625,
+        "bit": 0.97119140625,
+        "sure_coverage": 0.5498046875,
+        "sure_accuracy": 1.0
+      },
+      "product-step": {
+        "exact": 0.6044921875,
+        "bit": 0.9151611328125,
+        "sure_coverage": 0.2109375,
+        "sure_accuracy": 0.9953703880310059
+      },
+      "concepts1": {
+        "exact": 0.9755859375,
+        "bit": 0.9954833984375,
+        "sure_coverage": 0.904296875,
+        "sure_accuracy": 1.0
+      },
+      "concepts2": {
+        "exact": 0.8017578125,
+        "bit": 0.95361328125,
+        "sure_coverage": 0.529296875,
+        "sure_accuracy": 1.0
+      },
+      "concepts3": {
+        "exact": 0.7236328125,
+        "bit": 0.9385986328125,
+        "sure_coverage": 0.412109375,
+        "sure_accuracy": 0.9952607154846191
+      },
+      "concepts4": {
+        "exact": 0.6904296875,
+        "bit": 0.9306640625,
+        "sure_coverage": 0.3408203125,
+        "sure_accuracy": 0.9971346855163574
+      },
+      "concepts5": {
+        "exact": 0.6337890625,
+        "bit": 0.90478515625,
+        "sure_coverage": 0.2998046875,
+        "sure_accuracy": 0.9934853315353394
+      }
+    },
+    "heldout": {
+      "a+b+1": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9990234375,
+        "sure_accuracy": 1.0
+      },
+      "a-2b": {
+        "exact": 0.9990234375,
+        "bit": 0.9998779296875,
+        "sure_coverage": 0.9697265625,
+        "sure_accuracy": 1.0
+      },
+      "min": {
+        "exact": 0.9990234375,
+        "bit": 0.9998779296875,
+        "sure_coverage": 0.9404296875,
+        "sure_accuracy": 1.0
+      },
+      "nand": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9990234375,
+        "sure_accuracy": 1.0
+      },
+      "3a": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9990234375,
+        "sure_accuracy": 1.0
+      }
+    },
+    "stress": {
+      "a*(b&63)": {
+        "exact": 0.50390625,
+        "bit": 0.9234619140625,
+        "sure_coverage": 0.8369140625,
+        "sure_accuracy": 0.582263708114624
+      }
+    },
+    "near": {
+      "a*b+b": {
+        "exact": 0.2763671875,
+        "bit": 0.8594970703125,
+        "sure_coverage": 0.0078125,
+        "sure_accuracy": 1.0
+      },
+      "a*b+5": {
+        "exact": 0.6298828125,
+        "bit": 0.9344482421875,
+        "sure_coverage": 0.01953125,
+        "sure_accuracy": 1.0
+      },
+      "a*b-a": {
+        "exact": 0.2724609375,
+        "bit": 0.8572998046875,
+        "sure_coverage": 0.0048828125,
+        "sure_accuracy": 1.0
+      },
+      "(a*b)^a": {
+        "exact": 0.32421875,
+        "bit": 0.8746337890625,
+        "sure_coverage": 0.015625,
+        "sure_accuracy": 1.0
+      }
+    },
+    "hidden": {
+      "a*b+a": {
+        "exact": 0.3154296875,
+        "bit": 0.8704833984375,
+        "sure_coverage": 0.0048828125,
+        "sure_accuracy": 1.0
+      },
+      "a*a": {
+        "exact": 0.9912109375,
+        "bit": 0.9989013671875,
+        "sure_coverage": 0.8662109375,
+        "sure_accuracy": 0.9999999403953552
+      },
+      "(a+1)*(b+1)": {
+        "exact": 0.2412109375,
+        "bit": 0.843017578125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a^b)*3": {
+        "exact": 0.6533203125,
+        "bit": 0.934814453125,
+        "sure_coverage": 0.001953125,
+        "sure_accuracy": 1.0
+      },
+      "|a-b|": {
+        "exact": 0.96875,
+        "bit": 0.9912109375,
+        "sure_coverage": 0.560546875,
+        "sure_accuracy": 1.0
+      },
+      "(a+b)>>1": {
+        "exact": 0.9951171875,
+        "bit": 0.999267578125,
+        "sure_coverage": 0.81640625,
+        "sure_accuracy": 0.9999999403953552
+      },
+      "(a*b)^b": {
+        "exact": 0.3046875,
+        "bit": 0.8671875,
+        "sure_coverage": 0.01171875,
+        "sure_accuracy": 1.0
+      },
+      "(a<<1)+(b>>1)": {
+        "exact": 0.98828125,
+        "bit": 0.998291015625,
+        "sure_coverage": 0.779296875,
+        "sure_accuracy": 1.0
+      }
+    },
+    "T1": {
+      "T1 2 ops": {
+        "exact": 0.78515625,
+        "bit": 0.9588623046875,
+        "sure_coverage": 0.46875,
+        "sure_accuracy": 1.0
+      }
+    },
+    "T2": {
+      "T2 3-4 ops": {
+        "exact": 0.5185546875,
+        "bit": 0.8968505859375,
+        "sure_coverage": 0.2158203125,
+        "sure_accuracy": 0.9909502863883972
+      }
+    },
+    "T3": {
+      "T3 5-7 ops": {
+        "exact": 0.5703125,
+        "bit": 0.9019775390625,
+        "sure_coverage": 0.15625,
+        "sure_accuracy": 0.981249988079071
+      }
+    },
+    "T4": {
+      "a//b": {
+        "exact": 0.7275390625,
+        "bit": 0.9407958984375,
+        "sure_coverage": 0.3671875,
+        "sure_accuracy": 0.9999999403953552
+      },
+      "a%b": {
+        "exact": 0.6435546875,
+        "bit": 0.901611328125,
+        "sure_coverage": 0.41015625,
+        "sure_accuracy": 1.0
+      },
+      "rotl(a,1)": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 1.0,
+        "sure_accuracy": 1.0
+      },
+      "rotl(a,b&7)": {
+        "exact": 0.4677734375,
+        "bit": 0.86962890625,
+        "sure_coverage": 0.125,
+        "sure_accuracy": 1.0
+      },
+      "a>b?a-b:a+b": {
+        "exact": 0.94921875,
+        "bit": 0.9879150390625,
+        "sure_coverage": 0.5703125,
+        "sure_accuracy": 0.9982876777648926
+      },
+      "a>b?a*b:b": {
+        "exact": 0.9130859375,
+        "bit": 0.9815673828125,
+        "sure_coverage": 0.4033203125,
+        "sure_accuracy": 1.0
+      },
+      "a<b?b^a:a&b": {
+        "exact": 0.9814453125,
+        "bit": 0.992431640625,
+        "sure_coverage": 0.8935546875,
+        "sure_accuracy": 1.0
+      }
+    },
+    "T5a": {
+      "sum a..a+n-1 n15": {
+        "exact": 0.4130859375,
+        "bit": 0.870361328125,
+        "sure_coverage": 0.1484375,
+        "sure_accuracy": 1.0
+      },
+      "a^n n15": {
+        "exact": 0.755859375,
+        "bit": 0.955322265625,
+        "sure_coverage": 0.4658203125,
+        "sure_accuracy": 0.9999999403953552
+      },
+      "fib(a,a) n15": {
+        "exact": 0.541015625,
+        "bit": 0.908447265625,
+        "sure_coverage": 0.1796875,
+        "sure_accuracy": 1.0
+      },
+      "x->3x+1 n15": {
+        "exact": 0.3154296875,
+        "bit": 0.860107421875,
+        "sure_coverage": 0.0576171875,
+        "sure_accuracy": 1.0
+      },
+      "acc=(acc<<1)^a n15": {
+        "exact": 0.6953125,
+        "bit": 0.9427490234375,
+        "sure_coverage": 0.177734375,
+        "sure_accuracy": 0.9285714626312256
+      },
+      "popcount(a|b)": {
+        "exact": 0.58984375,
+        "bit": 0.906005859375,
+        "sure_coverage": 0.0322265625,
+        "sure_accuracy": 0.7575757503509521
+      },
+      "reverse(a^b)": {
+        "exact": 0.173828125,
+        "bit": 0.8062744140625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "popcount(a)*b": {
+        "exact": 0.1220703125,
+        "bit": 0.7003173828125,
+        "sure_coverage": 0.0048828125,
+        "sure_accuracy": 1.0
+      }
+    },
+    "T5b": {
+      "sum a..a+n-1 n63": {
+        "exact": 0.171875,
+        "bit": 0.792724609375,
+        "sure_coverage": 0.001953125,
+        "sure_accuracy": 1.0
+      },
+      "a^n n63": {
+        "exact": 0.646484375,
+        "bit": 0.935791015625,
+        "sure_coverage": 0.396484375,
+        "sure_accuracy": 0.9704433083534241
+      },
+      "fib(a,a) n63": {
+        "exact": 0.0732421875,
+        "bit": 0.6693115234375,
+        "sure_coverage": 0.00390625,
+        "sure_accuracy": 1.0
+      },
+      "x->3x+1 n63": {
+        "exact": 0.2021484375,
+        "bit": 0.823486328125,
+        "sure_coverage": 0.00390625,
+        "sure_accuracy": 1.0
+      },
+      "acc=(acc<<1)^a n63": {
+        "exact": 0.8740234375,
+        "bit": 0.9696044921875,
+        "sure_coverage": 0.4697265625,
+        "sure_accuracy": 0.9313929080963135
+      },
+      "sum a..a+n-1 n255": {
+        "exact": 0.1298828125,
+        "bit": 0.78173828125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a^n n255": {
+        "exact": 0.6845703125,
+        "bit": 0.9456787109375,
+        "sure_coverage": 0.484375,
+        "sure_accuracy": 0.9899193048477173
+      },
+      "fib(a,a) n255": {
+        "exact": 0.048828125,
+        "bit": 0.641845703125,
+        "sure_coverage": 0.00390625,
+        "sure_accuracy": 1.0
+      },
+      "x->3x+1 n255": {
+        "exact": 0.1611328125,
+        "bit": 0.8197021484375,
+        "sure_coverage": 0.001953125,
+        "sure_accuracy": 0.5
+      },
+      "acc=(acc<<1)^a n255": {
+        "exact": 0.9609375,
+        "bit": 0.9903564453125,
+        "sure_coverage": 0.615234375,
+        "sure_accuracy": 0.982539713382721
+      },
+      "accumulate n63": {
+        "exact": 0.8173828125,
+        "bit": 0.962158203125,
+        "sure_coverage": 0.517578125,
+        "sure_accuracy": 0.99245285987854
+      },
+      "repeat n63": {
+        "exact": 0.8759765625,
+        "bit": 0.9722900390625,
+        "sure_coverage": 0.6357421875,
+        "sure_accuracy": 0.9938555955886841
+      },
+      "recurrence n63": {
+        "exact": 0.6396484375,
+        "bit": 0.883056640625,
+        "sure_coverage": 0.353515625,
+        "sure_accuracy": 0.991712749004364
+      },
+      "accumulate n255": {
+        "exact": 0.78515625,
+        "bit": 0.9498291015625,
+        "sure_coverage": 0.5654296875,
+        "sure_accuracy": 0.9982728958129883
+      },
+      "repeat n255": {
+        "exact": 0.80859375,
+        "bit": 0.95947265625,
+        "sure_coverage": 0.576171875,
+        "sure_accuracy": 1.0
+      },
+      "recurrence n255": {
+        "exact": 0.564453125,
+        "bit": 0.8443603515625,
+        "sure_coverage": 0.3642578125,
+        "sure_accuracy": 0.9892761707305908
+      }
+    },
+    "target": {
+      "((a*b)^(a>>3))|(b+9)": {
+        "exact": 0.2080078125,
+        "bit": 0.8004150390625,
+        "sure_coverage": 0.0009765625,
+        "sure_accuracy": 1.0
+      },
+      "T6 4-6 ops, all concepts": {
+        "exact": 0.55078125,
+        "bit": 0.8851318359375,
+        "sure_coverage": 0.298828125,
+        "sure_accuracy": 0.9967320561408997
+      }
+    }
+  }
+}

@@ -48,7 +48,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
           informed: bool = True, multiplicative: bool = False, clock: bool = False,
           adaptive: bool = False, init: str | Path | None = None, resume: bool = False,
           scratch: int = 0, halting: bool = False, stepwise: bool = False, bf16: bool = False,
-          recompute: bool = True) -> AnyBitModel:
+          recompute: bool = True, aligned: bool = False, hint_fade: int = 0) -> AnyBitModel:
     """`init` starts from saved weights and trains `updates` more (fresh optimizer and schedule; update numbers
     continue from the checkpoint). `resume` continues an interrupted run exactly from `<save>.resume.pt`, which
     every log step writes: weights, optimizer, schedule, sampling weights and random state."""
@@ -66,7 +66,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
     watched = tuple(f for name, group in test_groups(train_set).items() if name != 'train' for f in group)
     model: AnyBitModel
     if architecture == 'bittoken':
-        model = BitTokenModel(hidden, heads, layers, width, probes, steps, stepwise).to(selected)
+        model = BitTokenModel(hidden, heads, layers, width, probes, steps, stepwise, aligned).to(selected)
     elif architecture == 'program':
         model = ProgramModel(hidden, channels, width, steps, informed).to(selected)
     elif architecture == 'think':
@@ -122,6 +122,8 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
                        {'architecture': architecture, 'train_set': train_set, 'width': width, 'update': 0, 'seed': seed})
     for update in range(start + 1, end + 1):
         model.train()
+        if hint_fade and isinstance(model, BitTokenModel):
+            model.hint = max(0., 1 - (update - start) / hint_fade)  # step hints fade out over `hint_fade` updates
         episode = sampler.sample(batch_size, queries, steps=stepwise).to(selected)
         optimizer.zero_grad(set_to_none=True)
         # bf16 autocast runs matmuls and attention in bfloat16 (weights and optimizer stay float32).
@@ -153,7 +155,8 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
             running = 0.
             metadata: dict[str, object] = {
                 'architecture': architecture, 'multiplicative': multiplicative, 'clock': clock, 'adaptive': adaptive,
-                'scratch': scratch, 'halting': halting, 'stepwise': stepwise, 'bf16': bf16,
+                'scratch': scratch, 'halting': halting, 'stepwise': stepwise, 'bf16': bf16, 'aligned': aligned,
+                'hint_fade': hint_fade,
                 'train_set': train_set, 'width': width, 'update': update, 'seed': seed, 'known_exact': score}
             save_bit_model(path, model, metadata)
             if snapshot_dir:
@@ -208,6 +211,9 @@ def main() -> None:
     parser.add_argument('--no-recompute', action='store_true',
                         help='bittoken: keep activations instead of recomputing them in backward (faster, more memory)')
     parser.add_argument('--validation-episodes', type=int, default=8)
+    parser.add_argument('--aligned', action='store_true', help='bittoken: question bit k reads the examples\' bit-k tokens')
+    parser.add_argument('--hint-fade', type=int, default=0,
+                        help='bittoken --stepwise: fade intermediate-step targets to zero over this many updates')
     parser.add_argument('--init', help='start from these weights and train --updates more (fresh optimizer)')
     parser.add_argument('--resume', action='store_true',
                         help='continue an interrupted run exactly from <save>.resume.pt')
@@ -226,7 +232,8 @@ def main() -> None:
           train_set=args.train_set, channels=args.channels, informed=not args.blank,
           multiplicative=args.multiplicative, clock=args.clock, adaptive=args.adaptive, init=args.init,
           resume=args.resume, scratch=args.scratch, halting=args.halting, stepwise=args.stepwise, bf16=args.bf16,
-          recompute=not args.no_recompute, validation_episodes=args.validation_episodes)
+          recompute=not args.no_recompute, validation_episodes=args.validation_episodes, aligned=args.aligned,
+          hint_fade=args.hint_fade)
 
 
 if __name__ == '__main__':

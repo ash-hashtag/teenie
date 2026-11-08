@@ -20,7 +20,7 @@ from torch import Tensor
 from .expressions import Tree, _banned, _probe, evaluate_with, fingerprint, has_variable, random_tree, show
 from .relations import Family, Relation
 
-LENGTHS = {4: 'n15', 6: 'n63', 8: 'n255'}
+LENGTHS = {4: 'n15', 5: 'n31', 6: 'n63', 8: 'n255'}
 
 
 def _count(b: Tensor, count_bits: int) -> Tensor:

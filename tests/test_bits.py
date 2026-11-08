@@ -353,3 +353,36 @@ def test_stepwise_bit_token_model_trains_and_stops():
     with torch.no_grad():
         model.done[1].bias.fill_(20.)
         assert int(model.forward(episode.context, episode.query, 8).stop().max()) == 0
+
+
+def test_aligned_bit_tokens_pairs_long_loops_and_hint_fade(tmp_path):
+    from teenie.bits.bit_token_model import BitTokenModel
+    from teenie.bits.sets import PAIRS, STEPS3, TRAIN_SETS
+
+    torch.manual_seed(0)
+    model = BitTokenModel(hidden=16, heads=2, layers=1, probes=8, steps=3, aligned=True)
+    episode = BitSampler(TRAIN_SETS['mix5'], seed=3).sample(2, queries=3)
+    model.train()
+    prediction = model.forward(episode.context, episode.query, 8)
+    assert prediction.logits.shape == (3, 2, 3 + 8, 8)
+    model.loss(prediction, episode.context, episode.target, 8).backward()
+    model.eval()
+    with torch.no_grad():
+        base = model.forward(episode.context, episode.query, 8).logits[:, 0, 3]
+        changed = episode.context.clone()
+        changed[0, 0, 2] ^= 255  # a probe still never sees its own example
+        torch.testing.assert_close(base, model.forward(changed, episode.query, 8).logits[:, 0, 3])
+        stores = model.record_attention()
+        model.forward(episode.context, episode.query, 8)
+        assert stores[0][0].shape == (2, 3 + 8, 999)
+    assert len(TRAIN_SETS['mix6']) == len(TRAIN_SETS['mix4']) and PAIRS in TRAIN_SETS['mix5']
+    generator = torch.Generator().manual_seed(1)
+    for _ in range(20):
+        assert PAIRS.make(generator, 8).name
+    stepwise = BitTokenModel(hidden=16, heads=2, layers=1, probes=8, steps=4, stepwise=True)
+    episode = BitSampler([STEPS3[3]], seed=2).sample(2, queries=3, steps=True)  # 4-operation expressions
+    prediction = stepwise.forward(episode.context, episode.query, 8)
+    full = stepwise.loss(prediction, episode.context, episode.target, 8, episode.steps, episode.step_counts)
+    stepwise.hint = 0.
+    faded = stepwise.loss(prediction, episode.context, episode.target, 8, episode.steps, episode.step_counts)
+    assert torch.isfinite(full) and torch.isfinite(faded) and not torch.equal(full, faded)

@@ -256,3 +256,28 @@ def product_step_family(forbidden: tuple[Family, ...], banned_pairs: frozenset[P
     def make(generator: torch.Generator, width: int) -> Relation:
         return _draw(draw, forbidden, generator, width, banned_pairs)
     return Family(name, make)
+
+
+def pair_family(forbidden: tuple[Family, ...], banned_pairs: frozenset[Pair], name: str = 'pairs') -> Family:
+    """Every allowed (parent, child) operation pair equally often: pick a pair uniformly, put the child under the
+    parent, and fill the remaining slots with leaves or one-operation pieces."""
+    operations = list(BINARY) + list(UNARY)
+    allowed = [(p, c) for p in operations for c in operations if (p, c) not in banned_pairs]
+
+    def node(op: str, generator: torch.Generator, width: int, child: Tree | None = None) -> Tree:
+        def piece() -> Tree:
+            return random_tree(int(torch.randint(0, 2, (), generator=generator)), generator, width)
+        if op in UNARY:
+            return (op, child if child is not None else piece())
+        first, second = (child, piece()) if child is not None else (piece(), piece())
+        if child is not None and bool(torch.randint(0, 2, (), generator=generator)):
+            first, second = second, first
+        return (op, first, second)
+
+    def draw(generator: torch.Generator, width: int) -> Tree:
+        parent, child = allowed[int(torch.randint(0, len(allowed), (), generator=generator))]
+        return node(parent, generator, width, node(child, generator, width))
+
+    def make(generator: torch.Generator, width: int) -> Relation:
+        return _draw(draw, forbidden, generator, width, banned_pairs)
+    return Family(name, make)

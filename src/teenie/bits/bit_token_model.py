@@ -32,6 +32,7 @@ class BitTokenConfig(TypedDict):
     probes: int
     steps: int
     stepwise: NotRequired[bool]
+    aligned: NotRequired[bool]
 
 
 class _BitLayer(nn.Module):
@@ -67,11 +68,23 @@ class _BitLayer(nn.Module):
         x = x + self.out_self(mixed.transpose(1, 2).reshape(batch, items, width, hidden))
         # 2. Every bit token reads the examples.
         q = self.query(self.norm_cross(x)).view(batch, items * width, self.heads, d).transpose(1, 2)
-        found = F.scaled_dot_product_attention(q, keys, values, attn_mask=allowed)
-        if self.attention is not None:
-            scores = (q @ keys.transpose(-1, -2) / d ** .5).masked_fill(~allowed, float('-inf'))
-            weights = scores.softmax(-1).mean(1)  # [B, items * W, N]
-            self.attention.append(weights.view(batch, items, width, -1).mean(2))
+        if keys.shape[0] == batch * width:
+            # Bit-aligned: bit token k reads the examples' bit-k tokens. Batch over (episode, bit position).
+            q = q.view(batch, self.heads, items, width, d).permute(0, 3, 1, 2, 4).reshape(batch * width, self.heads,
+                                                                                         items, d)
+            found = F.scaled_dot_product_attention(q, keys, values, attn_mask=allowed[::width])
+            if self.attention is not None:
+                scores = (q @ keys.transpose(-1, -2) / d ** .5).masked_fill(~allowed[::width], float('-inf'))
+                weights = scores.softmax(-1).mean(1).view(batch, width, items, -1)  # [B, W, items, N]
+                self.attention.append(weights.mean(1))
+            found = found.view(batch, width, self.heads, items, d).permute(0, 2, 3, 1, 4).reshape(
+                batch, self.heads, items * width, d)
+        else:
+            found = F.scaled_dot_product_attention(q, keys, values, attn_mask=allowed)
+            if self.attention is not None:
+                scores = (q @ keys.transpose(-1, -2) / d ** .5).masked_fill(~allowed, float('-inf'))
+                weights = scores.softmax(-1).mean(1)  # [B, items * W, N]
+                self.attention.append(weights.view(batch, items, width, -1).mean(2))
         x = x + self.out_cross(found.transpose(1, 2).reshape(batch, items, width, hidden))
         # 3. Gated feed-forward.
         result: Tensor = x + self.feed(x)
@@ -80,12 +93,12 @@ class _BitLayer(nn.Module):
 
 class BitTokenModel(nn.Module):
     def __init__(self, hidden: int = 128, heads: int = 4, layers: int = 2, width: int = 8, probes: int = 64,
-                 steps: int = 8, stepwise: bool = False) -> None:
+                 steps: int = 8, stepwise: bool = False, aligned: bool = False) -> None:
         super().__init__()
         if hidden % heads or not 0 < probes <= CONTEXT_SIZE or min(layers, width, steps) < 1:
             raise ValueError('hidden must divide into heads; probes in 1..999; layers, width, steps >= 1')
         self.config: BitTokenConfig = {'hidden': hidden, 'heads': heads, 'layers': layers, 'width': width,
-                                       'probes': probes, 'steps': steps, 'stepwise': stepwise}
+                                       'probes': probes, 'steps': steps, 'stepwise': stepwise, 'aligned': aligned}
         self.example = nn.Sequential(_Bilinear(3 * width, hidden), nn.GELU(), nn.Linear(hidden, hidden),
                                      nn.LayerNorm(hidden))
         self.ask = _Bilinear(3 * width, hidden)  # (a, b, current guess), shared by the question's bit tokens
@@ -95,10 +108,19 @@ class BitTokenModel(nn.Module):
         self.values = nn.ModuleList([nn.Linear(hidden, hidden) for _ in range(layers)])
         self.cell = nn.GRUCell(hidden, hidden)
         self.readout = nn.Sequential(nn.LayerNorm(hidden), nn.Linear(hidden, 1))
+        # `aligned`: every example is also split into one token per bit position (its vector, the position, and its
+        # own bits there and one position below), and question bit k reads only the examples' bit-k tokens — the
+        # first model's per-position lookup, combined with bit tokens.
+        if aligned:
+            self.example_position = nn.Parameter(torch.randn(width, hidden) * .02)
+            self.local = nn.Linear(6, hidden)
+            self.example_norm = nn.LayerNorm(hidden)
         if stepwise:  # "the steps are finished", read from the mean of the question's bit tokens
             self.done = nn.Sequential(nn.LayerNorm(hidden), nn.Linear(hidden, 1))
         # Recompute each round in the backward pass instead of storing its activations: less memory, ~30% slower.
         self.recompute = True
+        # Weight of intermediate-step targets in step-by-step training (training may fade it to 0).
+        self.hint = 1.
 
     def forward(self, context: Tensor, query: Tensor, width: int, target: Tensor | None = None,
                 steps: int | None = None) -> LoopPrediction:
@@ -119,8 +141,18 @@ class BitTokenModel(nn.Module):
                                         self.config['heads'])
         examples = self.example(bits)
         d = hidden // heads
-        keys = [self._split(k(examples), heads, d) for k in self.keys]
-        values = [self._split(v(examples), heads, d) for v in self.values]
+        if self.config.get('aligned', False):
+            batch_size, count = bits.shape[:2]
+            per_bit = bits.view(batch_size, count, 3, width).transpose(2, 3)  # [B, N, W, 3] (a_k, b_k, c_k)
+            below = torch.cat([torch.zeros_like(per_bit[:, :, :1]), per_bit[:, :, :-1]], 2)
+            tokens = self.example_norm(examples[:, :, None] + self.example_position
+                                       + self.local(torch.cat([per_bit, below], -1)))  # [B, N, W, H]
+            flat = tokens.transpose(1, 2).reshape(batch_size * width, count, hidden)
+            keys = [self._split(k(flat), heads, d) for k in self.keys]
+            values = [self._split(v(flat), heads, d) for v in self.values]
+        else:
+            keys = [self._split(k(examples), heads, d) for k in self.keys]
+            values = [self._split(v(examples), heads, d) for v in self.values]
         queries = asked.shape[1]
         asked = torch.cat([asked, bits[:, :probes, :2 * width]], 1)
         batch, items = asked.shape[:2]
@@ -171,7 +203,7 @@ class BitTokenModel(nn.Module):
         """Per-bit cross-entropy after every round, later rounds weighted more; queries and probes. With `steps`,
         step-by-step training instead (see `step_loss`)."""
         if steps is not None and step_counts is not None and prediction.done is not None:
-            return step_loss(prediction, steps, step_counts, width)
+            return step_loss(prediction, steps, step_counts, width, self.hint)
         probes = to_bits(context[:, :prediction.logits.shape[2] - prediction.queries, 2], width)
         truth = torch.cat([to_bits(target, width), probes], 1).expand_as(prediction.logits)
         per_round = F.binary_cross_entropy_with_logits(prediction.logits, truth, reduction='none').mean((1, 2, 3))

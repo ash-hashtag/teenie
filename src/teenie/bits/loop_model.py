@@ -72,9 +72,10 @@ class LoopPrediction:
         return torch.maximum(p, 1 - p).amin(-1)
 
 
-def step_loss(prediction: LoopPrediction, steps: Tensor, step_counts: Tensor, width: int) -> Tensor:
+def step_loss(prediction: LoopPrediction, steps: Tensor, step_counts: Tensor, width: int, hint: float = 1.) -> Tensor:
     """Step-by-step training: round t is scored against intermediate step t (then the final answer, also at the
-    last round), and `done` against whether the steps are finished. Shared by the loop and bit-token models."""
+    last round), and `done` against whether the steps are finished. Shared by the loop and bit-token models.
+    `hint` scales the rounds aimed at intermediate steps (1 = full step supervision, 0 = final answers only)."""
     assert prediction.done is not None
     rounds, queries = len(prediction.logits), prediction.queries
     probes = prediction.logits.shape[2] - queries
@@ -85,9 +86,11 @@ def step_loss(prediction: LoopPrediction, steps: Tensor, step_counts: Tensor, wi
     index = torch.arange(rounds, device=values.device).clamp(max=available - 1)
     index[-1] = available - 1
     targets = to_bits(values[:, index].transpose(0, 1), width)  # [T, B, I, W]
-    answer = F.binary_cross_entropy_with_logits(prediction.logits, targets)
     finished = (torch.arange(rounds, device=values.device)[:, None, None] >= counts[None] - 1).float()
     finished[-1] = 1.
+    error = F.binary_cross_entropy_with_logits(prediction.logits, targets, reduction='none').mean(-1)  # [T, B, I]
+    weight = finished + hint * (1 - finished)
+    answer = (error * weight).sum() / weight.sum()
     return answer + .5 * F.binary_cross_entropy_with_logits(prediction.done, finished)
 
 

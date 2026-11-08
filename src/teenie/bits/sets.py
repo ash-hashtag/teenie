@@ -31,8 +31,8 @@ PAIRS: Family = pair_family(FORBIDDEN, HELD_PAIRS)
 LOOPS31: tuple[Family, ...] = tuple(loop_family(kind, 5, LOOP_FORBIDDEN + hidden_loops(5))
                                     for kind in ('accumulate', 'repeat', 'recurrence')) + (bit_loop_family(),)
 # `mix7`: mix3 plus expressions that also use more concepts — division, remainder, comparisons, shifts by a
-# variable amount, squares and bit counts. Rotations and conditionals stay unseen (T4). No family is aimed at a
-# particular test, so the product-step family of mix4 is left out. Every unseen test relation — including the T4
+# variable amount, squares and bit counts. Rotations and conditionals stay unseen (T4). It keeps mix4's
+# product-then-a-step family: a basic shape the model should recognise. Every unseen test relation — including the T4
 # operations and the sealed set — is forbidden by behaviour, so e.g. a//b itself is never drawn, only expressions
 # that use //.
 CONCEPT_FORBIDDEN: tuple[Family, ...] = FORBIDDEN + NEW_OPERATIONS + SEALED_FAMILIES
@@ -76,7 +76,7 @@ TRAIN_SETS: dict[str, tuple[Family, ...]] = {
     'mix4': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + (PRODUCT_STEP,),
     'mix5': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + (PRODUCT_STEP, PAIRS),
     'mix6': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS31 + (PRODUCT_STEP,),
-    'mix7': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + CONCEPT_STEPS,
+    'mix7': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + (PRODUCT_STEP,) + CONCEPT_STEPS,
     'near-only': NEAR_FAMILIES,  # diagnostic: can the model compute "a product, then another step" at all?
 }
 

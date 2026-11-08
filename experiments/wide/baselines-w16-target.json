@@ -1,0 +1,30 @@
+{
+  "checkpoint": null,
+  "train_set": "base",
+  "tests": null,
+  "width": 16,
+  "episodes": 64,
+  "queries": 16,
+  "seed": 60000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {},
+  "results": {
+    "selected": {
+      "((a*b)^(a>>3))|(b+9)": {
+        "nearest": 0.001953125,
+        "window1L": 0.0078125,
+        "window1H": 0.0078125,
+        "window2L": 0.0078125,
+        "window2H": 0.0048828125
+      },
+      "T6 4-6 ops, all concepts": {
+        "nearest": 0.0078125,
+        "window1L": 0.0751953125,
+        "window1H": 0.0908203125,
+        "window2L": 0.083984375,
+        "window2H": 0.1015625
+      }
+    }
+  }
+}

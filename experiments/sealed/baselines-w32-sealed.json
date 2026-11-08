@@ -1,0 +1,184 @@
+{
+  "checkpoint": null,
+  "train_set": "base",
+  "tests": "sealed",
+  "width": 32,
+  "episodes": 64,
+  "queries": 16,
+  "seed": 61000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {},
+  "results": {
+    "sealed": {
+      "(a+b)*(a-b)": {
+        "nearest": 0.0,
+        "window1L": 0.0,
+        "window1H": 0.0,
+        "window2L": 0.0,
+        "window2H": 0.0
+      },
+      "(a*b)>>4": {
+        "nearest": 0.0,
+        "window1L": 0.0,
+        "window1H": 0.0,
+        "window2L": 0.0,
+        "window2H": 0.0
+      },
+      "(a+b)^2": {
+        "nearest": 0.0,
+        "window1L": 0.0,
+        "window1H": 0.0,
+        "window2L": 0.0,
+        "window2H": 0.0
+      },
+      "a*b-a-b": {
+        "nearest": 0.0,
+        "window1L": 0.0,
+        "window1H": 0.0,
+        "window2L": 0.0,
+        "window2H": 0.0
+      },
+      "7a+3b": {
+        "nearest": 0.0,
+        "window1L": 0.0,
+        "window1H": 0.0,
+        "window2L": 0.0,
+        "window2H": 0.0
+      },
+      "a*(a+b)": {
+        "nearest": 0.0,
+        "window1L": 0.0,
+        "window1H": 0.0,
+        "window2L": 0.0,
+        "window2H": 0.0
+      },
+      "(a-b)^2": {
+        "nearest": 0.0,
+        "window1L": 0.0,
+        "window1H": 0.0,
+        "window2L": 0.0,
+        "window2H": 0.0
+      },
+      "2max-min": {
+        "nearest": 0.0,
+        "window1L": 0.0,
+        "window1H": 0.0,
+        "window2L": 0.001953125,
+        "window2H": 0.0
+      },
+      "((a+b)>>1)^b": {
+        "nearest": 0.0,
+        "window1L": 0.0,
+        "window1H": 0.0,
+        "window2L": 0.0,
+        "window2H": 0.00390625
+      },
+      "(a&b)*2+(a^b)": {
+        "nearest": 0.0,
+        "window1L": 1.0,
+        "window1H": 0.0,
+        "window2L": 0.9833984375,
+        "window2H": 0.0
+      },
+      "a>>(b&7)": {
+        "nearest": 0.0,
+        "window1L": 0.0,
+        "window1H": 0.0,
+        "window2L": 0.0,
+        "window2H": 0.0
+      },
+      "a<<(b&3)": {
+        "nearest": 0.0,
+        "window1L": 0.0458984375,
+        "window1H": 0.208984375,
+        "window2L": 0.005859375,
+        "window2H": 0.0419921875
+      },
+      "a if a odd else b": {
+        "nearest": 0.0,
+        "window1L": 0.0146484375,
+        "window1H": 0.01171875,
+        "window2L": 0.109375,
+        "window2H": 0.0673828125
+      },
+      "a>b ? a*2 : b*3": {
+        "nearest": 0.0,
+        "window1L": 0.0947265625,
+        "window1H": 0.0,
+        "window2L": 0.01171875,
+        "window2H": 0.0
+      },
+      "popcount(a)+popcount(b)": {
+        "nearest": 0.0986328125,
+        "window1L": 0.0771484375,
+        "window1H": 0.0771484375,
+        "window2L": 0.078125,
+        "window2H": 0.08984375
+      },
+      "popcount(a*b)": {
+        "nearest": 0.11328125,
+        "window1L": 0.1201171875,
+        "window1H": 0.10546875,
+        "window2L": 0.1083984375,
+        "window2H": 0.1162109375
+      },
+      "a % (b|1)": {
+        "nearest": 0.0,
+        "window1L": 0.4169921875,
+        "window1H": 0.3876953125,
+        "window2L": 0.3720703125,
+        "window2H": 0.3173828125
+      },
+      "a // (b|1) + b": {
+        "nearest": 0.0,
+        "window1L": 0.5009765625,
+        "window1H": 0.5009765625,
+        "window2L": 0.5,
+        "window2H": 0.484375
+      },
+      "gcd(a,b)": {
+        "nearest": 0.45703125,
+        "window1L": 0.744140625,
+        "window1H": 0.60546875,
+        "window2L": 0.77734375,
+        "window2H": 0.5888671875
+      },
+      "a + sum i^2, i<b&7": {
+        "nearest": 0.0,
+        "window1L": 0.08984375,
+        "window1H": 0.2919921875,
+        "window2L": 0.1240234375,
+        "window2H": 0.2724609375
+      },
+      "a // b by repeated subtraction": {
+        "nearest": 0.396484375,
+        "window1L": 0.5009765625,
+        "window1H": 0.4990234375,
+        "window2L": 0.5009765625,
+        "window2H": 0.4833984375
+      },
+      "a*b*b": {
+        "nearest": 0.0,
+        "window1L": 0.0,
+        "window1H": 0.0,
+        "window2L": 0.0,
+        "window2H": 0.0
+      },
+      "(a|1)*(b|1)": {
+        "nearest": 0.0,
+        "window1L": 0.0,
+        "window1H": 0.0,
+        "window2L": 0.0,
+        "window2H": 0.0
+      },
+      "~(a+b)": {
+        "nearest": 0.0,
+        "window1L": 1.0,
+        "window1H": 0.0,
+        "window2L": 0.9833984375,
+        "window2H": 0.0
+      }
+    }
+  }
+}

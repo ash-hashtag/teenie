@@ -199,10 +199,11 @@ HIDDEN_FAMILIES: tuple[Family, ...] = (
 
 def _draw(draw: Callable[[torch.Generator, int], Tree], forbidden: tuple[Family, ...],
           generator: torch.Generator, width: int, banned_pairs: frozenset[Pair] = frozenset(),
-          require_pair: bool = False) -> Relation:
+          require_pair: bool = False, distinct: int = 8) -> Relation:
     """Redraw until the expression varies enough and behaves unlike every forbidden relation. With
     `require_pair` the tree must contain one of `banned_pairs` (a test of an unseen combination); otherwise
-    it must contain none of them."""
+    it must contain none of them. The expression must give at least `distinct` different answers on 128 random
+    inputs."""
     banned = _banned(forbidden, width)
     for _ in range(2000 if require_pair else 200):
         tree = draw(generator, width)
@@ -210,7 +211,7 @@ def _draw(draw: Callable[[torch.Generator, int], Tree], forbidden: tuple[Family,
             continue
         relation = tree_relation(show(tree), tree)
         outputs = fingerprint(relation, width)
-        if len(set(outputs)) >= 8 and outputs not in banned:
+        if len(set(outputs)) >= distinct and outputs not in banned:
             return relation
     raise RuntimeError('could not draw a usable expression')
 
@@ -218,7 +219,7 @@ def _draw(draw: Callable[[torch.Generator, int], Tree], forbidden: tuple[Family,
 def expression_family(ops: int | tuple[int, int], forbidden: tuple[Family, ...], name: str | None = None,
                       product_weight: float = 1., banned_pairs: frozenset[Pair] = frozenset(),
                       require_pair: bool = False,
-                      vocabulary: tuple[tuple[str, ...], tuple[str, ...]] = BASE) -> Family:
+                      vocabulary: tuple[tuple[str, ...], tuple[str, ...]] = BASE, distinct: int = 8) -> Family:
     """A fresh random expression per episode with `ops` operations (or a number drawn from an inclusive
     range), never equivalent to `forbidden`; see `_draw` for `banned_pairs` / `require_pair`."""
     def draw(generator: torch.Generator, width: int) -> Tree:
@@ -226,7 +227,7 @@ def expression_family(ops: int | tuple[int, int], forbidden: tuple[Family, ...],
         return random_tree(count, generator, width, product_weight, vocabulary=vocabulary)
 
     def make(generator: torch.Generator, width: int) -> Relation:
-        return _draw(draw, forbidden, generator, width, banned_pairs, require_pair)
+        return _draw(draw, forbidden, generator, width, banned_pairs, require_pair, distinct)
     return Family(name or f'expr{ops}', make)
 
 

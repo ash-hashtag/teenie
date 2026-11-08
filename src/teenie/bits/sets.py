@@ -37,13 +37,14 @@ LOOPS31: tuple[Family, ...] = tuple(loop_family(kind, 5, LOOP_FORBIDDEN + hidden
 # that use //.
 # The target (from 2026-11-08): unseen expressions of several operations, at up to 32 bits, where a right answer
 # cannot be luck. One written by the user, and random 4-6 operation expressions over every concept, always with a
-# held-out operation pair. Both are excluded from training by behaviour.
+# held-out operation pair and at least 100 different answers on 128 random inputs (so nearly constant expressions,
+# which lookup can answer, are left out). Both are excluded from training by behaviour.
 TARGET: tuple[Family, ...] = (
     named('((a*b)^(a>>3))|(b+9)', ('|', ('^', ('*', 'a', 'b'), ('>>v', 'a', 3)), ('+', 'b', 9))),
 )
 CONCEPT_FORBIDDEN: tuple[Family, ...] = FORBIDDEN + NEW_OPERATIONS + SEALED_FAMILIES + TARGET
 TARGET += (expression_family((4, 6), CONCEPT_FORBIDDEN, 'T6 4-6 ops, all concepts', 2., HELD_PAIRS,
-                             require_pair=True, vocabulary=CONCEPTS),)
+                             require_pair=True, vocabulary=CONCEPTS, distinct=100),)
 CONCEPT_STEPS: tuple[Family, ...] = tuple(expression_family(n, CONCEPT_FORBIDDEN, f'concepts{n}', 2., HELD_PAIRS,
                                                             vocabulary=CONCEPTS) for n in range(1, 6))
 # The difficulty ladder (see docs/findings.md): T1-T3 always contain a held-out combination.

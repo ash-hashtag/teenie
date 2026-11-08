@@ -1,0 +1,97 @@
+[train]
+  add          exact=100.0 bit=100.0 sure_coverage= 99.8 sure_accuracy=100.0
+  sub          exact=100.0 bit=100.0 sure_coverage= 98.4 sure_accuracy=100.0
+  b-a          exact=100.0 bit=100.0 sure_coverage= 98.8 sure_accuracy=100.0
+  xor          exact=100.0 bit=100.0 sure_coverage= 99.8 sure_accuracy=100.0
+  and          exact=100.0 bit=100.0 sure_coverage=100.0 sure_accuracy=100.0
+  or           exact=100.0 bit=100.0 sure_coverage=100.0 sure_accuracy=100.0
+  a+2b         exact= 99.8 bit=100.0 sure_coverage= 96.4 sure_accuracy=100.0
+  2a+b         exact= 99.8 bit=100.0 sure_coverage= 95.4 sure_accuracy=100.0
+  max          exact= 99.8 bit=100.0 sure_coverage= 92.9 sure_accuracy=100.0
+  a<<1         exact=100.0 bit=100.0 sure_coverage=100.0 sure_accuracy=100.0
+  a+const      exact=100.0 bit=100.0 sure_coverage= 98.1 sure_accuracy=100.0
+  b^const      exact=100.0 bit=100.0 sure_coverage=100.0 sure_accuracy=100.0
+  transducer   exact= 81.2 bit= 96.4 sure_coverage= 40.3 sure_accuracy= 99.8
+  a*b          exact= 96.2 bit= 99.5 sure_coverage= 23.4 sure_accuracy=100.0
+  steps1       exact= 96.2 bit= 99.5 sure_coverage= 77.3 sure_accuracy= 99.9
+  steps2       exact= 87.1 bit= 97.7 sure_coverage= 62.9 sure_accuracy=100.0
+  steps3       exact= 83.1 bit= 96.7 sure_coverage= 51.1 sure_accuracy=100.0
+  steps4       exact= 74.3 bit= 94.3 sure_coverage= 38.6 sure_accuracy= 99.7
+  steps5       exact= 64.3 bit= 92.5 sure_coverage= 23.7 sure_accuracy= 99.6
+  composed     exact= 73.3 bit= 94.7 sure_coverage= 35.7 sure_accuracy= 99.5
+  accumulate n15 exact= 81.2 bit= 96.1 sure_coverage= 52.7 sure_accuracy= 99.6
+  repeat n15   exact= 84.3 bit= 96.9 sure_coverage= 67.1 sure_accuracy=100.0
+  recurrence n15 exact= 80.2 bit= 96.2 sure_coverage= 59.2 sure_accuracy=100.0
+  bit loops    exact= 81.3 bit= 96.7 sure_coverage= 45.1 sure_accuracy= 99.6
+  product-step exact= 49.2 bit= 89.6 sure_coverage=  8.8 sure_accuracy= 98.9
+[heldout]
+  a+b+1        exact=100.0 bit=100.0 sure_coverage= 99.2 sure_accuracy=100.0
+  a-2b         exact= 99.4 bit= 99.9 sure_coverage= 60.4 sure_accuracy=100.0
+  min          exact= 97.9 bit= 99.7 sure_coverage= 60.6 sure_accuracy=100.0
+  nand         exact=100.0 bit=100.0 sure_coverage= 99.7 sure_accuracy=100.0
+  3a           exact= 99.8 bit=100.0 sure_coverage= 70.8 sure_accuracy=100.0
+[stress]
+  a*(b&63)     exact= 50.6 bit= 92.2 sure_coverage= 20.0 sure_accuracy= 76.1
+[near]
+  a*b+b        exact= 43.4 bit= 90.0 sure_coverage=  1.4 sure_accuracy=100.0
+  a*b+5        exact= 22.1 bit= 83.9 sure_coverage=  0.1 sure_accuracy=100.0
+  a*b-a        exact= 32.1 bit= 87.5 sure_coverage=  1.2 sure_accuracy=100.0
+  (a*b)^a      exact= 38.8 bit= 88.7 sure_coverage=  1.7 sure_accuracy=100.0
+[hidden]
+  a*b+a        exact= 40.1 bit= 89.0 sure_coverage=  1.4 sure_accuracy=100.0
+  a*a          exact= 89.6 bit= 98.7 sure_coverage= 26.6 sure_accuracy=100.0
+  (a+1)*(b+1)  exact= 26.2 bit= 85.0 sure_coverage=  0.1 sure_accuracy=100.0
+  (a^b)*3      exact= 63.7 bit= 93.9 sure_coverage=  1.6 sure_accuracy=100.0
+  |a-b|        exact= 74.2 bit= 92.8 sure_coverage= 12.5 sure_accuracy= 98.4
+  (a+b)>>1     exact= 96.0 bit= 99.3 sure_coverage=  9.4 sure_accuracy=100.0
+  (a*b)^b      exact= 42.7 bit= 89.6 sure_coverage=  2.0 sure_accuracy=100.0
+  (a<<1)+(b>>1) exact= 66.2 bit= 93.7 sure_coverage=  2.2 sure_accuracy=100.0
+[T1]
+  T1 2 ops     exact= 65.3 bit= 93.7 sure_coverage= 15.4 sure_accuracy=100.0
+[T2]
+  T2 3-4 ops   exact= 49.1 bit= 89.4 sure_coverage= 12.6 sure_accuracy=100.0
+[T3]
+  T3 5-7 ops   exact= 47.6 bit= 88.7 sure_coverage=  9.7 sure_accuracy= 97.0
+[T4]
+  a//b         exact= 72.6 bit= 94.2 sure_coverage= 31.4 sure_accuracy=100.0
+  a%b          exact= 60.7 bit= 89.5 sure_coverage= 15.4 sure_accuracy=100.0
+  rotl(a,1)    exact=100.0 bit=100.0 sure_coverage= 99.7 sure_accuracy=100.0
+  rotl(a,b&7)  exact= 36.1 bit= 84.4 sure_coverage=  5.9 sure_accuracy=100.0
+  a>b?a-b:a+b  exact= 78.4 bit= 95.6 sure_coverage= 18.8 sure_accuracy= 99.0
+  a>b?a*b:b    exact= 81.8 bit= 96.5 sure_coverage= 14.0 sure_accuracy=100.0
+  a<b?b^a:a&b  exact= 94.9 bit= 98.6 sure_coverage= 46.9 sure_accuracy=100.0
+[T5]
+  sum a..a+n-1 n15 exact= 33.7 bit= 85.0 sure_coverage=  8.3 sure_accuracy=100.0
+  a^n n15      exact= 70.7 bit= 94.8 sure_coverage= 40.8 sure_accuracy=100.0
+  fib(a,a) n15 exact= 40.4 bit= 88.0 sure_coverage= 12.1 sure_accuracy=100.0
+  x->3x+1 n15  exact= 23.5 bit= 84.2 sure_coverage=  4.5 sure_accuracy=100.0
+  acc=(acc<<1)^a n15 exact= 68.6 bit= 93.9 sure_coverage= 10.3 sure_accuracy= 99.0
+  sum a..a+n-1 n63 exact= 10.9 bit= 74.6 sure_coverage=  0.0
+  a^n n63      exact= 64.0 bit= 93.5 sure_coverage= 42.8 sure_accuracy= 97.5
+  fib(a,a) n63 exact=  9.9 bit= 67.3 sure_coverage=  0.0
+  x->3x+1 n63  exact= 17.9 bit= 83.0 sure_coverage=  0.2 sure_accuracy=100.0
+  acc=(acc<<1)^a n63 exact= 87.5 bit= 96.9 sure_coverage= 30.5 sure_accuracy=100.0
+  sum a..a+n-1 n255 exact=  6.1 bit= 73.3 sure_coverage=  0.0
+  a^n n255     exact= 66.6 bit= 94.3 sure_coverage= 49.8 sure_accuracy= 98.4
+  fib(a,a) n255 exact=  5.6 bit= 64.3 sure_coverage=  0.1 sure_accuracy=100.0
+  x->3x+1 n255 exact= 19.6 bit= 83.2 sure_coverage=  0.2 sure_accuracy= 50.0
+  acc=(acc<<1)^a n255 exact= 96.4 bit= 99.0 sure_coverage= 45.8 sure_accuracy= 99.8
+  accumulate n63 exact= 74.4 bit= 94.2 sure_coverage= 40.7 sure_accuracy= 99.5
+  repeat n63   exact= 81.5 bit= 96.0 sure_coverage= 55.1 sure_accuracy= 99.1
+  recurrence n63 exact= 61.2 bit= 86.7 sure_coverage= 32.5 sure_accuracy= 99.1
+  accumulate n255 exact= 74.0 bit= 93.9 sure_coverage= 46.7 sure_accuracy= 99.8
+  repeat n255  exact= 72.4 bit= 93.9 sure_coverage= 45.0 sure_accuracy= 99.8
+  recurrence n255 exact= 57.8 bit= 83.8 sure_coverage= 32.2 sure_accuracy= 98.2
+  popcount(a|b) exact= 60.4 bit= 91.3 sure_coverage=  6.0 sure_accuracy= 72.1
+  reverse(a^b) exact= 24.8 bit= 84.2 sure_coverage=  0.0
+  popcount(a)*b exact= 12.3 bit= 68.0 sure_coverage=  0.5 sure_accuracy=100.0
+train    exact= 89.3%  sure-right= 99.9%  WON
+heldout  exact= 99.4%  sure-right=100.0%  WON
+stress   exact= 50.6%  sure-right= 76.1%  
+near     exact= 34.1%  sure-right=100.0%  
+hidden   exact= 62.3%  sure-right= 99.6%  WON
+T1       exact= 65.3%  sure-right=100.0%  WON
+T2       exact= 49.1%  sure-right=100.0%  
+T3       exact= 47.6%  sure-right= 97.0%  
+T4       exact= 74.9%  sure-right= 99.9%  WON
+T5       exact= 47.5%  sure-right= 98.9%  

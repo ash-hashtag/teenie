@@ -333,6 +333,10 @@ answer time.
 removes the confidently wrong answers on `a*(b&63)`, which the model mistakes for `a*b` (sure 24% at 75% right →
 sure 0.5%), at the cost of being sure less often overall (mean coverage 16.4% → 11.3%).
 
+**Longer training** — seed 0 continued for 10,000 more updates at a lower peak learning rate (3e-4), 20,000 in all
+(`bt-continue`): trained 89.3%, hidden **62.3%** (57.5% at 10,000), product-then-step 34.1%, T1–T5 65.3 / 49.1 /
+47.6 / 74.9 / 47.5%. Every measure rises together; T2 ends 0.9 points short of 50%.
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

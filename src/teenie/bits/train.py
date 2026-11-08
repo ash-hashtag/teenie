@@ -88,7 +88,10 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
         raise ValueError('use either init or resume, not both')
     if init is not None:
         loaded, init_metadata = load_bit_model(init, selected)
-        if type(loaded) is not type(model) or loaded.config != model.config:
+        # Rounds reuse the same weights, so continuing with a different number of rounds is allowed.
+        same = {k: v for k, v in loaded.config.items() if k != 'steps'} == {k: v for k, v in model.config.items()
+                                                                            if k != 'steps'}
+        if type(loaded) is not type(model) or not same:
             raise ValueError(f'{init} has a different architecture or size: {loaded.config}')
         model.load_state_dict(loaded.state_dict())
         start = int(str(init_metadata.get('update', 0)))

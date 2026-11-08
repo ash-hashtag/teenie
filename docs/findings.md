@@ -302,3 +302,16 @@ relation, against S (loop + 4 scratch slots, 732K, `mix3`):
 Better on every non-loop measure with fewer parameters; tiers won stay 2 of 5 (T1, T4). Loops are slightly
 worse (Fibonacci-like 48 → 36%, `reverse(a^b)` 84 → 25%). One seed, and the training data differs (`mix4`
 adds the product-step family), so part of the gain may be data. Bit tokens become the site's current model.
+
+## 13. Second seed and extra rounds (`experiments/bt/`)
+
+**Seed 1** (same configuration as section 12): trained 89.2%, hidden 52.6%, product-then-step 23.4%,
+`a*b+a` 20.9%, `a*b` 98.4%, T1–T5 59.2 / 43.8 / 45.1 / 72.3 / 46.1%. Across both seeds, bit tokens are
+**clearly better than S at multiplication (92–98% vs 81%) and at product-then-step (23–31% vs 19%)** with fewer
+parameters; on the ladder tiers they are **level** with S — the differences are within seed-to-seed spread.
+Seed 0's lead on hidden compositions and `a*b+a` (37%) was partly luck. Validation during training (128
+questions per relation) ran optimistic: seed 1 logged T5 50% at 8,000 updates but scores 46.1% on the full
+evaluation.
+
+**16 rounds at answer time** for the 8-round model: every tier within ±0.8 points — the model settles within its
+trained rounds and does not use extra ones.

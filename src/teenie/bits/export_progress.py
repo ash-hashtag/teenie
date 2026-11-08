@@ -59,6 +59,12 @@ EXPERIMENTS: list[tuple[str, str, str, str, tuple[str, ...]]] = [
      'experiments/steps/bittoken-steps-eval.json', ('experiments/steps/bittoken-steps-train.jsonl',)),
     ('bittoken-mix4', 'Bit tokens', 'bit tokens, final answers only (mix4) — current model',
      'experiments/steps/bittoken-mix4-eval.json', ('experiments/steps/bittoken-mix4-train.jsonl',)),
+    ('bt-seed1', 'Bit tokens', 'bit tokens, second seed',
+     'experiments/bt/bt-seed1-eval.json', ('experiments/bt/bt-seed1-train.jsonl',)),
+    ('bt-continue', 'Bit tokens', 'bit tokens, trained 10,000 updates longer',
+     'experiments/bt/bt-continue-eval.json', ('experiments/bt/bt-continue-train.jsonl',)),
+    ('bt-rounds16', 'Bit tokens', 'bit tokens, fine-tuned with 16 rounds',
+     'experiments/bt/bt-rounds16-eval.json', ('experiments/bt/bt-rounds16-train.jsonl',)),
 ]
 
 # Architectures shown on the site besides the current model: (id, title, checkpoint).

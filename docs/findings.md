@@ -383,6 +383,26 @@ whose answer keeps changing with the count stay near chance: sum of a..a+n−1 a
 5.6%. T5b's ~49% is therefore not evidence of iteration; the honest loop measures are T5a and these per-relation
 scores.
 
+## 18. 12-bit numbers (`experiments/bt/bt-width12-*`) — width is costly
+
+Same bit-token model and budget as `mix4` (10,000 updates, 8 rounds, no bit alignment), on 12-bit numbers (12
+answer-bit tokens; 999 examples now cover 0.006% of all (a, b) pairs instead of 1.5%):
+
+| | 8-bit | 12-bit |
+|---|---|---|
+| trained | 89.6% | 76.2% |
+| hidden | 57.5% | 15.0% |
+| product-then-step | 30.7% | 2.1% |
+| T1 / T2 / T3 | 61.3 / 46.9 / 45.6% | 27.7 / 28.2 / 24.3% |
+| T4 | 72.7% | 62.3% |
+| a*b | 91.8% | 14.1% |
+
+Bitwise operations, addition and subtraction carry over unchanged (99–100%); **multiplication collapses** and so
+does everything built on it. Confidence stays honest (sure answers 98–100% right). This fails the bar set for moving
+to 16 bits (within ~10 points of 8-bit). A product's carries run across every bit, so wider numbers need more
+sequential work per round or more rounds; simply widening the current model does not scale. The next attempt at
+width should combine bit-aligned reading (section 15), mixed widths in training, and more or adaptive rounds.
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

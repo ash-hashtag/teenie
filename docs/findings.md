@@ -341,6 +341,27 @@ sure 0.5%), at the cost of being sure less often overall (mean coverage 16.4% �
 point of the base model (T5 46.5% vs 46.0%). Loops are not short of rounds; more rounds alone do not teach the
 model to iterate.
 
+## 15. Bit-aligned reading — the best result so far (`experiments/bt/bt-aligned-*`)
+
+Same bit-token model, 10,000 updates on `mix4`, plus `--aligned`: every example is also split into one token per
+bit position (its vector, the position, and its own bits there and one position below), and answer bit k reads only
+the examples' bit-k tokens — the first model's per-position lookup, combined with bit tokens. +2,176 parameters
+(668,409 in all). The run was interrupted by a restart at ~7,000 updates and resumed exactly from its saved state.
+
+| | current (10k) | seed 1 (10k) | trained 20k | **aligned (10k)** |
+|---|---|---|---|---|
+| hidden | 57.5% | 52.6% | 62.3% | **64.2%** |
+| product-then-step | 30.7% | 23.4% | 34.1% | **35.4%** |
+| T1 / T2 / T3 | 61.3 / 46.9 / 45.6% | 59.2 / 43.8 / 45.1% | 65.3 / 49.1 / 47.6% | **77.0 / 55.1 / 54.3%** |
+| T4 | 72.7% | 72.3% | 74.9% | **76.4%** |
+| T5a / T5b | 39.7 / 49.2% | 41.3 / 48.5% | 41.8 / 50.4% | 38.5 / 51.4% |
+| a*b | 91.8% | 98.4% | 96.2% | 99.5% |
+
+At the same budget it beats both 10k seeds by **8–16 points on every held-out-combination tier** (T1–T3), well
+outside the ~5-point seed spread, and beats the 20,000-update model with half the training. It is the first model
+to clear the bar (≥50% with sure answers right ≥95%) on T1, T2, T3 and T4 together. Sure answers stay honest
+(99–100% right on every test group). Unseen loop bodies (T5a) do not improve. One seed so far.
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

@@ -1,4 +1,7 @@
 packages:
   - "."
+# Without this, @astrojs/check pulls in @emnapi/runtime@2.0.0-beta.2, which crashes on load
+# ("this.bridge.deleteEnv is not a function") and breaks `astro check`. The same override sits
+# in package.json under "pnpm" because pnpm 9 (Cloudflare's default) only reads it from there.
 overrides:
   "@emnapi/runtime": 1.11.3

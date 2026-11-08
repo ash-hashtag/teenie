@@ -429,6 +429,34 @@ every T4 relation and every sealed function is excluded by behaviour, so `a//b` 
 
 The broader vocabulary costs nothing at the same budget, so the final configuration uses it.
 
+## 21. The sealed set, evaluated once (`experiments/sealed/`, seed 61000)
+
+All candidates of this round, on the 24 everyday functions of `sealed.py` that were never used for a decision:
+
+| model | sealed exact | sure answers right |
+|---|---|---|
+| bit tokens, `mix4` (current) | 56.0% | 98.2% |
+| second seed | 54.6% | 97.5% |
+| trained 20,000 updates | **58.1%** | 98.6% |
+| bit-aligned | 55.7% | 99.6% |
+| every pair equally often | 56.2% | 98.8% |
+| loops up to 31 | 55.0% | 98.9% |
+| more concepts (`mix7`) | 57.6% | **99.8%** |
+| baselines (best of five per function, chosen after the fact) | 34.7% | — |
+
+- **Every model clears the bar on functions it was never selected on** (≥50% exact, sure answers ≥95% right), and
+  the two seeds agree within 1.5 points. This is the first evidence that the model is general rather than fitted
+  to our benchmarks.
+- **The ranking is flat.** Only longer training (+2.1) stands out; the other differences are within seed spread.
+- **Bit-aligned reading's +8–16 points on T1–T3 do not carry over** (55.7% vs 56.0%). It gains on some functions
+  (sum of squares 95% vs 70%, `((a+b)>>1)^b` 83% vs 69%) and loses on squares (`(a+b)^2` 29% vs 49%). Its large
+  gain is specific to relations shaped like our generator's; its honest confidence (99.6%) does carry over.
+- **`mix7`'s +1.6 comes mostly from one function that uses a trained concept**: `a>>(b&7)` 70.5% (46–57% for the
+  others). The exact function was excluded from training, but variable shifts were not. Without it, `mix7` is level
+  with the rest.
+- Hard for every model: `(a*b)>>4` (0–2%, the high half of a product), `(a+b)*(a-b)`, `a*b-a-b`, `7a+3b`,
+  `(a|1)*(b|1)` (19–31%), popcounts (25–34%).
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

@@ -587,6 +587,30 @@ thoroughly, the model does not put them together: it memorises each combination 
 without the bottleneck. With 52 combinations, memorising each is the cheapest solution. Next: data with far too
 many combinations to memorise while every part stays frequent (section 27).
 
+## 27. It does compose — except through a product (`chain_split.py`, `experiments/wide/chains-split-wide-32.json`)
+
+**Chains**: a start (`a*b`, `a+b`, `a-b`, `a^b`, `a&b`, `a|b`, `a*a`, `b*b`, `min`, `max`) followed by one or two steps, each
+one of 21 kinds (`+ - ^ | & *` with `a`, `b` or a fresh random constant; `>>1`, `<<1`, not). About one in seven
+(start, first step) pairs never appear together — including `a*b` then `+a` — and are the test.
+
+**A new measure, beyond lookup** (`teenie-bits-eval`, `beyond_lookup`): the model's exact rate on the questions that
+every lookup baseline gets wrong, so what it gets there cannot come from copying examples. On the never-trained
+conditional `a>b ? a-b : a+b` at 16 bits, lookup fails 62.5% of questions and the model gets 90% of those.
+
+**The stage-2 model, never trained on chains**, on held-out pairs at 16 bits (48 episodes per family):
+
+| held-out chains | exact | right where lookup fails |
+|---|---|---|
+| no product, 1 step | 99.0% | 96.7% of 152 |
+| no product, 2 steps | 93.1% | 84.3% of 121 |
+| with a product, 1 step | 10.7% | 9.3% of 257 |
+| with a product, 2 steps | 11.0% | 7.9% of 302 |
+
+**The model does compose relations it has never seen** — chains of additions, subtractions, bitwise operations,
+shifts and constants, in combinations never shown together, almost perfectly at 16 bits and mostly on questions
+lookup cannot answer. What fails is **a product as an intermediate step**: everything sections 22–26 called a
+composition failure was this one case. Next: why products, and only products, do not compose.
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

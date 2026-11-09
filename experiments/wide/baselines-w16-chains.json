@@ -1,0 +1,37 @@
+{
+  "checkpoint": null,
+  "train_set": "base",
+  "tests": null,
+  "width": 16,
+  "episodes": 64,
+  "queries": 16,
+  "seed": 60000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {},
+  "results": {
+    "selected": {
+      "chains": {
+        "nearest": 0.033203125,
+        "window1L": 0.2734375,
+        "window1H": 0.1708984375,
+        "window2L": 0.3271484375,
+        "window2H": 0.189453125
+      },
+      "chains, unseen pair, 1 step": {
+        "nearest": 0.025390625,
+        "window1L": 0.3095703125,
+        "window1H": 0.2099609375,
+        "window2L": 0.380859375,
+        "window2H": 0.2197265625
+      },
+      "chains, unseen pair, 2 steps": {
+        "nearest": 0.0234375,
+        "window1L": 0.3056640625,
+        "window1H": 0.2412109375,
+        "window2L": 0.353515625,
+        "window2H": 0.23828125
+      }
+    }
+  }
+}

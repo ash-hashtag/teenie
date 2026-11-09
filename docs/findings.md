@@ -643,6 +643,23 @@ product roughly double** — the first movement on composing through a product, 
 but stay far below; the model is almost never sure of them, and right when it is. The fixed checks `(a*b)+a` and
 `(a*b)^b` stayed at 0%, so the gain is on other product chains.
 
+## 29. Checking worked examples, on chains (`experiments/wide/wide-chains-peers-*`)
+
+Same chain training as section 28, plus deep checking: 64 examples per episode are worked through every round like
+questions, and the questions read them with their true answers (`--peers --probes 64`), so a guess such as "a
+product, then a step" can be checked against examples the model has worked through. Held-out pairs, 16 bits:
+
+| held-out chains | plain | with checking | sure, with checking (right when sure) |
+|---|---|---|---|
+| no product, 1 step | 100.0% | 100.0% | 98.6% (100%) |
+| no product, 2 steps | 97.0% | 97.7% | 84.5% (100%) |
+| through a product, 1 step | 21.7% | 22.8% | 5.1% (100%) |
+| through a product, 2 steps | 15.5% | 17.0% | 1.8% (100%) |
+
+One to one and a half points on product chains — within noise. Checking worked examples is not what products are
+missing. It does make the model sure more often on product chains it gets right (5.1% of questions instead of 0.4%),
+and those sure answers stayed right.
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

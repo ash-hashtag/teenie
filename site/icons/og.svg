@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#1a1a19"/>
+  <g transform="translate(96 150)">
+    <rect x="0" y="0" width="34" height="132" rx="10" fill="#3e3e3a"/>
+    <rect x="50" y="0" width="34" height="132" rx="10" fill="#3987e5"/>
+    <rect x="100" y="0" width="34" height="132" rx="10" fill="#3987e5"/>
+    <rect x="150" y="0" width="34" height="132" rx="10" fill="#3e3e3a"/>
+  </g>
+  <text x="96" y="400" fill="#f2f1ed" font-family="DejaVu Sans Mono, monospace" font-size="96" font-weight="700">teenie</text>
+  <text x="96" y="470" fill="#b9b7b0" font-family="DejaVu Sans, sans-serif" font-size="36">Inferring hidden integer relations from 999 examples</text>
+  <text x="96" y="526" fill="#8a8882" font-family="DejaVu Sans, sans-serif" font-size="28">16- and 32-bit numbers · one forward pass · results against lookup</text>
+</svg>

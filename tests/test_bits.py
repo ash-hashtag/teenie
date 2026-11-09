@@ -460,3 +460,21 @@ def test_wide_example_layers_extend_a_trained_model_unchanged():
     loss = deep.loss(deep(episode.context, episode.query, 16), episode.context, episode.target, 16)
     loss.backward()
     assert deep.thinking[0].out.weight.grad is not None
+
+
+def test_wide_code_bottleneck_reads_examples_only_through_the_code():
+    from teenie.bits.data import BitSampler
+    from teenie.bits.sets import TRAIN_SETS
+    from teenie.bits.wide_model import WideBitModel
+    torch.manual_seed(0)
+    model = WideBitModel(hidden=32, heads=2, layers=1, probes=2, steps=2, code_slots=3, code_layers=2)
+    episode = BitSampler(TRAIN_SETS['mix7'], 16, 0).sample(2, 3)
+    prediction = model(episode.context, episode.query, 16)
+    assert prediction.logits.shape == (2, 2, 5, 16)
+    loss = model.loss(prediction, episode.context, episode.target, 16)
+    loss.backward()
+    assert model.code.grad is not None and model.coder[0].key.weight.grad is not None
+    model.eval()
+    changed = episode.context.clone()
+    changed[:, :, 2] ^= 3  # different answers in the examples change the code, so the answers
+    assert not torch.allclose(model(episode.context, episode.query, 16).logits, model(changed, episode.query, 16).logits)

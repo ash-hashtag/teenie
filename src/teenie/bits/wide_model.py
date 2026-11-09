@@ -29,6 +29,13 @@ but not to work anything out — whether c = a*b + b holds for an example needs 
 layers, each example's bit tokens first attend to each other (bias per bit distance) and pass through a gated layer,
 this many times, so an example can be worked through before the questions read it. Every example is processed
 (999 × width tokens), so these layers recompute their activations in training to fit in memory.
+
+`code_slots`: a bottleneck between guessing the relation and applying it. A few code tokens per bit position read
+the examples (cross-attention to that bit of every example), share across bit positions and among themselves, for
+`code_layers` layers; the answer bits then read only these code tokens, never the examples. With no direct lookup of
+similar examples, an answer can only come from what the code holds about the relation — the separation of task
+inference from execution that lets in-context models combine known parts (Kobayashi et al., 2024). The code is free
+vectors, not a choice among fixed operations. Probes are not trained with a code (the code may hold their answers).
 """
 from typing import NotRequired, TypedDict
 
@@ -54,6 +61,58 @@ class WideConfig(TypedDict):
     peers: NotRequired[bool]
     registers: NotRequired[int]
     example_layers: NotRequired[int]
+    code_slots: NotRequired[int]
+    code_layers: NotRequired[int]
+
+
+class _CodeLayer(nn.Module):
+    """Code tokens [B, W, K, H] read their bit of every example, then attend across bit positions (bias per
+    distance) and among the slots at one position, then a gated layer."""
+
+    def __init__(self, hidden: int, heads: int, span: int) -> None:
+        super().__init__()
+        self.heads, self.span = heads, span
+        self.norm_read = nn.LayerNorm(hidden)
+        self.query = nn.Linear(hidden, hidden)
+        self.key = nn.Linear(hidden, hidden)
+        self.value = nn.Linear(hidden, hidden)
+        self.out_read = nn.Linear(hidden, hidden)
+        self.norm_bits = nn.LayerNorm(hidden)
+        self.qkv_bits = nn.Linear(hidden, 3 * hidden)
+        self.out_bits = nn.Linear(hidden, hidden)
+        self.distance = nn.Parameter(torch.zeros(heads, 2 * span - 1))
+        self.norm_slots = nn.LayerNorm(hidden)
+        self.qkv_slots = nn.Linear(hidden, 3 * hidden)
+        self.out_slots = nn.Linear(hidden, hidden)
+        self.feed = _Gated(hidden)
+
+    def _attend(self, x: Tensor, qkv: nn.Linear, out: nn.Linear, bias: Tensor | None = None) -> Tensor:
+        count, length, hidden = x.shape
+        q, k, v = qkv(x).view(count, length, 3, self.heads, hidden // self.heads).permute(2, 0, 3, 1, 4)
+        mixed = F.scaled_dot_product_attention(q, k, v, attn_mask=bias)
+        result: Tensor = out(mixed.transpose(1, 2).reshape(count, length, hidden))
+        return result
+
+    def forward(self, code: Tensor, examples: Tensor) -> Tensor:
+        """code [B, W, K, H]; examples [B * W, N, H] (bit k of every example)."""
+        batch, width, slots, hidden = code.shape
+        d = hidden // self.heads
+        flat = code.reshape(batch * width, slots, hidden)
+        q = self.query(self.norm_read(flat)).view(batch * width, slots, self.heads, d).transpose(1, 2)
+        k = self.key(examples).view(batch * width, -1, self.heads, d).transpose(1, 2)
+        v = self.value(examples).view(batch * width, -1, self.heads, d).transpose(1, 2)
+        found = F.scaled_dot_product_attention(q, k, v).transpose(1, 2).reshape(batch * width, slots, hidden)
+        flat = flat + self.out_read(found)
+        across = flat.view(batch, width, slots, hidden).transpose(1, 2).reshape(batch * slots, width, hidden)
+        position = torch.arange(width, device=code.device)
+        bias = self.distance[:, (position[:, None] - position[None, :]).clamp(1 - self.span, self.span - 1)
+                             + self.span - 1].to(across.dtype)
+        across = across + self._attend(self.norm_bits(across), self.qkv_bits, self.out_bits, bias)
+        flat = across.view(batch, slots, width, hidden).transpose(1, 2).reshape(batch * width, slots, hidden)
+        flat = flat + self._attend(self.norm_slots(flat), self.qkv_slots, self.out_slots)
+        flat = flat + self.feed(flat)
+        result: Tensor = flat.view(batch, width, slots, hidden)
+        return result
 
 
 class _ExampleLayer(nn.Module):
@@ -157,13 +216,15 @@ class _Seen(nn.Module):
 
 class WideBitModel(nn.Module):
     def __init__(self, hidden: int = 128, heads: int = 4, layers: int = 2, probes: int = 16, steps: int = 8,
-                 span: int = 32, peers: bool = False, registers: int = 0, example_layers: int = 0) -> None:
+                 span: int = 32, peers: bool = False, registers: int = 0, example_layers: int = 0,
+                 code_slots: int = 0, code_layers: int = 3) -> None:
         super().__init__()
         if hidden % heads or not 0 < probes <= CONTEXT_SIZE or min(layers, steps, span) < 1:
             raise ValueError('hidden must divide into heads; probes in 1..999; layers, steps, span >= 1')
         self.config: WideConfig = {'hidden': hidden, 'heads': heads, 'layers': layers, 'probes': probes,
                                    'steps': steps, 'span': span, 'peers': peers, 'registers': registers,
-                                   'example_layers': example_layers}
+                                   'example_layers': example_layers, 'code_slots': code_slots,
+                                   'code_layers': code_layers}
         self.example = nn.Sequential(_Seen(span, hidden), nn.GELU(), nn.Linear(hidden, hidden), nn.LayerNorm(hidden))
         self.ask = _Seen(span, hidden, registers)  # (a, b, current guess, registers) as seen from each answer bit
         self.layers = nn.ModuleList([_BitLayer(hidden, heads, span) for _ in range(layers)])
@@ -174,14 +235,18 @@ class WideBitModel(nn.Module):
         if peers:
             self.peers = nn.ModuleList([_Peers(hidden, heads) for _ in range(layers)])
         self.thinking = nn.ModuleList([_ExampleLayer(hidden, heads, span) for _ in range(example_layers)])
+        if code_slots:
+            self.code = nn.Parameter(torch.randn(code_slots, hidden) * .02)
+            self.coder = nn.ModuleList([_CodeLayer(hidden, heads, span) for _ in range(code_layers)])
         self.recompute = True
         self.hint = 1.
 
     def loss(self, prediction: LoopPrediction, context: Tensor, target: Tensor, width: int,
              steps: Tensor | None = None, step_counts: Tensor | None = None) -> Tensor:
-        if self.config.get('peers', False):
-            # Through two hops a probe can see its own answer (it reads a peer that has read it), so with peers only
-            # the questions — whose answers are never in the context — are trained.
+        if self.config.get('peers', False) or self.config.get('code_slots', 0):
+            # Through two hops a probe can see its own answer (it reads a peer that has read it), and a code read from
+            # every example may hold a probe's answer, so then only the questions — whose answers are never in the
+            # context — are trained.
             prediction = LoopPrediction(prediction.logits[:, :, :prediction.queries], prediction.queries)
         return answer_loss(prediction, context, target, width)
 
@@ -210,6 +275,12 @@ class WideBitModel(nn.Module):
             tokens = flat_tokens.view(batch, count, width, hidden)
         flat = tokens.transpose(1, 2).reshape(batch * width, count, hidden)
         d = hidden // heads
+        slots = self.config.get('code_slots', 0)
+        if slots:
+            code = self.code.expand(batch, width, slots, hidden)
+            for coder in self.coder:
+                code = checkpoint(coder, code, flat, use_reentrant=False) if self.training else coder(code, flat)
+            flat = code.reshape(batch * width, slots, hidden)  # the answer bits read only the code
         keys = [BitTokenModel._split(k(flat), heads, d) for k in self.keys]
         values = [BitTokenModel._split(v(flat), heads, d) for v in self.values]
         queries = asked.shape[1]
@@ -218,6 +289,8 @@ class WideBitModel(nn.Module):
         items = asked.shape[1]
         rows = torch.arange(items, device=bits.device)[:, None] - queries
         allowed = (rows != torch.arange(CONTEXT_SIZE, device=bits.device)[None, :]).repeat_interleave(width, 0)
+        if slots:
+            allowed = torch.ones(items * width, slots, dtype=torch.bool, device=bits.device)
         state = asked.new_zeros(batch * items * width, hidden)
         guess = asked.new_zeros(batch, items, 1 + self.config.get('registers', 0), width)  # answer, registers
         outputs = []

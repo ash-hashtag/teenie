@@ -112,15 +112,35 @@ CHAIN_HELD: frozenset[tuple[int, int]] = frozenset(
     | {(0, 0)})  # (a*b, +a)
 
 
-def chain_family(held: bool, steps: tuple[int, int] = (1, 2), name: str | None = None) -> Family:
+# Product starts (section 29): products of simple pieces, so that half the training can go through a product.
+PRODUCT_STARTS: tuple[tuple[str, Tree], ...] = (
+    ('a*b', ('*', 'a', 'b')), ('a*a', ('*', 'a', 'a')), ('b*b', ('*', 'b', 'b')),
+    ('(a+1)*b', ('*', ('+', 'a', 1), 'b')), ('a*(b+1)', ('*', 'a', ('+', 'b', 1))),
+    ('(a^b)*b', ('*', ('^', 'a', 'b'), 'b')), ('(a|b)*a', ('*', ('|', 'a', 'b'), 'a')),
+    ('(a-b)*b', ('*', ('-', 'a', 'b'), 'b')), ('(a+b)*(a-b)', ('*', ('+', 'a', 'b'), ('-', 'a', 'b'))),
+    ('(a>>1)*b', ('*', ('>>1', 'a'), 'b')),
+)
+
+
+def chain_held(start: str, step: int) -> bool:
+    """Whether a (start, first step) pair is held out of all chain training — the same rule for every chain
+    family, so a pair held out of one is never trained in another."""
+    names = [name for name, _ in CHAIN_STARTS]
+    if start in names:
+        return (names.index(start), step) in CHAIN_HELD
+    return (3 * sum(map(ord, start)) + 5 * step) % 7 == 0
+
+
+def chain_family(held: bool, steps: tuple[int, int] = (1, 2), name: str | None = None,
+                 starts: tuple[tuple[str, Tree], ...] = CHAIN_STARTS) -> Family:
     """A start then `steps` steps. `held`: the (start, first step) pair is held out (test); otherwise never."""
     def draw(generator: torch.Generator, width: int) -> Tree:
         while True:
-            start = int(torch.randint(0, len(CHAIN_STARTS), (), generator=generator))
+            start = int(torch.randint(0, len(starts), (), generator=generator))
             first = int(torch.randint(0, len(CHAIN_STEPS), (), generator=generator))
-            if ((start, first) in CHAIN_HELD) == held:
+            if chain_held(starts[start][0], first) == held:
                 break
-        tree: Tree = CHAIN_STARTS[start][1]
+        tree: Tree = starts[start][1]
         count = int(torch.randint(steps[0], steps[1] + 1, (), generator=generator))
         for index in range(count):
             step = first if index == 0 else int(torch.randint(0, len(CHAIN_STEPS), (), generator=generator))
@@ -141,6 +161,9 @@ def chain_family(held: bool, steps: tuple[int, int] = (1, 2), name: str | None =
 CHAINS: Family = chain_family(False)
 CHAINS_UNSEEN: Family = chain_family(True, (1, 1), 'chains, unseen pair, 1 step')
 CHAINS_UNSEEN2: Family = chain_family(True, (2, 2), 'chains, unseen pair, 2 steps')
+PRODUCT_CHAINS: Family = chain_family(False, name='product chains', starts=PRODUCT_STARTS)
+PRODUCT_CHAINS_UNSEEN: Family = chain_family(True, (1, 1), 'product chains, unseen pair, 1 step', PRODUCT_STARTS)
+PRODUCT_CHAINS_UNSEEN2: Family = chain_family(True, (2, 2), 'product chains, unseen pair, 2 steps', PRODUCT_STARTS)
 # The difficulty ladder (see docs/findings.md): T1-T3 always contain a held-out combination.
 TIERS: dict[str, tuple[Family, ...]] = {
     'T1': (expression_family(2, FORBIDDEN, 'T1 2 ops', 2., HELD_PAIRS, require_pair=True),),
@@ -183,6 +206,7 @@ TRAIN_SETS: dict[str, tuple[Family, ...]] = {
     'compose': COMPOSE,
     'grid': GRID_TRAIN,
     'chains': (CHAINS,),
+    'chains-products': (CHAINS, PRODUCT_CHAINS),  # half the episodes through a product (adaptive sampling)
     **{f'ps-pool{size}': (family,) for size, family in POOLS.items()},
     'near-only': NEAR_FAMILIES,  # diagnostic: can the model compute "a product, then another step" at all?
     # diagnostic: random products-then-a-step only; tested on fresh ones (fit) and on hidden compositions such as
@@ -192,7 +216,8 @@ TRAIN_SETS: dict[str, tuple[Family, ...]] = {
 
 ALL_NAMED: dict[str, Family] = {**NAMED, **{f.name: f for f in HIDDEN_FAMILIES + NEAR_FAMILIES + EXPRESSIONS + DEEPER
                                               + STEPS + DEEPER2 + LOOPS + (PRODUCT_STEP, PAIRS) + LOOPS31 + CONCEPT_STEPS + TARGET + GRID_TRAIN + GRID_UNSEEN
-                                              + (CHAINS, CHAINS_UNSEEN, CHAINS_UNSEEN2)
+                                              + (CHAINS, CHAINS_UNSEEN, CHAINS_UNSEEN2, PRODUCT_CHAINS,
+                                                 PRODUCT_CHAINS_UNSEEN, PRODUCT_CHAINS_UNSEEN2)
                                               + SEALED_FAMILIES
                                               + tuple(f for tier in TIERS.values() for f in tier)}}
 
@@ -209,8 +234,9 @@ def test_groups(train_set: str) -> dict[str, tuple[Family, ...]]:
         groups |= {'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER}
     if train_set == 'mix2':
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER2}
-    if train_set == 'chains':
-        groups |= {'unseen': (CHAINS_UNSEEN, CHAINS_UNSEEN2), 'hidden': HIDDEN_FAMILIES}
+    if train_set in ('chains', 'chains-products'):
+        groups |= {'unseen': (CHAINS_UNSEEN, CHAINS_UNSEEN2, PRODUCT_CHAINS_UNSEEN, PRODUCT_CHAINS_UNSEEN2),
+                   'hidden': HIDDEN_FAMILIES}
     if train_set == 'grid':
         groups |= {'unseen': GRID_UNSEEN, 'hidden': HIDDEN_FAMILIES}
     if train_set.startswith('ps-pool'):

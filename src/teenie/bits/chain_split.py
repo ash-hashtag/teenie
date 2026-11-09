@@ -1,8 +1,8 @@
 """Exact and beyond-lookup accuracy on held-out chain pairs, split by whether the chain contains a product.
 
-uv run python -m teenie.bits.chain_split checkpoints/wide/wide-32.pt experiments/wide/chains-split-wide-32.json [width]
+uv run python -m teenie.bits.chain_split checkpoints/wide/wide-32.pt experiments/wide/chains-split-wide-32.json [width] [products]
 
-Also how often the model is sure (least certain bit >= 0.99) and how often its sure answers are right: a low score
+With `products`, also the product-start chains (section 29). Also how often the model is sure (least certain bit >= 0.99) and how often its sure answers are right: a low score
 is still useful if the model knows which of its answers are the right ones.
 """
 import json
@@ -12,17 +12,23 @@ import torch
 from teenie.bits.checkpoint import load_bit_model
 from teenie.bits.data import BitSampler
 from teenie.bits.baselines import nearest, window_lookup
-from teenie.bits.sets import CHAINS_UNSEEN, CHAINS_UNSEEN2
+from teenie.bits.sets import CHAINS_UNSEEN, CHAINS_UNSEEN2, PRODUCT_CHAINS_UNSEEN, PRODUCT_CHAINS_UNSEEN2
 
 model, metadata = load_bit_model(sys.argv[1], 'cpu')
 width = int(sys.argv[3]) if len(sys.argv) > 3 else 16
 stats: dict[str, list[int]] = {}
 with torch.no_grad():
-    for family in (CHAINS_UNSEEN, CHAINS_UNSEEN2):
+    families = (CHAINS_UNSEEN, CHAINS_UNSEEN2) + ((PRODUCT_CHAINS_UNSEEN, PRODUCT_CHAINS_UNSEEN2)
+                                                  if len(sys.argv) > 4 and sys.argv[4] == 'products' else ())
+    for family in families:
         sampler = BitSampler([family], width, 60000)
         for _ in range(48):
             e = sampler.sample(1, 16)
-            kind = ('product' if '*' in e.names[0] else 'no product') + (' 1 step' if family is CHAINS_UNSEEN else ' 2 steps')
+            steps = ' 1 step' if family in (CHAINS_UNSEEN, PRODUCT_CHAINS_UNSEEN) else ' 2 steps'
+            if family in (PRODUCT_CHAINS_UNSEEN, PRODUCT_CHAINS_UNSEEN2):
+                kind = 'product start' + steps
+            else:
+                kind = ('product' if '*' in e.names[0] else 'no product') + steps
             prediction = model(e.context, e.query, width)
             right = (prediction.values() == e.target).flatten()
             sure = (prediction.confidence() >= .99).flatten()

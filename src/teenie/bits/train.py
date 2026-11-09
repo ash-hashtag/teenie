@@ -105,8 +105,9 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
     if init is not None:
         loaded, init_metadata = load_bit_model(init, selected)
         # Rounds reuse the same weights, so continuing with a different number of rounds is allowed.
-        # Rounds reuse the same weights; a width-free model may also gain peer reading or registers.
-        optional = {'steps', 'peers', 'registers', 'example_layers', 'code_slots', 'code_layers', 'code_film'}
+        # Rounds reuse the same weights, the number of probes has no weights, and a width-free model may also gain
+        # peer reading, registers, example layers or a relation code.
+        optional = {'steps', 'probes', 'peers', 'registers', 'example_layers', 'code_slots', 'code_layers', 'code_film'}
         same = ({k: v for k, v in loaded.config.items() if k not in optional}
                 == {k: v for k, v in model.config.items() if k not in optional})
         if type(loaded) is not type(model) or not same:

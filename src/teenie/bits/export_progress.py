@@ -109,6 +109,15 @@ WIDE = [(16, 'experiments/wide/wide-32-w16-eval.json', 'experiments/sealed/wide-
           'experiments/wide/baselines-w32-T4.json', 'experiments/wide/baselines-w32-near.json',
           'experiments/wide/baselines-w32-T2T3.json'))]
 
+# Product chains at 16 bits as training progressed (held-out start-step pairs; chain_split.py), oldest first.
+PRODUCT_STAGES = [
+    ('General model, no chain training', 'experiments/wide/chains-split-wide-32.json'),
+    ('Trained on chains', 'experiments/wide/chains-split-wide-chains.json'),
+    ('Product-heavy chains', 'experiments/wide/chains-split-wide-chains-products-w16.json'),
+    ('Scratch registers', 'experiments/wide/chains-split-wide-chains-registers-w16.json'),
+    ('Scratch registers, trained longer', 'experiments/wide/chains-split-wide-chains-registers-long-w16.json'),
+]
+
 LADDER = ('target', 'T1', 'T2', 'T3', 'T4', 'T5a', 'T5b', 'hidden', 'near')
 HIGHLIGHTS = ('a*b', 'a*b+a', 'min', '3a', 'transducer')
 
@@ -231,8 +240,11 @@ def main() -> None:
             model, _ = load_bit_model(root / checkpoint)
             if isinstance(model, BitTokenModel):
                 architectures[identifier] = {'title': title, 'checkpoint': checkpoint, **bit_token_parts(model)}
+    products = [{'stage': stage, 'summary': json.loads((root / path).read_text())['summary']}
+                for stage, path in PRODUCT_STAGES if (root / path).exists()]
     Path(args.out).write_text(json.dumps({'ladder': list(LADDER), 'tiers': tiers, 'experiments': found,
-                                          'architectures': architectures, 'wide': wide(root)}))
+                                          'architectures': architectures, 'wide': wide(root),
+                                          'products': products}))
     print(f'exported {len(found)} experiments to {args.out}')
 
 

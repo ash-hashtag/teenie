@@ -15,3 +15,7 @@ archive/
 
 # Console logs from runs; the .json/.jsonl next to them hold the results
 experiments/**/*.out
+
+# Checkpoint copies and markers written by the training checker
+experiments/**/snapshot.pt
+experiments/**/check-final

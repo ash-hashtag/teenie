@@ -149,6 +149,7 @@ export type Progress = {
   experiments: Experiment[];
   architectures: Record<string, Architecture>;
   wide: { checkpoint: string; parameters: number | null; widths: Record<string, WideWidth> };
+  products: { stage: string; summary: Record<string, { exact: number; sure_coverage?: number; sure_accuracy?: number | null }> }[];
 };
 
 export const progress = progressJson as unknown as Progress;

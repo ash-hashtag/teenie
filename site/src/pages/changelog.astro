@@ -314,22 +314,56 @@ const phases = [
         half the time, but combined known parts no better.
       </p>
     </li>
+
+    <li class="card">
+      <p class="eyebrow">Why products are hard</p>
+      <h3>Matching examples runs out at bit 5</h3>
+      <p>
+        On a product chain such as <code>(a*b)+a</code> the model got bits 0–4 right and was guessing from bit 6. Without a
+        rule to compute, it matches examples on the input bits that matter. An addition's bit depends on three things,
+        so there are always matches; a product's bit k depends on every lower bit of both numbers — 4^(k+1) patterns —
+        and 999 examples run out of matches around bit 4–5, at any width. Product-heavy training data and checking worked
+        examples each moved this only a little.
+      </p>
+    </li>
+
+    <li class="card result">
+      <p class="eyebrow">Scratch registers</p>
+      <h3>Computing through the product</h3>
+      <p>
+        Two scratch numbers per question and per worked example, written and read back every round — room for an
+        intermediate value, with nothing about products built in. On the never-trained <code>(a*b)+a</code> the bits
+        matching cannot reach rose from about 65% to about 77% right, and held-out product chains at 16 bits reached
+        {` ${pct(progress.products.at(-1)?.summary['product 1 step']?.exact)} for one step`}, with sure answers
+        right. At 32 bits they are still at zero. <a href={`${base}/`}>The progression on the overview →</a>
+      </p>
+    </li>
+
+    <li class="card">
+      <p class="eyebrow">Now</p>
+      <h3>Registers, trained longer</h3>
+      <p>
+        Product chains were still improving at the end of the first registers run, so it continues on the same
+        product-heavy chains at 16 bits, checked at every saved checkpoint.
+      </p>
+    </li>
   </ol>
 
   <h2>Where it goes next</h2>
   <div class="grid-3">
     <div class="card">
-      <h3>If composing appears</h3>
+      <h3>Products at 32 bits</h3>
       <p class="small">
-        Scale it: the target is unseen multi-step expressions at 32 bits, such as
-        <code>((a*b)^(a&gt;&gt;3))|(b+9)</code>, where even 25% exact could not be luck.
+        Everything about products so far is at 16 bits; at 32 bits even <code>a*b</code> alone is not learned yet. Then the
+        target: unseen multi-step expressions such as <code>((a*b)^(a&gt;&gt;3))|(b+9)</code> at 32 bits, where even 25%
+        exact with honest confidence would be useful.
       </p>
     </div>
     <div class="card">
-      <h3>If it does not</h3>
+      <h3>Every step after a product</h3>
       <p class="small">
-        Then this design memorises compositions instead of generalising them, and needs a structural change — still
-        guessing the relation in one pass, never searching or fine-tuning at answer time.
+        Registers helped an addition after a product but not yet an xor. Product chains from new kinds of products are
+        still weak.
       </p>
     </div>
     <div class="card">

@@ -1,0 +1,170 @@
+{
+  "checkpoint": "checkpoints/wide/wide-ps16-peers.pt",
+  "train_set": "product-step-only",
+  "tests": null,
+  "width": 16,
+  "episodes": 64,
+  "queries": 16,
+  "seed": 60000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {
+    "train": {
+      "exact": 0.23828125,
+      "sure_accuracy": 1.0,
+      "won": false
+    },
+    "heldout": {
+      "exact": 0.9966796875,
+      "sure_accuracy": 0.9999999770036156,
+      "won": true
+    },
+    "stress": {
+      "exact": 0.49609375,
+      "sure_accuracy": 1.0,
+      "won": false
+    },
+    "near": {
+      "exact": 0.014892578125,
+      "sure_accuracy": null,
+      "won": false
+    },
+    "hidden": {
+      "exact": 0.356201171875,
+      "sure_accuracy": 1.0,
+      "won": false
+    }
+  },
+  "results": {
+    "train": {
+      "product-step": {
+        "exact": 0.23828125,
+        "bit": 0.81451416015625,
+        "sure_coverage": 0.0546875,
+        "sure_accuracy": 1.0
+      }
+    },
+    "heldout": {
+      "a+b+1": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.998046875,
+        "sure_accuracy": 1.0
+      },
+      "a-2b": {
+        "exact": 0.9951171875,
+        "bit": 0.99969482421875,
+        "sure_coverage": 0.8662109375,
+        "sure_accuracy": 0.9999999403953552
+      },
+      "min": {
+        "exact": 0.9912109375,
+        "bit": 0.997802734375,
+        "sure_coverage": 0.8876953125,
+        "sure_accuracy": 1.0
+      },
+      "nand": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.998046875,
+        "sure_accuracy": 1.0
+      },
+      "3a": {
+        "exact": 0.9970703125,
+        "bit": 0.999755859375,
+        "sure_coverage": 0.9453125,
+        "sure_accuracy": 0.9999999403953552
+      }
+    },
+    "stress": {
+      "a*(b&63)": {
+        "exact": 0.0029296875,
+        "bit": 0.7158203125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*b": {
+        "exact": 0.9892578125,
+        "bit": 0.99920654296875,
+        "sure_coverage": 0.4580078125,
+        "sure_accuracy": 1.0
+      }
+    },
+    "near": {
+      "a*b+b": {
+        "exact": 0.0009765625,
+        "bit": 0.69598388671875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*b+5": {
+        "exact": 0.05078125,
+        "bit": 0.78125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*b-a": {
+        "exact": 0.0048828125,
+        "bit": 0.680419921875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*b)^a": {
+        "exact": 0.0029296875,
+        "bit": 0.6998291015625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      }
+    },
+    "hidden": {
+      "a*b+a": {
+        "exact": 0.001953125,
+        "bit": 0.7000732421875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*a": {
+        "exact": 0.0380859375,
+        "bit": 0.81854248046875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a+1)*(b+1)": {
+        "exact": 0.0009765625,
+        "bit": 0.6826171875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a^b)*3": {
+        "exact": 0.0263671875,
+        "bit": 0.793212890625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "|a-b|": {
+        "exact": 0.8837890625,
+        "bit": 0.97113037109375,
+        "sure_coverage": 0.1318359375,
+        "sure_accuracy": 1.0
+      },
+      "(a+b)>>1": {
+        "exact": 0.9951171875,
+        "bit": 0.99951171875,
+        "sure_coverage": 0.2958984375,
+        "sure_accuracy": 1.0
+      },
+      "(a*b)^b": {
+        "exact": 0.0009765625,
+        "bit": 0.6943359375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a<<1)+(b>>1)": {
+        "exact": 0.90234375,
+        "bit": 0.99053955078125,
+        "sure_coverage": 0.2822265625,
+        "sure_accuracy": 1.0
+      }
+    }
+  }
+}

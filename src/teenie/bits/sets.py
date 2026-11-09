@@ -1,8 +1,8 @@
 """Named training sets and the test groups that go with them."""
 import torch
 Report = dict[str, float | None]
-from .expressions import (CONCEPTS, HIDDEN_FAMILIES, NEAR_FAMILIES, Pair, composed_family, expression_family,
-                          named, pair_family, product_step_family)
+from .expressions import (CONCEPTS, HIDDEN_FAMILIES, NEAR_FAMILIES, Pair, Tree, composed_family,
+                          expression_family, named, pair_family, product_step_family)
 from .loops import NEW_OPERATIONS, bit_loop_family, hidden_bit_loops, hidden_loops, loop_family
 from .sealed import SEALED_FAMILIES
 from .relations import (BLOCK_FAMILIES, HELDOUT_FAMILIES, MULTIPLY, NAMED, STRESS_FAMILIES, TRAIN_FAMILIES,
@@ -68,6 +68,33 @@ def pool_family(base: Family, size: int, seed: int = 123, name: str | None = Non
 
 # The diversity ladder (section 25): pools of 16, 64 and 256 product-then-step relations.
 POOLS: dict[int, Family] = {size: pool_family(PRODUCT_STEP, size) for size in (16, 64, 256)}
+# Composition grid (diagnostic only, section 26): 8 product-like first steps × 8 second steps. 52 cells are
+# trained, each seen often; 12 are held out so that every first step and every second step is still trained in
+# other combinations. Held-out cells test combining known parts in an unseen way. Real relations are not limited to
+# a grid like this; it only isolates that one question.
+GRID_FIRST: tuple[tuple[str, Tree], ...] = (
+    ('a*b', ('*', 'a', 'b')), ('a*a', ('*', 'a', 'a')), ('b*b', ('*', 'b', 'b')),
+    ('(a+1)*b', ('*', ('+', 'a', 1), 'b')), ('a*(b>>1)', ('*', 'a', ('>>1', 'b'))),
+    ('(a^b)*a', ('*', ('^', 'a', 'b'), 'a')), ('(a|b)*b', ('*', ('|', 'a', 'b'), 'b')),
+    ('(a-b)*(a+b)', ('*', ('-', 'a', 'b'), ('+', 'a', 'b'))),
+)
+GRID_SECOND: tuple[tuple[str, str, Tree | None], ...] = (
+    ('+a', '+', 'a'), ('+b', '+', 'b'), ('^a', '^', 'a'), ('^b', '^', 'b'), ('-a', '-', 'a'), ('-b', '-', 'b'),
+    ('|b', '|', 'b'), ('>>1', '>>1', None),
+)
+GRID_HELD: frozenset[tuple[int, int]] = frozenset({(i, i) for i in range(8)} | {(i, (i + 4) % 8) for i in range(4)})
+
+
+def _grid_cell(i: int, j: int) -> Family:
+    (first_name, first), (second_name, op, operand) = GRID_FIRST[i], GRID_SECOND[j]
+    tree: Tree = (op, first) if operand is None else (op, first, operand)
+    return named(f'({first_name}){second_name}', tree)
+
+
+GRID_TRAIN: tuple[Family, ...] = tuple(_grid_cell(i, j) for i in range(8) for j in range(8) if (i, j) not in GRID_HELD)
+GRID_UNSEEN: tuple[Family, ...] = tuple(_grid_cell(i, j) for i, j in sorted(GRID_HELD))
+
+
 # The difficulty ladder (see docs/findings.md): T1-T3 always contain a held-out combination.
 TIERS: dict[str, tuple[Family, ...]] = {
     'T1': (expression_family(2, FORBIDDEN, 'T1 2 ops', 2., HELD_PAIRS, require_pair=True),),
@@ -108,6 +135,7 @@ TRAIN_SETS: dict[str, tuple[Family, ...]] = {
     'mix6': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS31 + (PRODUCT_STEP,),
     'mix7': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + (PRODUCT_STEP,) + CONCEPT_STEPS,
     'compose': COMPOSE,
+    'grid': GRID_TRAIN,
     **{f'ps-pool{size}': (family,) for size, family in POOLS.items()},
     'near-only': NEAR_FAMILIES,  # diagnostic: can the model compute "a product, then another step" at all?
     # diagnostic: random products-then-a-step only; tested on fresh ones (fit) and on hidden compositions such as
@@ -116,7 +144,7 @@ TRAIN_SETS: dict[str, tuple[Family, ...]] = {
 }
 
 ALL_NAMED: dict[str, Family] = {**NAMED, **{f.name: f for f in HIDDEN_FAMILIES + NEAR_FAMILIES + EXPRESSIONS + DEEPER
-                                              + STEPS + DEEPER2 + LOOPS + (PRODUCT_STEP, PAIRS) + LOOPS31 + CONCEPT_STEPS + TARGET
+                                              + STEPS + DEEPER2 + LOOPS + (PRODUCT_STEP, PAIRS) + LOOPS31 + CONCEPT_STEPS + TARGET + GRID_TRAIN + GRID_UNSEEN
                                               + SEALED_FAMILIES
                                               + tuple(f for tier in TIERS.values() for f in tier)}}
 
@@ -133,6 +161,8 @@ def test_groups(train_set: str) -> dict[str, tuple[Family, ...]]:
         groups |= {'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER}
     if train_set == 'mix2':
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER2}
+    if train_set == 'grid':
+        groups |= {'unseen': GRID_UNSEEN, 'hidden': HIDDEN_FAMILIES}
     if train_set.startswith('ps-pool'):
         # fresh draws from the whole family (mostly outside the pool), and relations it never produces
         groups |= {'family': (PRODUCT_STEP,), 'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES}

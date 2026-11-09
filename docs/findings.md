@@ -660,6 +660,35 @@ One to one and a half points on product chains — within noise. Checking worked
 missing. It does make the model sure more often on product chains it gets right (5.1% of questions instead of 0.4%),
 and those sure answers stayed right.
 
+## 30. Product-heavy chains (`experiments/wide/wide-chains-products-*`)
+
+Continuing the chain-trained model (section 28) for 8,000 updates at 16 bits on `chains-products`: half general
+chains, half chains from ten product starts (`a*b`, `a*a`, `b*b`, `(a+1)*b`, `a*(b+1)`, `(a^b)*b`, `(a|b)*a`,
+`(a-b)*b`, `(a+b)*(a-b)`, `(a>>1)*b`) — adaptive sampling settled at 62% product chains. Held-out pairs follow one
+rule across all chain families (`chain_held`), so no pair held out of one family is trained in another.
+
+| held-out | 16 bits | 32 bits |
+|---|---|---|
+| no product 1 step | 100.0% (sure 98%, right 100%) | 95.2% (sure 77%, right 100%) |
+| no product 2 steps | 96.5% (sure 85%, right 100%) | 84.5% (sure 61%, right 100%) |
+| product 1 step | 25.4% (sure 4%, right 100%) | 0.0% (sure 0%) |
+| product 2 steps | 17.6% (sure 0%, right 100%) | 0.3% (sure 0%) |
+| product start 1 step | 2.9% (sure 0%) | 0.0% (sure 0%) |
+| product start 2 steps | 7.8% (sure 0%, right 100%) | 2.1% (sure 2%, right 100%) |
+
+- Product chains moved only a little at 16 bits (21.7 → 25.4% for one step, 15.5 → 17.6% for two) and stay at zero
+  at 32 bits; held-out chains from the new product starts are 3–8%. **The product chains it trains on most stayed
+  at 11–14% for all 8,000 updates** — data alone teaches products far too slowly.
+- Why it stops where it does: on `(a*b)+a` the model gets bits 0–4 right and is at chance from bit 6. Without a
+  recognised rule it matches examples on the input bits that matter; a product's bit k depends on 2(k+1) input bits,
+  i.e. 4^(k+1) patterns, and 999 examples (about 2^10) run out of matches around bit 4–5 at any width. `a*b` alone
+  is right at every bit because a learned product computation handles it; that computation does not switch on once
+  another step follows.
+- Chains without a product kept improving: 95.2% / 84.5% at 32 bits, sure on 77% / 61% of them and right 99.6%.
+
+Next: room for intermediate values that examples and questions can match on — if the model keeps `a*b` in a
+scratch register, `(a*b)+a` becomes as local as addition at every bit.
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

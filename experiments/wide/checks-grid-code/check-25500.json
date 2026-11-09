@@ -1,0 +1,94 @@
+{
+  "checkpoint": "experiments/wide/checks-grid-code/snapshot.pt",
+  "train_set": "grid",
+  "tests": null,
+  "width": 16,
+  "episodes": 16,
+  "queries": 16,
+  "seed": 70000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {
+    "selected": {
+      "exact": 0.24609375,
+      "sure_accuracy": 0.8503740649308053,
+      "won": false
+    }
+  },
+  "results": {
+    "selected": {
+      "(a*b)+b": {
+        "exact": 0.9375,
+        "bit": 0.99560546875,
+        "sure_coverage": 0.515625,
+        "sure_accuracy": 1.0
+      },
+      "(a*a)^a": {
+        "exact": 0.0625,
+        "bit": 0.82470703125,
+        "sure_coverage": 0.00390625,
+        "sure_accuracy": 1.0
+      },
+      "(b*b)+a": {
+        "exact": 0.04296875,
+        "bit": 0.781005859375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a+1)*b)-a": {
+        "exact": 0.89453125,
+        "bit": 0.99072265625,
+        "sure_coverage": 0.0703125,
+        "sure_accuracy": 1.0
+      },
+      "(a*b)+a": {
+        "exact": 0.02734375,
+        "bit": 0.65283203125,
+        "sure_coverage": 0.03125,
+        "sure_accuracy": 0.0
+      },
+      "(a*a)-b": {
+        "exact": 0.0,
+        "bit": 0.599853515625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(b*b)^a": {
+        "exact": 0.015625,
+        "bit": 0.717529296875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a+1)*b)^b": {
+        "exact": 0.01171875,
+        "bit": 0.555419921875,
+        "sure_coverage": 0.203125,
+        "sure_accuracy": 0.01923076994717121
+      },
+      "((a^b)*a)-b": {
+        "exact": 0.0,
+        "bit": 0.556884765625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a-b)*(a+b))>>1": {
+        "exact": 0.0,
+        "bit": 0.57470703125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*b": {
+        "exact": 0.9609375,
+        "bit": 0.996826171875,
+        "sure_coverage": 0.73828125,
+        "sure_accuracy": 1.0
+      },
+      "add": {
+        "exact": 0.0,
+        "bit": 0.548583984375,
+        "sure_coverage": 0.00390625,
+        "sure_accuracy": 0.0
+      }
+    }
+  }
+}

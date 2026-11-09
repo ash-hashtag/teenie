@@ -553,6 +553,26 @@ to a grid like this.)
 - **Reading:** a little transfer, far below the cells themselves. The model memorises combinations rather than
   composing known parts. Next: separate guessing the relation from applying it (section 26).
 
+## 26. Guess the relation first, then apply it: a relation-code bottleneck (`experiments/wide/wide-grid-code*`)
+
+`--code-slots 8 --code-layers 2`: 8 code tokens per bit position read that bit of every example, share across bit
+positions and among themselves (2 layers), and the answer bits read only these code tokens, never the examples —
+no direct lookup of similar examples, so an answer can only come from what the code holds about the relation. One
+forward pass, nothing fitted at answer time, and the code is free vectors, not a choice among operations. Added to
+the stage-2 model (its weights reused, the code layers new), trained on the same grid as section 25:
+
+| 6,000 updates at 16 bits | plain | bottleneck |
+|---|---|---|
+| trained cells at ≥50% | 9 of 52 | **11 of 52** |
+| mean on trained cells | 18.0% | **23.6%** |
+| mean on held-out cells | 3.9% | 1.4% |
+| time per update | 0.58 s | **0.30 s** |
+
+The bottleneck learns trained combinations faster, in half the time (answer bits read 8 code tokens instead of
+999 examples). Neither combines known parts yet — but both learned only about a fifth of the grid, so most held-out
+cells have parts that are learned in few combinations. A longer run trains the bottleneck until most of the grid is
+learned before judging the held-out cells.
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

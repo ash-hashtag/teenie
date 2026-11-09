@@ -1,0 +1,88 @@
+{
+  "checkpoint": "experiments/wide/checks-ps16-deep/snapshot.pt",
+  "train_set": "product-step-only",
+  "tests": null,
+  "width": 16,
+  "episodes": 16,
+  "queries": 16,
+  "seed": 70000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {
+    "selected": {
+      "exact": 0.2950994318181818,
+      "sure_accuracy": 1.0,
+      "won": false
+    }
+  },
+  "results": {
+    "selected": {
+      "product-step": {
+        "exact": 0.12109375,
+        "bit": 0.781982421875,
+        "sure_coverage": 0.0234375,
+        "sure_accuracy": 1.0
+      },
+      "a*b+b": {
+        "exact": 0.00390625,
+        "bit": 0.7021484375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*b)^a": {
+        "exact": 0.0,
+        "bit": 0.695068359375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*b+a": {
+        "exact": 0.0,
+        "bit": 0.709228515625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*b)^b": {
+        "exact": 0.0,
+        "bit": 0.694091796875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a+1)*(b+1)": {
+        "exact": 0.0078125,
+        "bit": 0.697998046875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*b": {
+        "exact": 0.9765625,
+        "bit": 0.998046875,
+        "sure_coverage": 0.30078125,
+        "sure_accuracy": 1.0
+      },
+      "add": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.99609375,
+        "sure_accuracy": 1.0
+      },
+      "xor": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.9921875,
+        "sure_accuracy": 1.0
+      },
+      "T6 4-6 ops, all concepts": {
+        "exact": 0.109375,
+        "bit": 0.726318359375,
+        "sure_coverage": 0.00390625,
+        "sure_accuracy": 1.0
+      },
+      "((a*b)^(a>>3))|(b+9)": {
+        "exact": 0.02734375,
+        "bit": 0.7724609375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      }
+    }
+  }
+}

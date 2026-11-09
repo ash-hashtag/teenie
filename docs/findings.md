@@ -518,6 +518,22 @@ Next: search at answer time (Latent Program Network, Bonnet & Macfarlane): encod
 vector, compute answers from it, and at answer time refine the vector by gradient descent until it reproduces the
 examples, with the weights frozen.
 
+## 24. Deep example processing does not help either; relations are learned one by one (`wide-ps16-deep`)
+
+**Example layers** (`--example-layers 4`, 1.6M parameters): before the questions read them, each example's bit
+tokens attend to each other and pass through a gated layer, four times, so an example can be worked through
+(e.g. its own a*b) instead of read through one shallow layer. Added to the stage-2 model with zero outputs, then
+trained on random product-then-step relations at 16 bits like section 23. The layers trained (their weights moved
+well off zero), but the loss tracked the plain run to within 0.001 at every check, and every product-then-step
+relation stayed at 0–1% through 3,000 updates (checked every 500 updates, 16 episodes each). Stopped at the
+halfway point.
+
+**Why nothing has helped.** `a*b+b` is itself in the random product-then-step family: 0.35% of its episodes
+(`a*b-a` 0.25%), about 170 episodes over a run — and the model still scores 0% on it. Given four relations at 25%
+of episodes each, it learns all four in 500 updates. The model learns these relations one at a time, each needing
+on the order of a thousand episodes, rather than one way to compose "product, then a step" that transfers to
+relations seen rarely or never. More training, deep probes and deep examples change none of that.
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

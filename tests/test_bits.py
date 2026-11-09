@@ -443,3 +443,20 @@ def test_wide_registers_extend_a_trained_model_unchanged():
     episode = BitSampler(TRAIN_SETS['mix7'], 16, 0).sample(1, 3)
     assert torch.allclose(base(episode.context, episode.query, 16).logits,
                           extended(episode.context, episode.query, 16).logits, atol=1e-5)
+
+
+def test_wide_example_layers_extend_a_trained_model_unchanged():
+    from teenie.bits.data import BitSampler
+    from teenie.bits.sets import TRAIN_SETS
+    from teenie.bits.wide_model import WideBitModel
+    torch.manual_seed(0)
+    base = WideBitModel(hidden=32, heads=2, layers=1, probes=2, steps=2).eval()
+    deep = WideBitModel(hidden=32, heads=2, layers=1, probes=2, steps=2, example_layers=2).eval()
+    deep.load_extending(base.state_dict())
+    episode = BitSampler(TRAIN_SETS['mix7'], 16, 0).sample(1, 3)
+    assert torch.allclose(base(episode.context, episode.query, 16).logits,
+                          deep(episode.context, episode.query, 16).logits, atol=1e-5)
+    deep.train()
+    loss = deep.loss(deep(episode.context, episode.query, 16), episode.context, episode.target, 16)
+    loss.backward()
+    assert deep.thinking[0].out.weight.grad is not None

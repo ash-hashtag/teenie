@@ -52,7 +52,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
           scratch: int = 0, halting: bool = False, stepwise: bool = False, bf16: bool = False,
           recompute: bool = True, aligned: bool = False, hint_fade: int = 0,
           widths: Sequence[int] = (), recompute_above: int = 32, peers: bool = False,
-          registers: int = 0) -> AnyBitModel:
+          registers: int = 0, example_layers: int = 0) -> AnyBitModel:
     """`init` starts from saved weights and trains `updates` more (fresh optimizer and schedule; update numbers
     continue from the checkpoint). `resume` continues an interrupted run exactly from `<save>.resume.pt`, which
     every log step writes: weights, optimizer, schedule, sampling weights and random state. `widths` (width-free
@@ -77,7 +77,8 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
         raise ValueError('several widths need the width-free architecture')
     width = max(widths)
     if architecture == 'wide':
-        model = WideBitModel(hidden, heads, layers, probes, steps, peers=peers, registers=registers).to(selected)
+        model = WideBitModel(hidden, heads, layers, probes, steps, peers=peers, registers=registers,
+                             example_layers=example_layers).to(selected)
     elif architecture == 'bittoken':
         model = BitTokenModel(hidden, heads, layers, width, probes, steps, stepwise, aligned).to(selected)
     elif architecture == 'program':
@@ -103,7 +104,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
         loaded, init_metadata = load_bit_model(init, selected)
         # Rounds reuse the same weights, so continuing with a different number of rounds is allowed.
         # Rounds reuse the same weights; a width-free model may also gain peer reading or registers.
-        optional = {'steps', 'peers', 'registers'}
+        optional = {'steps', 'peers', 'registers', 'example_layers'}
         same = ({k: v for k, v in loaded.config.items() if k not in optional}
                 == {k: v for k, v in model.config.items() if k not in optional})
         if type(loaded) is not type(model) or not same:
@@ -182,6 +183,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
                 'architecture': architecture, 'multiplicative': multiplicative, 'clock': clock, 'adaptive': adaptive,
                 'scratch': scratch, 'halting': halting, 'stepwise': stepwise, 'bf16': bf16, 'aligned': aligned,
                 'hint_fade': hint_fade, 'peers': peers, 'registers': registers,
+                'example_layers': example_layers,
                 'train_set': train_set, 'width': width, 'widths': list(widths), 'update': update, 'seed': seed, 'known_exact': score}
             save_bit_model(path, model, metadata)
             if snapshot_dir:
@@ -221,6 +223,8 @@ def main() -> None:
                         help='wide: train on these widths in turn, repeats allowed (overrides --width)')
     parser.add_argument('--peers', action='store_true',
                         help='wide: questions also read the probes, worked through in depth, with their true answers')
+    parser.add_argument('--example-layers', type=int, default=0,
+                        help='wide: layers that work through every example before the questions read it')
     parser.add_argument('--registers', type=int, default=0,
                         help='wide: scratch numbers each question writes and reads back every round')
     parser.add_argument('--recompute-above', type=int, default=32,
@@ -267,7 +271,7 @@ def main() -> None:
           resume=args.resume, scratch=args.scratch, halting=args.halting, stepwise=args.stepwise, bf16=args.bf16,
           recompute=not args.no_recompute, validation_episodes=args.validation_episodes, aligned=args.aligned,
           hint_fade=args.hint_fade, widths=args.widths, recompute_above=args.recompute_above,
-          peers=args.peers, registers=args.registers)
+          peers=args.peers, registers=args.registers, example_layers=args.example_layers)
 
 
 if __name__ == '__main__':

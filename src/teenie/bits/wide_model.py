@@ -23,6 +23,12 @@ what they should have given — and no probe sees its own answer.
 written every round and read back the next through the same views as a, b and the guess — room to hold an
 intermediate value such as a*b while the next step is applied. Only the answer is trained; what the registers
 hold is up to the model.
+
+`example_layers`: the examples are otherwise read through one shallow layer per bit, enough to see local patterns
+but not to work anything out — whether c = a*b + b holds for an example needs that example's a*b. With example
+layers, each example's bit tokens first attend to each other (bias per bit distance) and pass through a gated layer,
+this many times, so an example can be worked through before the questions read it. Every example is processed
+(999 × width tokens), so these layers recompute their activations in training to fit in memory.
 """
 from typing import NotRequired, TypedDict
 
@@ -33,6 +39,7 @@ from torch.utils.checkpoint import checkpoint
 
 from ..config import CONTEXT_SIZE
 from .bit_token_model import BitTokenModel, _BitLayer, answer_loss
+from .loop_model import _Gated
 from .data import to_bits
 from .loop_model import LoopPrediction
 
@@ -46,6 +53,36 @@ class WideConfig(TypedDict):
     span: int
     peers: NotRequired[bool]
     registers: NotRequired[int]
+    example_layers: NotRequired[int]
+
+
+class _ExampleLayer(nn.Module):
+    """Within one example: its bit tokens attend to each other, then a gated layer. Outputs start at zero, so a
+    trained model extended with these layers answers exactly as before until they are trained."""
+
+    def __init__(self, hidden: int, heads: int, span: int) -> None:
+        super().__init__()
+        self.heads = heads
+        self.norm = nn.LayerNorm(hidden)
+        self.qkv = nn.Linear(hidden, 3 * hidden)
+        self.out = nn.Linear(hidden, hidden)
+        self.distance = nn.Parameter(torch.zeros(heads, 2 * span - 1))
+        self.feed = _Gated(hidden)
+        for layer in (self.out, self.feed.down):
+            nn.init.zeros_(layer.weight)
+            nn.init.zeros_(layer.bias)
+
+    def forward(self, x: Tensor) -> Tensor:
+        """[M, W, H] -> [M, W, H]: M examples' bit tokens."""
+        count, width, hidden = x.shape
+        span = (self.distance.shape[1] + 1) // 2
+        position = torch.arange(width, device=x.device)
+        bias = self.distance[:, (position[:, None] - position[None, :]).clamp(1 - span, span - 1) + span - 1]
+        q, k, v = self.qkv(self.norm(x)).view(count, width, 3, self.heads, hidden // self.heads).permute(2, 0, 3, 1, 4)
+        mixed = F.scaled_dot_product_attention(q, k, v, attn_mask=bias.to(q.dtype))
+        x = x + self.out(mixed.transpose(1, 2).reshape(count, width, hidden))
+        result: Tensor = x + self.feed(x)
+        return result
 
 
 class _Peers(nn.Module):
@@ -120,12 +157,13 @@ class _Seen(nn.Module):
 
 class WideBitModel(nn.Module):
     def __init__(self, hidden: int = 128, heads: int = 4, layers: int = 2, probes: int = 16, steps: int = 8,
-                 span: int = 32, peers: bool = False, registers: int = 0) -> None:
+                 span: int = 32, peers: bool = False, registers: int = 0, example_layers: int = 0) -> None:
         super().__init__()
         if hidden % heads or not 0 < probes <= CONTEXT_SIZE or min(layers, steps, span) < 1:
             raise ValueError('hidden must divide into heads; probes in 1..999; layers, steps, span >= 1')
         self.config: WideConfig = {'hidden': hidden, 'heads': heads, 'layers': layers, 'probes': probes,
-                                   'steps': steps, 'span': span, 'peers': peers, 'registers': registers}
+                                   'steps': steps, 'span': span, 'peers': peers, 'registers': registers,
+                                   'example_layers': example_layers}
         self.example = nn.Sequential(_Seen(span, hidden), nn.GELU(), nn.Linear(hidden, hidden), nn.LayerNorm(hidden))
         self.ask = _Seen(span, hidden, registers)  # (a, b, current guess, registers) as seen from each answer bit
         self.layers = nn.ModuleList([_BitLayer(hidden, heads, span) for _ in range(layers)])
@@ -135,6 +173,7 @@ class WideBitModel(nn.Module):
         self.readout = nn.Sequential(nn.LayerNorm(hidden), nn.Linear(hidden, 1 + registers))  # answer, registers
         if peers:
             self.peers = nn.ModuleList([_Peers(hidden, heads) for _ in range(layers)])
+        self.thinking = nn.ModuleList([_ExampleLayer(hidden, heads, span) for _ in range(example_layers)])
         self.recompute = True
         self.hint = 1.
 
@@ -163,6 +202,12 @@ class WideBitModel(nn.Module):
                                        self.config['span'])
         batch, count, _, width = bits.shape
         tokens = self.example(bits)  # [B, N, W, H]: example bit k as seen from k
+        if len(self.thinking):
+            flat_tokens = tokens.reshape(batch * count, width, hidden)
+            for layer in self.thinking:
+                flat_tokens = (checkpoint(layer, flat_tokens, use_reentrant=False) if self.training
+                               else layer(flat_tokens))
+            tokens = flat_tokens.view(batch, count, width, hidden)
         flat = tokens.transpose(1, 2).reshape(batch * width, count, hidden)
         d = hidden // heads
         keys = [BitTokenModel._split(k(flat), heads, d) for k in self.keys]
@@ -200,8 +245,9 @@ class WideBitModel(nn.Module):
         return state, written
 
     def load_extending(self, state_dict: dict[str, Tensor]) -> None:
-        """Load a model with fewer registers or no peers: matching weights are copied, the new registers' input
-        weights start at zero (so the loaded model behaves as before) and new layers start fresh."""
+        """Load a model with fewer registers, no peers or no example layers: matching weights are copied, the new
+        registers' input weights start at zero and new example layers output zero (so the loaded model behaves as
+        before), and new peer layers start fresh."""
         own = self.state_dict()
         for key, value in state_dict.items():
             target = own[key]

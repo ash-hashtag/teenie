@@ -2,7 +2,7 @@
 import type { APIRoute } from 'astro';
 
 // The Try it page needs the local Python relay and is never part of the public site.
-const PAGES = ['/', '/model/', '/results/', '/changelog/', '/first-model/', '/learning/', '/benchmarks/'];
+const PAGES = ['/', '/model/', '/results/', '/changelog/', '/findings/', '/first-model/', '/learning/', '/benchmarks/'];
 
 export const GET: APIRoute = ({ site }) => {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');

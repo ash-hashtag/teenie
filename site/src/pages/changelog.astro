@@ -53,7 +53,7 @@ const phases = [
 ];
 ---
 
-<Layout title="Changelog" description="Every experiment so far, from decimal regression to exact bit-level relation inference with loops.">
+<Layout title="Changelog" description="Every experiment so far, from decimal regression to exact bit-level relation inference at 32 bits, including what did not work.">
   <p class="eyebrow">Changelog</p>
   <h1>From fuzzy decimals to exact bits</h1>
   <p class="lede">
@@ -219,17 +219,63 @@ const phases = [
       </p>
     </li>
 
-    <li class="card result">
-      <p class="eyebrow">Now · bit tokens and step-by-step training</p>
-      <h3>One token per answer bit, one round per step</h3>
+    <li class="card">
+      <p class="eyebrow">Bit tokens · step-by-step training tried and dropped</p>
+      <h3>One token per answer bit</h3>
       <p>
         The limit was never parameters: carries have to move between bit positions through an intermediate result, and
         one question vector has no structure for that. Giving every answer bit its own token — attending to the other
         bits and to the examples each round — took that capacity check from {pct(fam('nearonly', 'a*b+b'))} to
-        <strong>{pct(fam('nearonly-bittoken', 'a*b+b'))}</strong>. Now it trains on everything with step-by-step
-        supervision: round t is scored against the t-th intermediate value (an operation, or a loop iteration) and a
-        "done" signal learns when to stop — so a loop of n iterations takes n rounds, and longer loops can be tested by
-        running more rounds. <a href={`${base}/model/`}>The design →</a>
+        <strong>{pct(fam('nearonly-bittoken', 'a*b+b'))}</strong>. Training each round against one intermediate step
+        (an operation, or a loop iteration) did not help, kept or faded out: the intermediate values never appear in
+        the examples. Bit tokens trained on final answers only became the model. <a href={`${base}/model/`}>The design →</a>
+      </p>
+    </li>
+
+    <li class="card">
+      <p class="eyebrow">Guardrails · a sealed test set</p>
+      <h3>Checking that it is not fitted to our own tests</h3>
+      <p>
+        Every test had been used to choose architectures and data. A sealed set of 24 everyday functions, written
+        separately, is evaluated only at the end of a round and never used to decide anything. Every 8-bit candidate
+        cleared it with honest confidence — but at 8 bits the 999 examples cover 1.5% of all inputs, and lookup methods
+        that understand nothing answer about a third of it. That, and the next chapter, moved the measure to 16 and 32 bits.
+      </p>
+    </li>
+
+    <li class="card">
+      <p class="eyebrow">Bit-aligned reading</p>
+      <h3>Each answer bit reads the same bit of the examples</h3>
+      <p>
+        {`On our generator's held-out combinations (T1–T3) it scored ${pct(grp('bt-aligned', 'T1'))} / ${pct(grp('bt-aligned', 'T2'))} / ${pct(grp('bt-aligned', 'T3'))}, 8–16 points above the plain bit tokens — but nothing extra on the sealed set. The gain was specific to relations shaped like our generator's.`}
+      </p>
+    </li>
+
+    <li class="card">
+      <p class="eyebrow">Wider numbers</p>
+      <h3>One model for any width up to 32 bits</h3>
+      <p>
+        {`The 8-bit design trained on 12-bit numbers collapsed (hidden compositions ${pct(grp('bt-width12', 'hidden'))}). A width-free version sees every bit relative to its own position and from the lowest bit, so the same weights answer any width up to 32 bits. At 32 bits it gets some unseen relations far above lookup — a conditional it never trained on ${pct(progress.wide.widths['32']?.families['a>b?a-b:a+b'])} against ${pct(progress.wide.widths['32']?.lookup['a>b?a-b:a+b'])} — and fails others completely.`}
+        <a href={`${base}/`}>Where it stands →</a>
+      </p>
+    </li>
+
+    <li class="card result">
+      <p class="eyebrow">Composition at 16 bits</p>
+      <h3>Identifying the relation, not computing it</h3>
+      <p>
+        {`It computes a*b alone almost perfectly at 16 bits, but a*b+b was ${pct(fam('wide-ps16', 'a*b+b'))} even after training only on products followed by a step. Trained on just four such relations it gets a*b+b ${pct(fam('wide-near16', 'a*b+b'))}: the arithmetic is fine; recognising which relation the examples come from is not. Deeply worked probe examples (${pct(fam('wide-ps16-peers', 'a*b+b'))}), four layers of per-example processing, and a pool of 16 relations did not change that. The model learns these relations one at a time, each needing about a thousand episodes, instead of one way to compose them.`}
+      </p>
+    </li>
+
+    <li class="card">
+      <p class="eyebrow">Now</p>
+      <h3>Every composition, mixed, for a long time</h3>
+      <p>
+        Multiplication at 16 bits stayed near zero for 7,000 updates of mixed training and then rose to 70–80% within
+        3,000. The current run trains on every kind of composition at random — no single-operation relations, which
+        are only watched — at 16, 24 and 32 bits for 30,000 updates, checked at every saved checkpoint, to see whether
+        composing appears late in the same way.
       </p>
     </li>
   </ol>
@@ -237,31 +283,32 @@ const phases = [
   <h2>Where it goes next</h2>
   <div class="grid-3">
     <div class="card">
-      <h3>Longer loops by repetition</h3>
+      <h3>If composing appears</h3>
       <p class="small">
-        Trained on loops of up to 15 iterations, tested with 64 and 256 rounds: does one round per iteration carry over
-        to loops it has never seen at that length?
+        Scale it: the target is unseen multi-step expressions at 32 bits, such as
+        <code>((a*b)^(a&gt;&gt;3))|(b+9)</code>, where even 25% exact could not be luck.
       </p>
     </div>
     <div class="card">
-      <h3>Faster bit tokens</h3>
+      <h3>If it does not</h3>
       <p class="small">
-        Eight tokens per question read the examples, which makes training about five times slower. Narrower layers,
-        fewer probe questions and sharing reads between bit tokens are the next efficiency steps.
+        Then this design memorises compositions instead of generalising them, and needs a structural change — still
+        guessing the relation in one pass, never searching or fine-tuning at answer time.
       </p>
     </div>
     <div class="card">
-      <h3>Wider numbers</h3>
+      <h3>Then: noisy data</h3>
       <p class="small">
-        Bit tokens and steps do not depend on the number of bits, so 12- and 16-bit numbers are the natural next tier.
+        The aim is not a calculator. Once fixed rules can be inferred, the same approach goes to examples that are
+        partly corrupted or random, to see which patterns still emerge.
       </p>
     </div>
   </div>
   <h2 id="experiments">Every experiment</h2>
   <p>
-    Exact match on 1,024 fresh questions per relation (64 episodes × 16, seed 60000). "Trained" is the mean over the
-    relations each run trained on, so rows with different training sets are not directly comparable. Details in
-    <code>docs/findings.md</code>.
+    Exact match on 1,024 fresh questions per relation (64 episodes × 16, seed 60000), at 8 bits unless the run says
+    otherwise. "Trained" is the mean over the relations each run trained on, so rows with different training sets are
+    not directly comparable. Every run is described in the <a href={`${base}/findings/`}>findings</a>.
   </p>
   <div class="card table-scroll">
     <table>

@@ -1,0 +1,46 @@
+---
+// The full lab notebook, rendered from docs/findings.md so the site and the repository never disagree.
+import Layout from '../layouts/Layout.astro';
+import { Content, getHeadings } from '../../../docs/findings.md';
+
+const sections = getHeadings().filter((h) => h.depth === 2);
+---
+
+<Layout
+  title="Findings"
+  description="Every experiment and what it showed, including the ones that did not work: the full research notebook behind Teenie."
+>
+  <p class="eyebrow">Findings</p>
+  <h1>The research notebook</h1>
+  <p class="lede">
+    Every experiment in order, with its numbers and what it did or did not show — negative results included. This page
+    is <code>docs/findings.md</code> from the
+    <a href="https://github.com/ash-hashtag/teenie/blob/main/docs/findings.md">repository</a>, rendered as is.
+  </p>
+  <nav class="card toc" aria-label="Sections">
+    <ol>
+      {sections.map((h) => <li><a href={`#${h.slug}`}>{h.text}</a></li>)}
+    </ol>
+  </nav>
+  <article class="notebook">
+    <Content />
+  </article>
+</Layout>
+
+<style>
+  .toc ol {
+    margin: 0;
+    padding-left: 1.25rem;
+    columns: 2 20rem;
+    font-size: 0.9rem;
+  }
+
+  .notebook :global(table) {
+    display: block;
+    overflow-x: auto;
+  }
+
+  .notebook :global(h1) {
+    display: none;
+  }
+</style>

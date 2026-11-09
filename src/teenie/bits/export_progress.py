@@ -81,6 +81,16 @@ EXPERIMENTS: list[tuple[str, str, str, str, tuple[str, ...]]] = [
      'experiments/wide/wide-mix-w16-eval.json', ('experiments/wide/wide-mix-train.jsonl',)),
     ('wide-32', 'Wide numbers', '+ 24- and 32-bit episodes — scored at 32 bits',
      'experiments/wide/wide-32-w32-eval.json', ('experiments/wide/wide-32-train.jsonl',)),
+    ('wide-ps16', 'Composition at 16 bits', 'product-then-step only, from the 32-bit model',
+     'experiments/wide/wide-ps16-eval.json', ('experiments/wide/wide-ps16-train.jsonl',)),
+    ('wide-ps16-peers', 'Composition at 16 bits', 'same, questions also read deep probes',
+     'experiments/wide/wide-ps16-peers-eval.json', ('experiments/wide/wide-ps16-peers-train.jsonl',)),
+    ('wide-near16', 'Composition at 16 bits', 'four fixed product-then-step relations only (diagnostic)',
+     'experiments/wide/wide-near16-eval.json', ('experiments/wide/wide-near16-train.jsonl',)),
+    ('wide-pool16', 'Composition at 16 bits', 'a pool of 16 product-then-step relations',
+     'experiments/wide/wide-pool16-eval.json', ('experiments/wide/wide-pool16-train.jsonl',)),
+    ('wide-compose', 'Composition at 16 bits', 'every composition kind mixed, 16/24/32 bits, 30,000 updates',
+     'experiments/wide/wide-compose-w32-eval.json', ('experiments/wide/wide-compose-train.jsonl',)),
 ]
 
 # Architectures shown on the site besides the current model: (id, title, checkpoint).

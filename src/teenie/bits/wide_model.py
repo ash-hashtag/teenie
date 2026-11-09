@@ -18,6 +18,11 @@ something deep on an example (is c = a*b + b? needs a*b) cannot be recognised fr
 are worked through with full depth every round, like the questions. With `peers`, every round each question's bit k
 also reads the probes' bit-k tokens together with their true answer bit — examples worked out in depth next to
 what they should have given — and no probe sees its own answer.
+
+`registers`: besides its guess at the answer, each question keeps this many scratch numbers, one bit per position,
+written every round and read back the next through the same views as a, b and the guess — room to hold an
+intermediate value such as a*b while the next step is applied. Only the answer is trained; what the registers
+hold is up to the model.
 """
 from typing import NotRequired, TypedDict
 
@@ -40,6 +45,7 @@ class WideConfig(TypedDict):
     steps: int
     span: int
     peers: NotRequired[bool]
+    registers: NotRequired[int]
 
 
 class _Peers(nn.Module):
@@ -93,16 +99,18 @@ class _Seen(nn.Module):
     relative view's projection is a 1-D convolution along the bits, and the from-lowest-bit view's projection is
     the same for every bit, so it is computed once per number."""
 
-    def __init__(self, span: int, hidden: int) -> None:
+    def __init__(self, span: int, hidden: int, extra: int = 0) -> None:
         super().__init__()
-        self.span, self.hidden = span, hidden
-        self.relative = nn.Conv1d(4, 3 * hidden, 2 * span - 1, padding=span - 1)
-        self.low = nn.Linear(4 * span, 3 * hidden, bias=False)
+        self.span, self.hidden, self.channels = span, hidden, 4 + extra
+        self.relative = nn.Conv1d(self.channels, 3 * hidden, 2 * span - 1, padding=span - 1)
+        self.low = nn.Linear(self.channels * span, 3 * hidden, bias=False)
 
     def forward(self, numbers: Tensor) -> Tensor:
-        """[..., 3, W] in {-1, 1} -> [..., W, hidden]."""
+        """[..., 3 + extra, W] in {-1, 1} -> [..., W, hidden]. Channels: the first three numbers, "exists", then any
+        extra numbers (so a model with extra numbers extends one without)."""
         lead, width = numbers.shape[:-2], numbers.shape[-1]
-        channels = torch.cat([numbers, torch.ones_like(numbers[..., :1, :])], -2).reshape(-1, 4, width)
+        exists = torch.ones_like(numbers[..., :1, :])
+        channels = torch.cat([numbers[..., :3, :], exists, numbers[..., 3:, :]], -2).reshape(-1, self.channels, width)
         projected = self.relative(channels).transpose(1, 2)  # [M, W, 3H]
         low = self.low(F.pad(channels, (0, self.span - width)).flatten(1))[:, None]  # [M, 1, 3H]
         linear, left, right = (projected + low).chunk(3, -1)
@@ -112,19 +120,19 @@ class _Seen(nn.Module):
 
 class WideBitModel(nn.Module):
     def __init__(self, hidden: int = 128, heads: int = 4, layers: int = 2, probes: int = 16, steps: int = 8,
-                 span: int = 32, peers: bool = False) -> None:
+                 span: int = 32, peers: bool = False, registers: int = 0) -> None:
         super().__init__()
         if hidden % heads or not 0 < probes <= CONTEXT_SIZE or min(layers, steps, span) < 1:
             raise ValueError('hidden must divide into heads; probes in 1..999; layers, steps, span >= 1')
         self.config: WideConfig = {'hidden': hidden, 'heads': heads, 'layers': layers, 'probes': probes,
-                                   'steps': steps, 'span': span, 'peers': peers}
+                                   'steps': steps, 'span': span, 'peers': peers, 'registers': registers}
         self.example = nn.Sequential(_Seen(span, hidden), nn.GELU(), nn.Linear(hidden, hidden), nn.LayerNorm(hidden))
-        self.ask = _Seen(span, hidden)  # (a, b, current guess) as seen from each answer bit
+        self.ask = _Seen(span, hidden, registers)  # (a, b, current guess, registers) as seen from each answer bit
         self.layers = nn.ModuleList([_BitLayer(hidden, heads, span) for _ in range(layers)])
         self.keys = nn.ModuleList([nn.Linear(hidden, hidden) for _ in range(layers)])
         self.values = nn.ModuleList([nn.Linear(hidden, hidden) for _ in range(layers)])
         self.cell = nn.GRUCell(hidden, hidden)
-        self.readout = nn.Sequential(nn.LayerNorm(hidden), nn.Linear(hidden, 1))
+        self.readout = nn.Sequential(nn.LayerNorm(hidden), nn.Linear(hidden, 1 + registers))  # answer, registers
         if peers:
             self.peers = nn.ModuleList([_Peers(hidden, heads) for _ in range(layers)])
         self.recompute = True
@@ -166,27 +174,49 @@ class WideBitModel(nn.Module):
         rows = torch.arange(items, device=bits.device)[:, None] - queries
         allowed = (rows != torch.arange(CONTEXT_SIZE, device=bits.device)[None, :]).repeat_interleave(width, 0)
         state = asked.new_zeros(batch * items * width, hidden)
-        guess = asked.new_zeros(batch, items, width)
+        guess = asked.new_zeros(batch, items, 1 + self.config.get('registers', 0), width)  # answer, registers
         outputs = []
         for _ in range(rounds):
             if self.training and self.recompute:
-                state, logits = checkpoint(self._round, asked, guess, state, keys, values, allowed, known,
-                                           use_reentrant=False)
+                state, written = checkpoint(self._round, asked, guess, state, keys, values, allowed, known,
+                                            use_reentrant=False)
             else:
-                state, logits = self._round(asked, guess, state, keys, values, allowed, known)
-            outputs.append(logits)
-            guess = torch.tanh(logits / 2)
+                state, written = self._round(asked, guess, state, keys, values, allowed, known)
+            outputs.append(written[:, :, 0])
+            guess = torch.tanh(written / 2)
         return torch.stack(outputs)
 
     def _round(self, asked: Tensor, guess: Tensor, state: Tensor, keys: list[Tensor], values: list[Tensor],
                allowed: Tensor, known: Tensor) -> tuple[Tensor, Tensor]:
-        batch, items, width = guess.shape
+        batch, items, _, width = guess.shape
         hidden = self.config['hidden']
-        x = self.ask(torch.cat([asked, guess[:, :, None]], 2)) + state.view(batch, items, width, hidden)
+        x = self.ask(torch.cat([asked, guess], 2)) + state.view(batch, items, width, hidden)
         for i, (layer, k, v) in enumerate(zip(self.layers, keys, values)):
             x = layer(x, k, v, allowed)
             if self.config.get('peers', False):
                 x = self.peers[i](x, known)
         state = self.cell(x.reshape(-1, hidden), state)
-        logits = self.readout(state).view(batch, items, width)
-        return state, logits
+        written = self.readout(state).view(batch, items, width, -1).transpose(2, 3)  # [B, items, 1 + R, W]
+        return state, written
+
+    def load_extending(self, state_dict: dict[str, Tensor]) -> None:
+        """Load a model with fewer registers or no peers: matching weights are copied, the new registers' input
+        weights start at zero (so the loaded model behaves as before) and new layers start fresh."""
+        own = self.state_dict()
+        for key, value in state_dict.items():
+            target = own[key]
+            if target.shape == value.shape:
+                target.copy_(value)
+                continue
+            if key in ('ask.relative.weight', 'ask.low.weight'):
+                target.zero_()
+                if key == 'ask.relative.weight':
+                    target[:, :value.shape[1]] = value
+                else:
+                    span = self.config['span']
+                    target[:, :value.shape[1]] = value  # channel-major flattening: old channels come first
+                    assert value.shape[1] % span == 0
+            elif key.startswith('readout.1.'):
+                target[:value.shape[0]] = value
+            else:
+                raise ValueError(f'cannot extend {key}: {tuple(value.shape)} -> {tuple(target.shape)}')

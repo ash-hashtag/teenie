@@ -47,6 +47,11 @@ TARGET += (expression_family((4, 6), CONCEPT_FORBIDDEN, 'T6 4-6 ops, all concept
                              require_pair=True, vocabulary=CONCEPTS, distinct=100),)
 CONCEPT_STEPS: tuple[Family, ...] = tuple(expression_family(n, CONCEPT_FORBIDDEN, f'concepts{n}', 2., HELD_PAIRS,
                                                             vocabulary=CONCEPTS) for n in range(1, 6))
+# `compose`: compositions only — expressions of 2-5 operations (with and without the extra concepts), products
+# followed by a step, and loops. No relation is a single operation: primitives are only practised inside
+# compositions, and are watched as a test group so forgetting them shows.
+COMPOSE: tuple[Family, ...] = STEPS3[1:] + CONCEPT_STEPS[1:] + (PRODUCT_STEP,) + LOOPS
+PRIMITIVES: tuple[Family, ...] = TRAIN_FAMILIES + (MULTIPLY, STEPS3[0], CONCEPT_STEPS[0])
 # The difficulty ladder (see docs/findings.md): T1-T3 always contain a held-out combination.
 TIERS: dict[str, tuple[Family, ...]] = {
     'T1': (expression_family(2, FORBIDDEN, 'T1 2 ops', 2., HELD_PAIRS, require_pair=True),),
@@ -86,6 +91,7 @@ TRAIN_SETS: dict[str, tuple[Family, ...]] = {
     'mix5': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + (PRODUCT_STEP, PAIRS),
     'mix6': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS31 + (PRODUCT_STEP,),
     'mix7': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + (PRODUCT_STEP,) + CONCEPT_STEPS,
+    'compose': COMPOSE,
     'near-only': NEAR_FAMILIES,  # diagnostic: can the model compute "a product, then another step" at all?
     # diagnostic: random products-then-a-step only; tested on fresh ones (fit) and on hidden compositions such as
     # a*b+a or (a*b)^b that the generator never produces (generalization).
@@ -112,6 +118,8 @@ def test_groups(train_set: str) -> dict[str, tuple[Family, ...]]:
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER2}
     if train_set == 'product-step-only':
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES}
-    if train_set in ('mix3', 'mix4', 'mix5', 'mix6', 'mix7'):
+    if train_set in ('mix3', 'mix4', 'mix5', 'mix6', 'mix7', 'compose'):
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES} | TIERS | {'target': TARGET}
+    if train_set == 'compose':
+        groups['primitives'] = PRIMITIVES  # watched only
     return groups

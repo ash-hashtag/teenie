@@ -570,8 +570,22 @@ the stage-2 model (its weights reused, the code layers new), trained on the same
 
 The bottleneck learns trained combinations faster, in half the time (answer bits read 8 code tokens instead of
 999 examples). Neither combines known parts yet — but both learned only about a fifth of the grid, so most held-out
-cells have parts that are learned in few combinations. A longer run trains the bottleneck until most of the grid is
-learned before judging the held-out cells.
+cells have parts that are learned in few combinations. A longer run (4,000 more updates) showed why: learning stalled at about 11 cells,
+nearly all of two complete rows:
+
+| first step | trained second steps |
+|---|---|
+| `a*b` | 95 96 96 93 96 35 |
+| `(a+1)*b` | 96 97 94 91 97 92 |
+| `a*(b>>1)` | 27 29 30 26 24 41 1 |
+| `a*a`, `b*b`, `(a\|b)*b` | 5–29 |
+| `(a^b)*a`, `(a-b)*(a+b)` | 0–11 |
+
+**In the two learned rows the held-out cells stay near zero**: `(a*b)+a` 6% and `((a+1)*b)^b` 1%, although `a*b` works
+with five other second steps and `+a` and `^b` work after the other product. Even where both parts are known
+thoroughly, the model does not put them together: it memorises each combination as its own relation, with or
+without the bottleneck. With 52 combinations, memorising each is the cheapest solution. Next: data with far too
+many combinations to memorise while every part stays frequent (section 27).
 
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 

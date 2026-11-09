@@ -1,11 +1,12 @@
 """Named training sets and the test groups that go with them."""
+import torch
 Report = dict[str, float | None]
 from .expressions import (CONCEPTS, HIDDEN_FAMILIES, NEAR_FAMILIES, Pair, composed_family, expression_family,
                           named, pair_family, product_step_family)
 from .loops import NEW_OPERATIONS, bit_loop_family, hidden_bit_loops, hidden_loops, loop_family
 from .sealed import SEALED_FAMILIES
 from .relations import (BLOCK_FAMILIES, HELDOUT_FAMILIES, MULTIPLY, NAMED, STRESS_FAMILIES, TRAIN_FAMILIES,
-                        Family)
+                        Family, Relation)
 
 # Random expressions must never behave like any relation we test as unseen.
 FORBIDDEN: tuple[Family, ...] = HELDOUT_FAMILIES + HIDDEN_FAMILIES
@@ -52,6 +53,21 @@ CONCEPT_STEPS: tuple[Family, ...] = tuple(expression_family(n, CONCEPT_FORBIDDEN
 # compositions, and are watched as a test group so forgetting them shows.
 COMPOSE: tuple[Family, ...] = STEPS3[1:] + CONCEPT_STEPS[1:] + (PRODUCT_STEP,) + LOOPS
 PRIMITIVES: tuple[Family, ...] = TRAIN_FAMILIES + (MULTIPLY, STEPS3[0], CONCEPT_STEPS[0])
+def pool_family(base: Family, size: int, seed: int = 123, name: str | None = None) -> Family:
+    """A fixed pool of `size` relations drawn once from `base` (per width), sampled uniformly: how many different
+    relations training covers, with every one of them seen often."""
+    pools: dict[int, list[Relation]] = {}
+
+    def make(generator: torch.Generator, width: int) -> Relation:
+        if width not in pools:
+            drawing = torch.Generator().manual_seed(seed)
+            pools[width] = [base.make(drawing, width) for _ in range(size)]
+        return pools[width][int(torch.randint(0, size, (), generator=generator))]
+    return Family(name or f'{base.name} pool{size}', make)
+
+
+# The diversity ladder (section 25): pools of 16, 64 and 256 product-then-step relations.
+POOLS: dict[int, Family] = {size: pool_family(PRODUCT_STEP, size) for size in (16, 64, 256)}
 # The difficulty ladder (see docs/findings.md): T1-T3 always contain a held-out combination.
 TIERS: dict[str, tuple[Family, ...]] = {
     'T1': (expression_family(2, FORBIDDEN, 'T1 2 ops', 2., HELD_PAIRS, require_pair=True),),
@@ -92,6 +108,7 @@ TRAIN_SETS: dict[str, tuple[Family, ...]] = {
     'mix6': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS31 + (PRODUCT_STEP,),
     'mix7': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + (PRODUCT_STEP,) + CONCEPT_STEPS,
     'compose': COMPOSE,
+    **{f'ps-pool{size}': (family,) for size, family in POOLS.items()},
     'near-only': NEAR_FAMILIES,  # diagnostic: can the model compute "a product, then another step" at all?
     # diagnostic: random products-then-a-step only; tested on fresh ones (fit) and on hidden compositions such as
     # a*b+a or (a*b)^b that the generator never produces (generalization).
@@ -116,6 +133,9 @@ def test_groups(train_set: str) -> dict[str, tuple[Family, ...]]:
         groups |= {'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER}
     if train_set == 'mix2':
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER2}
+    if train_set.startswith('ps-pool'):
+        # fresh draws from the whole family (mostly outside the pool), and relations it never produces
+        groups |= {'family': (PRODUCT_STEP,), 'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES}
     if train_set == 'product-step-only':
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES}
     if train_set in ('mix3', 'mix4', 'mix5', 'mix6', 'mix7', 'compose'):

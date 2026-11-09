@@ -119,22 +119,67 @@ const conditional = w32.families['a>b?a-b:a+b'];
     {`Sure answers (least certain bit ≥ 0.99) were right ${pct(w32.sealed?.sure_accuracy)} of the time on the sealed set at 32 bits. One training seed; differences of a few points are within seed-to-seed spread.`}
   </p>
 
+  <h2>Multi-step chains</h2>
+  <p>
+    Chains are a start such as <code>a+b</code> or <code>a*b</code> followed by one or two steps, each one of 21 kinds
+    (<code>+ − ^ | &amp; *</code> with <code>a</code>, <code>b</code> or a random constant, shifts, not), with a fresh
+    random constant each time. This model was trained on random expressions over the same operations, which can
+    include the same shapes with other constants, so these are new relations but not necessarily new shapes; products
+    followed by a step were in its training too. <b>Beyond lookup</b> counts
+    only the questions every lookup method gets wrong; <b>sure</b> is how often its least certain bit is ≥ 0.99, and how
+    often those sure answers were right.
+  </p>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>chains</th>
+          <th class="num">16 bits</th>
+          <th class="num">beyond lookup</th>
+          <th class="num">32 bits</th>
+          <th class="num">beyond lookup</th>
+          <th class="num">sure at 32 · right</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          ['no product 1 step', 'no product 2 steps', 'product 1 step', 'product 2 steps'].map((kind) => {
+            const a = w16.chains?.[kind];
+            const b = w32.chains?.[kind];
+            return (
+              <tr>
+                <td>{kind.replace('no product', 'without a product').replace(/^product/, 'through a product')}</td>
+                <td class="num"><b>{pct(a?.exact)}</b></td>
+                <td class="num muted">{pct(a?.beyond_lookup)}</td>
+                <td class="num"><b>{pct(b?.exact)}</b></td>
+                <td class="num muted">{pct(b?.beyond_lookup)}</td>
+                <td class="num">{`${pct(b?.sure_coverage)} · ${b?.sure_accuracy == null ? '—' : pct(b.sure_accuracy)}`}</td>
+              </tr>
+            );
+          })
+        }
+      </tbody>
+    </table>
+  </div>
+  <p class="small muted">48 episodes × 16 questions per kind; <code>uv run python -m teenie.bits.chain_split</code>.</p>
+
   <h2>What works and what doesn't</h2>
   <div class="grid-3">
     <div class="card">
-      <h3>Works: relations with local fingerprints</h3>
+      <h3>Works: combining steps it knows</h3>
       <p class="small">
-        Conditionals, rotations and short expressions leave patterns that are visible bit by bit in the examples. At
-        32 bits the model gets some of these well above lookup, including operation types it never saw in training —
-        most of the conditional above, a quarter of the variable rotations.
+        Chains of additions, subtractions, bitwise operations, shifts and constants, and conditionals it never trained
+        on — at 32 bits, mostly on questions lookup cannot answer, and its sure answers are right.
       </p>
     </div>
     <div class="card">
-      <h3>Fails: a product, then another step</h3>
+      <h3>Fails: anything through a product</h3>
       <p class="small">
-        The model computes <code>a*b</code> itself, but <code>a*b+b</code> or the target expression are at or near
-        zero at 32 bits. Trained on just four such relations it computes them almost perfectly, so the failure is in
-        recognising which relation the examples come from when there are many candidates — not in the arithmetic.
+        The model computes <code>a*b</code> itself, but once a product is followed by another step it fails — even
+        though such relations were in its training: chains through a product, <code>a*b+b</code> and the target
+        expression are at or near zero at 32 bits, and it is never sure of them. Trained on just
+        four such relations it computes them almost perfectly, so the failure is in recognising the relation, not in
+        the arithmetic — and it is specific to products.
       </p>
     </div>
     <div class="card">

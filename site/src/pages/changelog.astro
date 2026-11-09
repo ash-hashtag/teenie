@@ -291,13 +291,14 @@ const phases = [
 
     <li class="card result">
       <p class="eyebrow">Chains · a new measure</p>
-      <h3>It does compose — except through a product</h3>
+      <h3>Multi-step chains work — except through a product</h3>
       <p>
         Chains are a start such as <code>a+b</code> or <code>a*b</code> followed by one or two of 21 kinds of step, with
-        about one in seven start–step pairs never shown together. A new measure counts only the questions every
-        lookup method gets wrong. On held-out chains at 16 bits, the model that never trained on chains answers those
-        built from additions, bitwise operations and shifts almost perfectly, mostly where lookup fails — and those
-        built through a product hardly at all. The composition failure of the last chapters was a product failure.
+        a fresh random constant each time. A new measure counts only the questions every lookup method gets wrong. At
+        32 bits the model answers chains of additions, bitwise operations and shifts mostly where lookup fails, and its
+        sure answers are always right; chains through a product it hardly ever gets, and it is never sure of them —
+        although products followed by a step were in its training. The composition failure of the last chapters was a
+        product failure.
         <a href={`${base}/findings/`}>Numbers in the findings →</a>
       </p>
     </li>

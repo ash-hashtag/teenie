@@ -1,0 +1,40 @@
+{
+ "checkpoint": "checkpoints/wide/wide-32.pt",
+ "width": 32,
+ "seed": 60000,
+ "episodes": 48,
+ "summary": {
+  "no product 1 step": {
+   "exact": 0.9176136363636364,
+   "beyond_lookup": 0.8602941176470589,
+   "questions": 352,
+   "lookup_fails": 136,
+   "sure_coverage": 0.5625,
+   "sure_accuracy": 1.0
+  },
+  "no product 2 steps": {
+   "exact": 0.83,
+   "beyond_lookup": 0.6648936170212766,
+   "questions": 400,
+   "lookup_fails": 188,
+   "sure_coverage": 0.51,
+   "sure_accuracy": 1.0
+  },
+  "product 1 step": {
+   "exact": 0.0,
+   "beyond_lookup": 0.0,
+   "questions": 416,
+   "lookup_fails": 415,
+   "sure_coverage": 0.0,
+   "sure_accuracy": null
+  },
+  "product 2 steps": {
+   "exact": 0.0,
+   "beyond_lookup": 0.0,
+   "questions": 368,
+   "lookup_fails": 366,
+   "sure_coverage": 0.0,
+   "sure_accuracy": null
+  }
+ }
+}

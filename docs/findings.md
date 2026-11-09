@@ -587,11 +587,11 @@ thoroughly, the model does not put them together: it memorises each combination 
 without the bottleneck. With 52 combinations, memorising each is the cheapest solution. Next: data with far too
 many combinations to memorise while every part stays frequent (section 27).
 
-## 27. It does compose — except through a product (`chain_split.py`, `experiments/wide/chains-split-wide-32.json`)
+## 27. Multi-step chains work at 32 bits — except through a product (`chain_split.py`, `experiments/wide/chains-split-wide-32.json`)
 
 **Chains**: a start (`a*b`, `a+b`, `a-b`, `a^b`, `a&b`, `a|b`, `a*a`, `b*b`, `min`, `max`) followed by one or two steps, each
 one of 21 kinds (`+ - ^ | & *` with `a`, `b` or a fresh random constant; `>>1`, `<<1`, not). About one in seven
-(start, first step) pairs never appear together — including `a*b` then `+a` — and are the test.
+(start, first step) pairs never appear together in chain training — including `a*b` then `+a` — and are the test.
 
 **A new measure, beyond lookup** (`teenie-bits-eval`, `beyond_lookup`): the model's exact rate on the questions that
 every lookup baseline gets wrong, so what it gets there cannot come from copying examples. On the never-trained
@@ -606,10 +606,25 @@ conditional `a>b ? a-b : a+b` at 16 bits, lookup fails 62.5% of questions and th
 | with a product, 1 step | 10.7% | 9.3% of 257 |
 | with a product, 2 steps | 11.0% | 7.9% of 302 |
 
-**The model does compose relations it has never seen** — chains of additions, subtractions, bitwise operations,
-shifts and constants, in combinations never shown together, almost perfectly at 16 bits and mostly on questions
-lookup cannot answer. What fails is **a product as an intermediate step**: everything sections 22–26 called a
-composition failure was this one case. Next: why products, and only products, do not compose.
+**Chains without a product work; chains through a product fail.** Chains of additions, subtractions, bitwise
+operations, shifts and constants are answered almost perfectly at 16 bits, mostly on questions lookup cannot answer.
+A caution on "held out": this model never trained on chains, but it trained on random expressions of up to 5
+operations over the same operations, which can include the same shapes with other constants; the relations here are
+new (fresh random constants), the shapes not necessarily. What is clear: **a product as an intermediate step**
+fails, although products followed by a step were in its training data — everything sections 22–26 called a
+composition failure was this one case.
+
+**At 32 bits, with confidence** (`chains-split-wide-32-w32.json`):
+
+| chains | exact | right where lookup fails | sure | right when sure |
+|---|---|---|---|---|
+| no product, 1 step | 91.8% | 86.0% of 136 | 56.2% | 100% |
+| no product, 2 steps | 83.0% | 66.5% of 188 | 51.0% | 100% |
+| with a product, 1 step | 0.0% | 0.0% of 415 | 0.0% | — |
+| with a product, 2 steps | 0.0% | 0.0% of 366 | 0.0% | — |
+
+Where it answers, it knows it: about half its answers on chains without a product are sure, and every sure answer
+was right; through a product it is never sure, so it never claims a wrong answer.
 
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 

@@ -140,6 +140,7 @@ export type WideWidth = {
   lookup: Record<string, number>;
   sealed?: GroupSummary;
   sealed_lookup?: number | null;
+  chains?: Record<string, { exact: number; beyond_lookup: number; questions: number; lookup_fails: number; sure_coverage: number; sure_accuracy: number | null }>;
 };
 
 export type Progress = {

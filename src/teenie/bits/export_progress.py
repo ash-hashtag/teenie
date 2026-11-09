@@ -171,6 +171,9 @@ def wide(root: Path) -> dict[str, object]:
             'groups': {group: summarise(reports) for group, reports in results.items()},
             'families': {name: r.get('exact') for reports in results.values() for name, r in reports.items()},
             'lookup': lookup}
+        chains = root / f'experiments/wide/chains-split-wide-32{"" if width == 16 else f"-w{width}"}.json'
+        if chains.exists():
+            entry['chains'] = json.loads(chains.read_text())['summary']
         if (root / sealed).exists():
             reports = json.loads((root / sealed).read_text())['results']['sealed']
             entry['sealed'] = summarise(reports)

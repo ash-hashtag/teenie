@@ -1,6 +1,9 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import BitStrip from '../components/BitStrip.astro';
+import ChainsTable from '../components/ChainsTable.astro';
+import ProductsTable from '../components/ProductsTable.astro';
+import WideTable from '../components/WideTable.astro';
 import rounds from '../../public/data/rounds.json';
 import { progress } from '../lib/data';
 import { pct, thousands } from '../lib/format';
@@ -18,27 +21,6 @@ const guesses = question.rounds.map((r) => r.p);
 const wide = progress.wide;
 const w16 = wide.widths['16']!;
 const w32 = wide.widths['32']!;
-// Rows of the "where it stands" table: model exact vs the best of five lookup baselines on the same episodes.
-const table: { name: string; note: string; get: (w: typeof w32) => [number | null | undefined, number | null | undefined] }[] = [
-  { name: 'Sealed set', note: '24 everyday functions written separately, never used to choose anything',
-    get: (w) => [w.sealed?.exact, w.sealed_lookup] },
-  { name: 'a>b ? a−b : a+b', note: 'conditionals were never in training',
-    get: (w) => [w.families['a>b?a-b:a+b'], w.lookup['a>b?a-b:a+b']] },
-  { name: 'rotl(a, b&7)', note: 'rotations were never in training',
-    get: (w) => [w.families['rotl(a,b&7)'], w.lookup['rotl(a,b&7)']] },
-  { name: 'T1 · 2 operations', note: 'random, always with an operation pair held out of training',
-    get: (w) => [w.families['T1 2 ops'], w.lookup['T1 2 ops']] },
-  { name: 'T2 · 3–4 operations', note: 'same, longer',
-    get: (w) => [w.families['T2 3-4 ops'], w.lookup['T2 3-4 ops']] },
-  { name: 'T3 · 5–7 operations', note: 'same, longer',
-    get: (w) => [w.families['T3 5-7 ops'], w.lookup['T3 5-7 ops']] },
-  { name: 'T6 · 4–6 operations, all concepts', note: 'includes division, comparisons, variable shifts, bit counts',
-    get: (w) => [w.families['T6 4-6 ops, all concepts'], w.lookup['T6 4-6 ops, all concepts']] },
-  { name: 'a*b+b', note: 'a product, then one more step',
-    get: (w) => [w.families['a*b+b'], w.lookup['a*b+b']] },
-  { name: '((a*b)^(a>>3))|(b+9)', note: 'the target: an unseen multi-step expression',
-    get: (w) => [w.families['((a*b)^(a>>3))|(b+9)'], w.lookup['((a*b)^(a>>3))|(b+9)']] },
-];
 const conditional = w32.families['a>b?a-b:a+b'];
 ---
 
@@ -83,38 +65,7 @@ const conditional = w32.families['a>b?a-b:a+b'];
     answer of the closest example, or match one or two neighbouring bits across the examples — chosen per relation
     after the fact, so it is a generous reference. A score only means something where it clearly beats lookup.
   </p>
-  <div class="scroll">
-    <table>
-      <thead>
-        <tr>
-          <th>relation</th>
-          <th class="num">16 bits</th>
-          <th class="num">lookup</th>
-          <th class="num">32 bits</th>
-          <th class="num">lookup</th>
-        </tr>
-      </thead>
-      <tbody>
-        {
-          table.map((row) => {
-            const [m16, l16] = row.get(w16);
-            const [m32, l32] = row.get(w32);
-            return (
-              <tr>
-                <td>
-                  <code>{row.name}</code> <span class="small muted">{row.note}</span>
-                </td>
-                <td class="num"><b>{pct(m16)}</b></td>
-                <td class="num muted">{pct(l16)}</td>
-                <td class="num"><b>{pct(m32)}</b></td>
-                <td class="num muted">{pct(l32)}</td>
-              </tr>
-            );
-          })
-        }
-      </tbody>
-    </table>
-  </div>
+  <WideTable />
   <p class="small muted">
     {`Sure answers (least certain bit ≥ 0.99) were right ${pct(w32.sealed?.sure_accuracy)} of the time on the sealed set at 32 bits. One training seed; differences of a few points are within seed-to-seed spread.`}
   </p>
@@ -129,38 +80,7 @@ const conditional = w32.families['a>b?a-b:a+b'];
     only the questions every lookup method gets wrong; <b>sure</b> is how often its least certain bit is ≥ 0.99, and how
     often those sure answers were right.
   </p>
-  <div class="scroll">
-    <table>
-      <thead>
-        <tr>
-          <th>chains</th>
-          <th class="num">16 bits</th>
-          <th class="num">beyond lookup</th>
-          <th class="num">32 bits</th>
-          <th class="num">beyond lookup</th>
-          <th class="num">sure at 32 · right</th>
-        </tr>
-      </thead>
-      <tbody>
-        {
-          ['no product 1 step', 'no product 2 steps', 'product 1 step', 'product 2 steps'].map((kind) => {
-            const a = w16.chains?.[kind];
-            const b = w32.chains?.[kind];
-            return (
-              <tr>
-                <td>{kind.replace('no product', 'without a product').replace(/^product/, 'through a product')}</td>
-                <td class="num"><b>{pct(a?.exact)}</b></td>
-                <td class="num muted">{pct(a?.beyond_lookup)}</td>
-                <td class="num"><b>{pct(b?.exact)}</b></td>
-                <td class="num muted">{pct(b?.beyond_lookup)}</td>
-                <td class="num">{`${pct(b?.sure_coverage)} · ${b?.sure_accuracy == null ? '—' : pct(b.sure_accuracy)}`}</td>
-              </tr>
-            );
-          })
-        }
-      </tbody>
-    </table>
-  </div>
+  <ChainsTable />
   <p class="small muted">48 episodes × 16 questions per kind; <code>uv run python -m teenie.bits.chain_split</code>.</p>
 
   <h2>Learning to compute through a product</h2>
@@ -170,34 +90,7 @@ const conditional = w32.families['a>b?a-b:a+b'];
     input bits that 999 examples run out of matches around bit 5. Getting further needs the model to compute through
     the product — scratch registers, numbers it writes and reads back every round, were the first change that did.
   </p>
-  <div class="scroll">
-    <table>
-      <thead>
-        <tr>
-          <th>stage</th>
-          <th class="num">through a product, 1 step</th>
-          <th class="num">2 steps</th>
-          <th class="num">sure on 1 step · right</th>
-        </tr>
-      </thead>
-      <tbody>
-        {
-          progress.products.map((row) => {
-            const one = row.summary['product 1 step'];
-            const two = row.summary['product 2 steps'];
-            return (
-              <tr>
-                <td>{row.stage}</td>
-                <td class="num"><b>{pct(one?.exact)}</b></td>
-                <td class="num"><b>{pct(two?.exact)}</b></td>
-                <td class="num">{one?.sure_coverage == null ? '—' : `${pct(one.sure_coverage)} · ${one.sure_accuracy == null ? '—' : pct(one.sure_accuracy)}`}</td>
-              </tr>
-            );
-          })
-        }
-      </tbody>
-    </table>
-  </div>
+  <ProductsTable />
   <p class="small muted">At 32 bits these are still at zero: training so far is at 16 bits only.</p>
 
   <h2>What works and what doesn't</h2>

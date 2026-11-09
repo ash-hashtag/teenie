@@ -1,0 +1,40 @@
+---
+import { progress } from '../lib/data';
+import { pct } from '../lib/format';
+// Held-out product chains at 16 bits as training progressed.
+---
+
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>stage</th>
+          <th class="num">through a product, 1 step</th>
+          <th class="num">2 steps</th>
+          <th class="num">sure on 1 step · right</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          progress.products.map((row) => {
+            const one = row.summary['product 1 step'];
+            const two = row.summary['product 2 steps'];
+            return (
+              <tr>
+                <td>{row.stage}</td>
+                <td class="num"><b>{pct(one?.exact)}</b></td>
+                <td class="num"><b>{pct(two?.exact)}</b></td>
+                <td class="num">{one?.sure_coverage == null ? '—' : `${pct(one.sure_coverage)} · ${one.sure_accuracy == null ? '—' : pct(one.sure_accuracy)}`}</td>
+              </tr>
+            );
+          })
+        }
+      </tbody>
+    </table>
+  </div>
+
+<style>
+  .scroll {
+    overflow-x: auto;
+  }
+</style>

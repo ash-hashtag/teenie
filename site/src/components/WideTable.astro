@@ -1,0 +1,69 @@
+---
+import { progress } from '../lib/data';
+import { pct } from '../lib/format';
+// The width-free model at 16 and 32 bits next to the best lookup baseline on the same questions.
+const wide = progress.wide;
+const w16 = wide.widths['16']!;
+const w32 = wide.widths['32']!;
+// Rows of the "where it stands" table: model exact vs the best of five lookup baselines on the same episodes.
+const table: { name: string; note: string; get: (w: typeof w32) => [number | null | undefined, number | null | undefined] }[] = [
+  { name: 'Sealed set', note: '24 everyday functions written separately, never used to choose anything',
+    get: (w) => [w.sealed?.exact, w.sealed_lookup] },
+  { name: 'a>b ? a−b : a+b', note: 'conditionals were never in training',
+    get: (w) => [w.families['a>b?a-b:a+b'], w.lookup['a>b?a-b:a+b']] },
+  { name: 'rotl(a, b&7)', note: 'rotations were never in training',
+    get: (w) => [w.families['rotl(a,b&7)'], w.lookup['rotl(a,b&7)']] },
+  { name: 'T1 · 2 operations', note: 'random, always with an operation pair held out of training',
+    get: (w) => [w.families['T1 2 ops'], w.lookup['T1 2 ops']] },
+  { name: 'T2 · 3–4 operations', note: 'same, longer',
+    get: (w) => [w.families['T2 3-4 ops'], w.lookup['T2 3-4 ops']] },
+  { name: 'T3 · 5–7 operations', note: 'same, longer',
+    get: (w) => [w.families['T3 5-7 ops'], w.lookup['T3 5-7 ops']] },
+  { name: 'T6 · 4–6 operations, all concepts', note: 'includes division, comparisons, variable shifts, bit counts',
+    get: (w) => [w.families['T6 4-6 ops, all concepts'], w.lookup['T6 4-6 ops, all concepts']] },
+  { name: 'a*b+b', note: 'a product, then one more step',
+    get: (w) => [w.families['a*b+b'], w.lookup['a*b+b']] },
+  { name: '((a*b)^(a>>3))|(b+9)', note: 'the target: an unseen multi-step expression',
+    get: (w) => [w.families['((a*b)^(a>>3))|(b+9)'], w.lookup['((a*b)^(a>>3))|(b+9)']] },
+];
+
+---
+
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>relation</th>
+          <th class="num">16 bits</th>
+          <th class="num">lookup</th>
+          <th class="num">32 bits</th>
+          <th class="num">lookup</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          table.map((row) => {
+            const [m16, l16] = row.get(w16);
+            const [m32, l32] = row.get(w32);
+            return (
+              <tr>
+                <td>
+                  <code>{row.name}</code> <span class="small muted">{row.note}</span>
+                </td>
+                <td class="num"><b>{pct(m16)}</b></td>
+                <td class="num muted">{pct(l16)}</td>
+                <td class="num"><b>{pct(m32)}</b></td>
+                <td class="num muted">{pct(l32)}</td>
+              </tr>
+            );
+          })
+        }
+      </tbody>
+    </table>
+  </div>
+
+<style>
+  .scroll {
+    overflow-x: auto;
+  }
+</style>

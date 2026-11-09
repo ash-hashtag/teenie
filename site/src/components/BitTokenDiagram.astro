@@ -1,5 +1,5 @@
 ---
-// The bit-token model: the question is 8 tokens, one per answer bit, refined together round after round.
+// The bit-token model: the question is one token per answer bit, refined together round after round.
 interface Props {
   layers: number;
   rounds: number;
@@ -15,7 +15,7 @@ const tokenX = (i: number) => 300 + i * 56;
   <svg viewBox="0 0 800 430" role="img" aria-labelledby="bt-title bt-desc">
     <title id="bt-title">The bit-token model</title>
     <desc id="bt-desc">
-      The 999 examples are encoded once. The question becomes eight tokens, one per answer bit. Each round the bit
+      The 999 examples are encoded once, bit by bit. The question becomes one token per answer bit. Each round the bit
       tokens attend to each other, each reads the examples, and a gated layer updates them; a memory per token carries
       to the next round and each token writes its own bit of the new guess.
     </desc>
@@ -25,9 +25,9 @@ const tokenX = (i: number) => 300 + i * 56;
       </marker>
     </defs>
 
-    <g class="node data"><rect x="20" y="40" width="200" height="56" rx="10" /><text x="120" y="64" class="head" text-anchor="middle">999 examples</text><text x="120" y="82" class="sub" text-anchor="middle">a, b, c as 24 bits</text></g>
-    <g class="node"><rect x="20" y="150" width="200" height="56" rx="10" /><text x="120" y="174" class="head" text-anchor="middle">Example encoder</text><text x="120" y="192" class="sub" text-anchor="middle">bilinear · run once</text></g>
-    <g class="node data"><rect x="20" y="260" width="200" height="56" rx="10" /><text x="120" y="284" class="head" text-anchor="middle">999 fixed vectors</text><text x="120" y="302" class="sub" text-anchor="middle">keys &amp; values per layer</text></g>
+    <g class="node data"><rect x="20" y="40" width="200" height="56" rx="10" /><text x="120" y="64" class="head" text-anchor="middle">999 examples</text><text x="120" y="82" class="sub" text-anchor="middle">a, b, c, bit by bit</text></g>
+    <g class="node"><rect x="20" y="150" width="200" height="56" rx="10" /><text x="120" y="174" class="head" text-anchor="middle">Example encoder</text><text x="120" y="192" class="sub" text-anchor="middle">each bit seen from its position</text></g>
+    <g class="node data"><rect x="20" y="260" width="200" height="56" rx="10" /><text x="120" y="284" class="head" text-anchor="middle">999 fixed vectors</text><text x="120" y="302" class="sub" text-anchor="middle">one token per bit · keys &amp; values</text></g>
     <g class="edges">
       <path d="M120,96 V146" />
       <path d="M120,206 V256" />
@@ -36,7 +36,7 @@ const tokenX = (i: number) => 300 + i * 56;
     <rect x="270" y="16" width="510" height="400" rx="14" class="round" />
     <text x="290" y="404" class="round-label">one round · same weights · × {rounds}</text>
 
-    <g class="node data"><rect x="300" y="30" width="440" height="40" rx="10" /><text x="520" y="55" class="sub" text-anchor="middle">question: a, b + current 8-bit guess, plus a position vector per bit</text></g>
+    <g class="node data"><rect x="300" y="30" width="440" height="40" rx="10" /><text x="520" y="55" class="sub" text-anchor="middle">question: a, b, current guess and scratch registers, per bit</text></g>
     <g class="edges"><path d="M520,70 V92" /></g>
     {
       bits.map((b, i) => (
@@ -48,13 +48,13 @@ const tokenX = (i: number) => 300 + i * 56;
     }
     <path class="arc" d={`M${tokenX(1) + 24},96 C${tokenX(1) + 24},76 ${tokenX(4) + 24},76 ${tokenX(4) + 24},96`} />
     <path class="arc" d={`M${tokenX(4) + 24},96 C${tokenX(4) + 24},80 ${tokenX(6) + 24},80 ${tokenX(6) + 24},96`} />
-    <text x="300" y="160" class="label">8 bit tokens per question</text>
+    <text x="300" y="160" class="label">one token per answer bit (16 or 32; 8 drawn)</text>
 
     <g class="node att">
       <rect x="300" y="174" width="440" height="88" rx="10" />
       <text x="520" y="196" text-anchor="middle" class="head">Bit layers × {layers}</text>
       <text x="520" y="216" text-anchor="middle" class="sub">1 · bit tokens attend to each other (learned bias per bit distance)</text>
-      <text x="520" y="234" text-anchor="middle" class="sub">2 · each bit token reads the examples ({heads} heads)</text>
+      <text x="520" y="234" text-anchor="middle" class="sub">2 · each reads the same bit of the examples ({heads} heads)</text>
       <text x="520" y="252" text-anchor="middle" class="sub">3 · gated feed-forward (can multiply)</text>
     </g>
     <g class="edges">
@@ -62,7 +62,7 @@ const tokenX = (i: number) => 300 + i * 56;
       <path d="M520,262 V286" />
     </g>
     <g class="node"><rect x="300" y="290" width="200" height="52" rx="10" /><text x="400" y="312" class="head" text-anchor="middle">Memory</text><text x="400" y="330" class="sub" text-anchor="middle">GRU cell per bit token</text></g>
-    <g class="node"><rect x="540" y="290" width="200" height="52" rx="10" /><text x="640" y="312" class="head" text-anchor="middle">Readout</text><text x="640" y="330" class="sub" text-anchor="middle">each token → its own bit</text></g>
+    <g class="node"><rect x="540" y="290" width="200" height="52" rx="10" /><text x="640" y="312" class="head" text-anchor="middle">Readout</text><text x="640" y="330" class="sub" text-anchor="middle">each token → its bit and registers</text></g>
     <g class="edges">
       <path d="M220,288 H284 V217 H296" />
       <path d="M500,316 H536" />

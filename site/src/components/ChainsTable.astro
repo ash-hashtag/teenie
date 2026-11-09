@@ -1,0 +1,46 @@
+---
+import { progress } from '../lib/data';
+import { pct } from '../lib/format';
+// Held-out chains split by whether they go through a product (chain_split.py), at 16 and 32 bits.
+const w16 = progress.wide.widths['16']!;
+const w32 = progress.wide.widths['32']!;
+---
+
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>chains</th>
+          <th class="num">16 bits</th>
+          <th class="num">beyond lookup</th>
+          <th class="num">32 bits</th>
+          <th class="num">beyond lookup</th>
+          <th class="num">sure at 32 · right</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          ['no product 1 step', 'no product 2 steps', 'product 1 step', 'product 2 steps'].map((kind) => {
+            const a = w16.chains?.[kind];
+            const b = w32.chains?.[kind];
+            return (
+              <tr>
+                <td>{kind.replace('no product', 'without a product').replace(/^product/, 'through a product')}</td>
+                <td class="num"><b>{pct(a?.exact)}</b></td>
+                <td class="num muted">{pct(a?.beyond_lookup)}</td>
+                <td class="num"><b>{pct(b?.exact)}</b></td>
+                <td class="num muted">{pct(b?.beyond_lookup)}</td>
+                <td class="num">{`${pct(b?.sure_coverage)} · ${b?.sure_accuracy == null ? '—' : pct(b.sure_accuracy)}`}</td>
+              </tr>
+            );
+          })
+        }
+      </tbody>
+    </table>
+  </div>
+
+<style>
+  .scroll {
+    overflow-x: auto;
+  }
+</style>

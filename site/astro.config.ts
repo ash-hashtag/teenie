@@ -10,6 +10,9 @@ const site = process.env.SITE_URL || 'https://teenie.lupyd.com';
 export default defineConfig({
   // Static docs: `pnpm build` writes plain HTML/JS/JSON into dist/.
   output: 'static',
+  // Keep whitespace as written: compression drops the line break before a tag that starts a line, which glues
+  // words together ("give<strong>every bit</strong>").
+  compressHTML: false,
   site,
   trailingSlash: 'always',
   devToolbar: { enabled: false },

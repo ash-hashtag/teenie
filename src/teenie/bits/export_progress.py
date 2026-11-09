@@ -12,6 +12,7 @@ from pathlib import Path
 from torch import nn
 
 from .bit_token_model import BitTokenModel
+from .wide_model import WideBitModel
 from .checkpoint import load_bit_model
 from .eval import Report, summarise
 from .sets import TARGET, TIERS, regroup
@@ -109,6 +110,9 @@ WIDE = [(16, 'experiments/wide/wide-32-w16-eval.json', 'experiments/sealed/wide-
           'experiments/wide/baselines-w32-T4.json', 'experiments/wide/baselines-w32-near.json',
           'experiments/wide/baselines-w32-T2T3.json'))]
 
+# The current model: the width-free model the Model page describes (parameters from the checkpoint).
+CURRENT_WIDE = 'checkpoints/wide/wide-chains-registers-long.pt'
+
 # Product chains at 16 bits as training progressed (held-out start-step pairs; chain_split.py), oldest first.
 PRODUCT_STAGES = [
     ('General model, no chain training', 'experiments/wide/chains-split-wide-32.json'),
@@ -200,6 +204,32 @@ def count(module: nn.Module) -> int:
     return sum(p.numel() for p in module.parameters())
 
 
+def wide_parts(model: WideBitModel, checkpoint: str, update: object) -> dict[str, object]:
+    config = model.config
+    registers, peers = config.get('registers', 0), config.get('peers', False)
+    parts = [
+        {'part': 'Example reader', 'detail': 'each example bit seen relative to its position and from the lowest bit '
+         '(a, b, c); bilinear layer computed as a convolution, then mixing', 'parameters': count(model.example)},
+        {'part': 'Question reader', 'detail': f'a, b, the current guess{f" and {registers} scratch registers" if registers else ""}, '
+         'seen the same way', 'parameters': count(model.ask)},
+        *[{'part': f'Bit layer {i + 1}', 'detail': 'answer bits attend to each other (bias per bit distance), read the '
+           f'same bit of all 999 examples ({config["heads"]} heads), gated feed-forward', 'parameters': count(layer)}
+          for i, layer in enumerate(model.layers)],
+        {'part': 'Example keys and values', 'detail': f'one pair per bit layer', 'parameters': count(model.keys) + count(model.values)},
+    ]
+    if peers:
+        parts.append({'part': 'Worked-example reading', 'detail': f'answer bits read {config["probes"]} worked examples '
+                      'and their true answers, after each bit layer', 'parameters': count(model.peers)})
+    parts += [
+        {'part': 'Memory', 'detail': 'GRU cell per answer bit, carried to the next round', 'parameters': count(model.cell)},
+        {'part': 'Readout', 'detail': f'each answer bit → its answer bit{f" and {registers} register bits" if registers else ""}',
+         'parameters': count(model.readout)},
+    ]
+    return {'checkpoint': checkpoint, 'update': update, 'hidden': config['hidden'], 'heads': config['heads'],
+            'layers': config['layers'], 'rounds': config['steps'], 'span': config['span'], 'registers': registers,
+            'worked_examples': config['probes'] if peers else 0, 'parameters': count(model), 'parts': parts}
+
+
 def bit_token_parts(model: BitTokenModel) -> dict[str, object]:
     config = model.config
     layers = list(model.layers)
@@ -240,11 +270,16 @@ def main() -> None:
             model, _ = load_bit_model(root / checkpoint)
             if isinstance(model, BitTokenModel):
                 architectures[identifier] = {'title': title, 'checkpoint': checkpoint, **bit_token_parts(model)}
+    current = None
+    if (root / CURRENT_WIDE).exists():
+        model, metadata = load_bit_model(root / CURRENT_WIDE)
+        if isinstance(model, WideBitModel):
+            current = wide_parts(model, CURRENT_WIDE, metadata.get('update'))
     products = [{'stage': stage, 'summary': json.loads((root / path).read_text())['summary']}
                 for stage, path in PRODUCT_STAGES if (root / path).exists()]
     Path(args.out).write_text(json.dumps({'ladder': list(LADDER), 'tiers': tiers, 'experiments': found,
                                           'architectures': architectures, 'wide': wide(root),
-                                          'products': products}))
+                                          'products': products, 'current': current}))
     print(f'exported {len(found)} experiments to {args.out}')
 
 

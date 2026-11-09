@@ -1,109 +1,84 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import BitTokenDiagram from '../components/BitTokenDiagram.astro';
-import DotPlot from '../components/DotPlot.astro';
-import LoopDiagram from '../components/LoopDiagram.astro';
 import RoundsInspector from '../components/RoundsInspector.astro';
-import { current, experimentById, progress } from '../lib/data';
-import { pct, thousands } from '../lib/format';
+import { progress } from '../lib/data';
+import { thousands } from '../lib/format';
 
-const arch = current.architecture;
-const tokens = arch.kind === 'bittoken';
-const layerName = tokens ? 'bit layers' : 'look layers';
+const model = progress.current!;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-const share = (n: number) => `${((100 * n) / arch.parameters).toFixed(1)}%`;
-const bitTokens = progress.architectures.bittoken;
-const capacityRuns = [
-  { id: 'nearonly', name: 'loop', color: 'var(--series-2)' },
-  { id: 'nearonly-scratch4', name: 'loop + scratch slots', color: 'var(--series-4)' },
-  { id: 'nearonly-bittoken', name: 'bit tokens', color: 'var(--series-1)' },
-];
-const capacityRelations = ['a*b+b', 'a*b+5', 'a*b-a', '(a*b)^a', 'a*b+a'];
-const capacityExact = (id: string, name: string) => experimentById(id)?.families[name]?.exact ?? null;
+const share = (n: number) => `${((100 * n) / model.parameters).toFixed(1)}%`;
 ---
 
-<Layout title="Model" description="The bit-token design: 999 examples encoded once, one token per answer bit, the guess refined over rounds with the same weights.">
+<Layout
+  title="Model"
+  description="The current model: width-free bit tokens that read 999 examples bit by bit, refine every answer bit over rounds, keep scratch registers and check worked examples — one set of weights for 16- and 32-bit numbers."
+>
   <p class="eyebrow">Model</p>
-  <h1>How the bit-token model works</h1>
+  <h1>The current model</h1>
   <p class="lede">
-    It is never told which relation it faces. It reads the 999 examples once, then <strong>guesses every bit of the
-    answer and corrects the guess</strong>, round after round, by looking back at the examples. The same weights run
-    every round.
-  </p>
-  <p class="small muted">
-    This page shows the 8-bit version, which is small enough to inspect. The width-free model on the overview uses the
-    same design with inputs that do not depend on the width, so the same weights answer 8- to 32-bit questions
-    (939K parameters; <code>src/teenie/bits/wide_model.py</code>).
+    It is never told which relation it faces and its weights never change while answering. It reads the 999 examples,
+    then <strong>guesses every bit of the answer and corrects the guess</strong>, round after round, with the same
+    weights — and nothing in it depends on the width, so one set of weights answers 16- and 32-bit questions.
   </p>
 
   <div class="grid-3 stats">
     <div class="card stat">
       <span class="label">Parameters</span>
-      <span class="value">{thousands(arch.parameters)}</span>
-      <span class="note">about {Math.round(arch.parameters / 1000)}K — all of them reused every round</span>
+      <span class="value">{thousands(model.parameters)}</span>
+      <span class="note">the same at every width up to {model.span} bits</span>
     </div>
     <div class="card stat">
-      <span class="label">Layers per round · rounds</span>
-      <span class="value">{arch.layers} · {arch.rounds}</span>
-      <span class="note">
-        {`${arch.layers} ${layerName} (${arch.heads} attention heads each), repeated for ${arch.rounds} rounds`}
-      </span>
+      <span class="label">Bit layers · rounds</span>
+      <span class="value">{model.layers} · {model.rounds}</span>
+      <span class="note">{`width ${model.hidden}, ${model.heads} attention heads, the same weights every round`}</span>
     </div>
     <div class="card stat">
-      <span class="label">Width</span>
-      <span class="value">{arch.hidden}</span>
-      <span class="note">hidden size; numbers are {arch.width}-bit, context fixed at 999 examples</span>
+      <span class="label">Scratch registers · worked examples</span>
+      <span class="value">{model.registers} · {model.worked_examples}</span>
+      <span class="note">room for intermediate values, and examples worked through like questions</span>
     </div>
   </div>
 
-  <h2>Architecture</h2>
+  <h2>How it answers</h2>
   <div class="card">
-    {
-      tokens ? (
-        <BitTokenDiagram layers={arch.layers} rounds={arch.rounds} heads={arch.heads} />
-      ) : (
-        <LoopDiagram layers={arch.layers} rounds={arch.rounds} heads={arch.heads} scratch={arch.scratch} />
-      )
-    }
+    <BitTokenDiagram layers={model.layers} rounds={model.rounds} heads={model.heads} />
   </div>
-
   <div class="grid-2 steps">
-    <div class="card">
-      <p class="eyebrow">1 · Read the examples once</p>
+    <div>
+      <p class="eyebrow">1 · See every bit from where it sits</p>
       <p>
-        Each example's 24 bits (<code>a</code>, <code>b</code>, <code>c</code>) go through a small encoder whose first
-        layer is <strong>bilinear</strong> — two projections multiplied together — and become one vector. The 999
-        vectors stay fixed for every round: no reading order, no direction to choose.
+        Each bit of every example — and of the question — is a token that sees the numbers relative to its own position
+        (31 bits either side) and counted from the lowest bit. No layer is sized for a width, so the same weights read
+        8, 16 or 32 bits.
       </p>
     </div>
-    <div class="card">
-      <p class="eyebrow">2 · Hold a guess</p>
+    <div>
+      <p class="eyebrow">2 · One token per answer bit</p>
       <p>
-        The question starts with all 8 answer bits undecided. Its input layer is bilinear too, so products of its own
-        bits such as <code>a<sub>i</sub>·b<sub>j</sub></code> — the pieces of a multiplication — are one step away.
-        {tokens && ' The question is split into 8 tokens, one per answer bit, each knowing which bit it is.'}
+        The question holds one token per answer bit. Each round the answer bits attend to each other — so carries and
+        partial products can move between positions — and each reads the same bit of all 999 examples.
       </p>
     </div>
-    <div class="card">
-      <p class="eyebrow">3 · Look and correct</p>
+    <div>
+      <p class="eyebrow">3 · Scratch registers and worked examples</p>
       <p>
-        {
-          tokens
-            ? `Each round, in each of ${arch.layers} bit layers, the bit tokens first attend to each other — so carries and partial products can move between bit positions — then each reads the 999 example vectors, then a gated (SwiGLU) layer that can multiply signals updates them. A memory per token carries to the next round, and each token writes its own bit of the new guess.`
-            : `Each round the question, carrying its current guess and memory, attends to the 999 example vectors in ${arch.layers} look layers, each followed by a gated (SwiGLU) layer that can multiply signals instead of only adding them.${arch.scratch > 0 ? ` It then exchanges information with its ${arch.scratch} scratch slots — memory carried between rounds and never scored, for intermediate results.` : ''} A GRU cell updates the memory and the readout writes a new guess.`
-        }
+        {`Besides its guess, every question keeps ${model.registers} scratch numbers it writes and reads back each round, and ${model.worked_examples} examples are worked through the same way, so the answer bits can read what was worked out for real examples next to their true answers.`}
+        This was the first change that let it compute through a product instead of matching examples.
       </p>
     </div>
-    <div class="card">
-      <p class="eyebrow">4 · Answer honestly</p>
+    <div>
+      <p class="eyebrow">4 · Answer, and say how sure</p>
       <p>
-        {`After round ${arch.rounds} every bit is rounded to 0 or 1. Confidence is the certainty of the least certain bit: on relations it has never seen it seldom claims to be sure, and when it does it is right ${pct(current.summary.hidden?.sure_accuracy)} of the time on hidden compositions.`}
+        After the last round each answer bit is read out as a probability. The answer is the most likely bit at each
+        position; its confidence is that of its least certain bit, and only answers with every bit at least 0.99 count
+        as sure.
       </p>
     </div>
   </div>
 
   <h2>Where the parameters are</h2>
-  <div class="card table-scroll">
+  <div class="table-scroll">
     <table>
       <thead>
         <tr>
@@ -115,7 +90,7 @@ const capacityExact = (id: string, name: string) => experimentById(id)?.families
       </thead>
       <tbody>
         {
-          arch.parts.map((p) => (
+          model.parts.map((p) => (
             <tr>
               <td>
                 <b>{p.part}</b>
@@ -129,149 +104,25 @@ const capacityExact = (id: string, name: string) => experimentById(id)?.families
         <tr>
           <td><b>Total</b></td>
           <td></td>
-          <td class="num"><b>{thousands(arch.parameters)}</b></td>
+          <td class="num"><b>{thousands(model.parameters)}</b></td>
           <td class="num">100%</td>
         </tr>
       </tbody>
     </table>
   </div>
+  <p class="small muted">
+    {`Checkpoint ${model.checkpoint}, update ${model.update}; source src/teenie/bits/wide_model.py. How it got here — every design tried, including the ones that did not work — is in the `}<a
+      href={`${base}/changelog/`}>changelog</a
+    > and the <a href={`${base}/findings/`}>findings</a>.
+  </p>
 
-  <h2>Watch it answer</h2>
+  <h2>Watch an earlier model answer</h2>
   <p>
-    Recorded from the current model on fresh episodes. Play through the rounds: the guess starts undecided and
-    sharpens as the question keeps looking back at the examples. <code>add</code> and <code>max</code> settle almost
-    immediately; {`a*b takes longer (${pct(current.families['a*b'])} exact for this model);`}
-    <code>a*b+a</code> and the hidden sum loop show where it still fails.
+    A recording from the earlier 8-bit version of the same design, small enough to step through: the guess starts
+    undecided and sharpens round by round as the answer bits keep looking back at the examples. 8-bit results are not
+    used to judge the model — there, lookup alone does well.
   </p>
   <RoundsInspector />
-
-  {
-    bitTokens && !tokens && (
-      <section class="next">
-        <h2>In testing: bit tokens</h2>
-        <p>
-          The current model holds each question as one vector. That is enough to multiply, and enough to add — but not
-          to do one after the other: a product followed by another step needs carries to move between bit positions
-          through an intermediate result. The bit-token model gives every answer bit its own token. Each round the bit
-          tokens attend to each other, each reads the 999 examples, and a gated layer updates them.
-        </p>
-        <div class="grid-3 stats">
-          <div class="card stat">
-            <span class="label">Parameters</span>
-            <span class="value">{thousands(bitTokens.parameters)}</span>
-            <span class="note">{`about ${Math.round(bitTokens.parameters / 1000)}K at width ${bitTokens.hidden}`}</span>
-          </div>
-          <div class="card stat">
-            <span class="label">Layers per round · rounds</span>
-            <span class="value">{`${bitTokens.layers} · ${bitTokens.rounds}`}</span>
-            <span class="note">{`${bitTokens.layers} bit layers (${bitTokens.heads} heads), 8 tokens per question`}</span>
-          </div>
-          <div class="card stat">
-            <span class="label">"Product, then a step" (trained on it alone)</span>
-            <span class="value">{pct(capacityExact('nearonly-bittoken', 'a*b+b'))}</span>
-            <span class="note">{`the current design reaches ${pct(capacityExact('nearonly', 'a*b+b'))} with the same training`}</span>
-          </div>
-        </div>
-        <div class="card">
-          <BitTokenDiagram layers={bitTokens.layers} rounds={bitTokens.rounds} heads={bitTokens.heads} />
-        </div>
-        <h3>Can it compute a product followed by another step?</h3>
-        <p class="small">
-          Capacity check: each design trained on nothing but these four relations (3,000 updates), then tested on fresh
-          questions. <code>a*b+a</code> was never shown to any of them.
-        </p>
-        <div class="card">
-          <DotPlot
-            title="Exact match after training only on product-then-step relations"
-            reference={0.5}
-            labelWidth={150}
-            methods={capacityRuns.map((r) => ({ name: r.name, color: r.color }))}
-            rows={capacityRelations.map((name) => ({
-              name: name === 'a*b+a' ? 'a*b+a (unseen)' : name,
-              values: capacityRuns.map((r) => capacityExact(r.id, name)),
-            }))}
-          />
-        </div>
-        <p class="small muted">
-          Bit tokens reach 99–100% where a single question vector stalls below 50% — even with scratch memory. Trained on
-          only four relations it forces the unseen <code>a*b+a</code> into one it knows, so the real test is broad
-          training: it is now training with step-by-step supervision on the full data set, and replaces the current model
-          if it wins on the ladder.
-        </p>
-        <details>
-          <summary>Where its parameters are</summary>
-          <div class="table-scroll">
-            <table>
-              <thead>
-                <tr><th>part</th><th>what it does</th><th class="num">parameters</th></tr>
-              </thead>
-              <tbody>
-                {bitTokens.parts.map((p) => (
-                  <tr>
-                    <td><b>{p.part}</b></td>
-                    <td class="muted">{p.detail}</td>
-                    <td class="num">{thousands(p.parameters)}</td>
-                  </tr>
-                ))}
-                <tr><td><b>Total</b></td><td></td><td class="num"><b>{thousands(bitTokens.parameters)}</b></td></tr>
-              </tbody>
-            </table>
-          </div>
-        </details>
-      </section>
-    )
-  }
-
-  {
-    tokens && (
-      <section class="next">
-        <h2>Why one token per answer bit</h2>
-        <p>
-          The previous model held each question as one vector. It could multiply and it could add, but not one after the
-          other: a product followed by another step needs carries to move between bit positions through an intermediate
-          result. Trained on nothing but such relations, each design reached:
-        </p>
-        <div class="card">
-          <DotPlot
-            title="Exact match after training only on product-then-step relations"
-            reference={0.5}
-            labelWidth={150}
-            methods={capacityRuns.map((r) => ({ name: r.name, color: r.color }))}
-            rows={capacityRelations.map((name) => ({
-              name: name === 'a*b+a' ? 'a*b+a (unseen)' : name,
-              values: capacityRuns.map((r) => capacityExact(r.id, name)),
-            }))}
-          />
-        </div>
-      </section>
-    )
-  }
-
-  <h2>How it is trained</h2>
-  <div class="grid-2">
-    <div class="card">
-      <h3>Never the same problem twice</h3>
-      <p class="small">
-        Each step draws 8 fresh episodes: a random relation, 999 new examples and 16 new questions. Relations include
-        the named ones, <code>a*b</code>, random expressions of 1–5 operations, loops whose repeat count comes from
-        <code>b</code>, and bit loops. Certain operation combinations and loop bodies are never generated, so they can be
-        tested as truly unseen.
-      </p>
-    </div>
-    <div class="card">
-      <h3>Effort where it is still wrong</h3>
-      <p class="small">
-        Every 500 updates the model is checked on each relation kind, and the next episodes are drawn in proportion to how
-        often it is still wrong. That alone took multiplication from 45% to 99.6% in an earlier mixed run.
-        {` This model: ${arch.updates?.toLocaleString('en-US')} updates on ${arch.train_set}, per-bit cross-entropy, AdamW.`}
-      </p>
-    </div>
-  </div>
-  <p class="small muted">
-    {tokens ? 'Source: src/teenie/bits/bit_token_model.py (--architecture bittoken).' : 'Source: src/teenie/bits/loop_model.py (--architecture loop --multiplicative).'} Results on
-    the difficulty ladder: <a href={`${base}/results/`}>Results</a>. How it got here, including the first bit-by-bit
-    model: <a href={`${base}/changelog/`}>Changelog</a>.
-  </p>
 </Layout>
 
 <style>
@@ -285,9 +136,5 @@ const capacityExact = (id: string, name: string) => experimentById(id)?.families
 
   .steps p:last-child {
     margin-bottom: 0;
-  }
-
-  .next .stats {
-    margin: 1rem 0;
   }
 </style>

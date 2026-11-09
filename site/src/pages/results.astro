@@ -2,6 +2,9 @@
 import Layout from '../layouts/Layout.astro';
 import DotPlot from '../components/DotPlot.astro';
 import LineChart from '../components/LineChart.astro';
+import ChainsTable from '../components/ChainsTable.astro';
+import ProductsTable from '../components/ProductsTable.astro';
+import WideTable from '../components/WideTable.astro';
 import { ladderRuns, progress, TIER_LABELS, type Experiment } from '../lib/data';
 import { pct } from '../lib/format';
 
@@ -20,15 +23,48 @@ const lengths = ['n15', 'n63', 'n255'];
 const cell = (e: Experiment | undefined, name: string) => e?.families[name]?.exact ?? null;
 ---
 
-<Layout title="Results" description="The current model on the difficulty ladder: unseen expressions, new operation types and loops.">
+<Layout
+  title="Results"
+  description="Where the model stands at 16 and 32 bits: unseen relations against lookup baselines, multi-step chains with confidence, and learning to compute through a product."
+>
   <p class="eyebrow">Results</p>
-  <h1>The difficulty ladder</h1>
+  <h1>Where the model stands</h1>
   <p class="lede">
-    The goal: recognise the rule behind increasingly complex functions — including ones defined by loops — and get <strong>at least half</strong> of the never-seen ones exactly right, while staying honest about when it is sure.
-    Each run is scored at the width in its title (8 bits unless stated). At 8 bits the examples cover 1.5% of all
-    inputs and lookup methods that understand nothing reach about a third of the sealed set, so 8-bit scores overstate
-    what the model has inferred; the overview compares the 16- and 32-bit results with lookup directly.
-    A tier is <strong>won</strong> at ≥50% exact with its sure answers right ≥95% of the time.
+    Everything here is measured at 16 and 32 bits, where a lucky guess is one in 65,536 or one in four billion and
+    the 999 examples cover a vanishing fraction of all inputs — so a right answer has to come from inferring the
+    relation. Scores are shown next to lookup methods that understand nothing, and with how often the model is sure
+    and right.
+  </p>
+
+  <h2>Unseen relations against lookup</h2>
+  <p class="small muted">
+    The width-free model after its 24- and 32-bit stage. Lookup is the best of five methods (closest example, or matching
+    one or two neighbouring bits), chosen per relation after the fact.
+  </p>
+  <WideTable />
+
+  <h2>Multi-step chains</h2>
+  <p class="small muted">
+    A start followed by one or two of 21 kinds of step, with fresh random constants; beyond lookup counts only questions
+    every lookup method gets wrong.
+  </p>
+  <ChainsTable />
+
+  <h2>Learning to compute through a product</h2>
+  <p class="small muted">
+    Held-out product chains at 16 bits as training went on. Matching examples cannot get past about bit 5 of a product;
+    scratch registers were the first change that let the model compute through it.
+  </p>
+  <ProductsTable />
+  <p class="small muted">At 32 bits these are still at zero: the product skill reaches about bit 15 of a 32-bit number so far.</p>
+
+  <h2 id="ladder">Earlier: the difficulty ladder</h2>
+  <p>
+    Before the move to wide numbers, every run was scored on a ladder of test tiers — random expressions of 2, 3–4 and
+    5–7 operations with held-out combinations, new operation types and loops — mostly at 8 bits. At 8 bits the examples
+    cover 1.5% of all inputs and lookup methods reach about a third of the sealed set, so these scores overstate what
+    the model inferred; they are kept as the record. Each run is scored at the width in its title (8 bits unless
+    stated). A tier is <b>won</b> at ≥50% exact with its sure answers right ≥95% of the time.
   </p>
 
   {

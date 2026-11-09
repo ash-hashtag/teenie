@@ -11,9 +11,11 @@ import sys
 import torch
 from teenie.bits.checkpoint import load_bit_model
 from teenie.bits.data import BitSampler
+from teenie.bits.eval import be_gentle_on_cpu
 from teenie.bits.baselines import nearest, window_lookup
 from teenie.bits.sets import CHAINS_UNSEEN, CHAINS_UNSEEN2, PRODUCT_CHAINS_UNSEEN, PRODUCT_CHAINS_UNSEEN2
 
+be_gentle_on_cpu()
 model, metadata = load_bit_model(sys.argv[1], 'cpu')
 width = int(sys.argv[3]) if len(sys.argv) > 3 else 16
 stats: dict[str, list[int]] = {}

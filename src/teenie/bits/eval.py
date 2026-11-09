@@ -1,5 +1,6 @@
 """Exact-match evaluation of a bit checkpoint and non-learned controls on identical episodes."""
 import argparse
+import os
 from collections.abc import Sequence
 import json
 from pathlib import Path
@@ -84,6 +85,13 @@ def summarise(reports: dict[str, Report]) -> dict[str, float | bool | None]:
             'won': mean is not None and mean >= .5 and (sure is None or sure >= .95)}
 
 
+def be_gentle_on_cpu() -> None:
+    """CPU evaluations run beside training and other work: use a few threads (TEENIE_CPU_THREADS, default 4) at
+    lower priority instead of every core."""
+    torch.set_num_threads(int(os.environ.get('TEENIE_CPU_THREADS', '4')))
+    os.nice(10)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description='Exact-match accuracy of a bit-relation checkpoint')
     parser.add_argument('--load', help='checkpoint; omitted = baselines only')
@@ -98,6 +106,8 @@ def main() -> None:
     parser.add_argument('--width', type=int, help='bits per number for a width-free model (default: as trained)')
     parser.add_argument('--output')
     args = parser.parse_args()
+    if args.device == 'cpu':
+        be_gentle_on_cpu()
     model, metadata = load_bit_model(args.load, args.device) if args.load else (None, {})
     width = args.width or int(metadata.get('width', 8))  # type: ignore[call-overload]
     if args.width and model is not None and not isinstance(model, WideBitModel) and args.width != int(metadata.get('width', 8)):  # type: ignore[call-overload]

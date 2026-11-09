@@ -626,6 +626,23 @@ composition failure was this one case.
 Where it answers, it knows it: about half its answers on chains without a product are sure, and every sure answer
 was right; through a product it is never sure, so it never claims a wrong answer.
 
+## 28. Training on chains: products start to compose (`experiments/wide/wide-chains-*`)
+
+The stage-2 model trained 8,000 updates at 16 bits on chains (section 27), with the held-out (start, first step)
+pairs never shown; a third of the starts are products and `*` is one of the steps. Held-out chain pairs, 16 bits:
+
+| held-out chains | before | after | right where lookup fails | sure (right when sure) |
+|---|---|---|---|---|
+| no product, 1 step | 99.0% | 100.0% | 100.0% | 98.8% (100%) |
+| no product, 2 steps | 93.1% | 97.0% | 92.6% | 86.1% (100%) |
+| through a product, 1 step | 10.7% | 21.7% | 19.1% | 0.4% (100%) |
+| through a product, 2 steps | 11.0% | 15.5% | 11.9% | 0.6% (100%) |
+
+Chains without a product become nearly perfect, and the model is sure of almost all of them. **Chains through a
+product roughly double** — the first movement on composing through a product, on pairs never trained together —
+but stay far below; the model is almost never sure of them, and right when it is. The fixed checks `(a*b)+a` and
+`(a*b)^b` stayed at 0%, so the gain is on other product chains.
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

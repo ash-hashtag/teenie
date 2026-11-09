@@ -1,0 +1,40 @@
+{
+ "checkpoint": "checkpoints/wide/wide-chains.pt",
+ "width": 16,
+ "seed": 60000,
+ "episodes": 48,
+ "summary": {
+  "no product 1 step": {
+   "exact": 1.0,
+   "beyond_lookup": 1.0,
+   "questions": 496,
+   "lookup_fails": 152,
+   "sure_coverage": 0.9879032258064516,
+   "sure_accuracy": 1.0
+  },
+  "no product 2 steps": {
+   "exact": 0.9699074074074074,
+   "beyond_lookup": 0.9256198347107438,
+   "questions": 432,
+   "lookup_fails": 121,
+   "sure_coverage": 0.8611111111111112,
+   "sure_accuracy": 0.9973118279569892
+  },
+  "product 1 step": {
+   "exact": 0.21691176470588236,
+   "beyond_lookup": 0.19066147859922178,
+   "questions": 272,
+   "lookup_fails": 257,
+   "sure_coverage": 0.003676470588235294,
+   "sure_accuracy": 1.0
+  },
+  "product 2 steps": {
+   "exact": 0.15476190476190477,
+   "beyond_lookup": 0.11920529801324503,
+   "questions": 336,
+   "lookup_fails": 302,
+   "sure_coverage": 0.005952380952380952,
+   "sure_accuracy": 1.0
+  }
+ }
+}

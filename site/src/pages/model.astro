@@ -22,13 +22,18 @@ const capacityRelations = ['a*b+b', 'a*b+5', 'a*b-a', '(a*b)^a', 'a*b+a'];
 const capacityExact = (id: string, name: string) => experimentById(id)?.families[name]?.exact ?? null;
 ---
 
-<Layout title="Model" description="The current model: 999 examples encoded once, an 8-bit answer guess refined over rounds.">
+<Layout title="Model" description="The bit-token design: 999 examples encoded once, one token per answer bit, the guess refined over rounds with the same weights.">
   <p class="eyebrow">Model</p>
-  <h1>How the current model reasons</h1>
+  <h1>How the bit-token model works</h1>
   <p class="lede">
-    It is never told which relation it faces. It reads the 999 examples once, then <strong>guesses all 8 bits of the
+    It is never told which relation it faces. It reads the 999 examples once, then <strong>guesses every bit of the
     answer and corrects the guess</strong>, round after round, by looking back at the examples. The same weights run
-    every round, so the loop is the reasoning.
+    every round.
+  </p>
+  <p class="small muted">
+    This page shows the 8-bit version, which is small enough to inspect. The width-free model on the overview uses the
+    same design with inputs that do not depend on the width, so the same weights answer 8- to 32-bit questions
+    (939K parameters; <code>src/teenie/bits/wide_model.py</code>).
   </p>
 
   <div class="grid-3 stats">
@@ -131,7 +136,7 @@ const capacityExact = (id: string, name: string) => experimentById(id)?.families
     </table>
   </div>
 
-  <h2>Watch it think</h2>
+  <h2>Watch it answer</h2>
   <p>
     Recorded from the current model on fresh episodes. Play through the rounds: the guess starts undecided and
     sharpens as the question keeps looking back at the examples. <code>add</code> and <code>max</code> settle almost

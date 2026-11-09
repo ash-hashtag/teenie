@@ -114,7 +114,7 @@ const sureCorrect = sure.every((x) => x.r.sure_accuracy === 1);
     <div class="card">
       <h3>Shows</h3>
       <ul class="small">
-        <li>The model finds and applies the rule from the examples alone: closest-example copying is 2–5% on carry relations, the model is 100%.</li>
+        <li>On the trained carry relations it is exact from the examples alone, where copying the closest example gets 2–5% (the hand-written bit lookup, told the reading direction, is exact there too).</li>
         <li>It picks the right reading direction by itself (low-first for carries, high-first for max).</li>
         <li>It generalises to some unseen relations (<code>a+b+1</code>, <code>nand</code>: 100%).</li>
       </ul>
@@ -124,7 +124,7 @@ const sureCorrect = sure.every((x) => x.r.sure_accuracy === 1);
       <ul class="small">
         <li>One training seed; numbers are from a single run.</li>
         <li>New carry patterns (<code>3a</code>, <code>a−2b</code>) and the mirror of a trained idea (<code>min</code>) are still unreliable.</li>
-        <li>Only 8-bit numbers. Wider numbers and multiplication are untested or unsolved.</li>
+        <li>Only 8-bit numbers, where 999 examples cover 1.5% of all inputs and lookup does well. Wider numbers and multiplication were untested or unsolved for this model.</li>
       </ul>
     </div>
   </div>

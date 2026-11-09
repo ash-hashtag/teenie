@@ -2,7 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import BitStrip from '../components/BitStrip.astro';
 import rounds from '../../public/data/rounds.json';
-import { current, experimentById } from '../lib/data';
+import { progress } from '../lib/data';
 import { pct, thousands } from '../lib/format';
 
 type Trace = {
@@ -15,27 +15,139 @@ const product = (rounds as Trace[]).find((t) => t.relation === 'a*b')!;
 const rows = product.context.slice(0, 4) as [number, number, number][];
 const question = product.examples[0]!;
 const guesses = question.rounds.map((r) => r.p);
-const arch = current.architecture;
-const tiers = Object.keys(current.summary).filter((g) => g.startsWith('T'));
-const won = tiers.filter((t) => current.summary[t]?.won).length;
-const mix = experimentById('mix');
-const named = ['add', 'sub', 'b-a', 'xor', 'and', 'or', 'a+2b', '2a+b', 'max', 'a<<1', 'a+const', 'b^const'];
-const namedLow = Math.min(...named.map((n) => current.families[n] ?? 0));
+const wide = progress.wide;
+const w16 = wide.widths['16']!;
+const w32 = wide.widths['32']!;
+// Rows of the "where it stands" table: model exact vs the best of five lookup baselines on the same episodes.
+const table: { name: string; note: string; get: (w: typeof w32) => [number | null | undefined, number | null | undefined] }[] = [
+  { name: 'Sealed set', note: '24 everyday functions written separately, never used to choose anything',
+    get: (w) => [w.sealed?.exact, w.sealed_lookup] },
+  { name: 'a>b ? a−b : a+b', note: 'conditionals were never in training',
+    get: (w) => [w.families['a>b?a-b:a+b'], w.lookup['a>b?a-b:a+b']] },
+  { name: 'rotl(a, b&7)', note: 'rotations were never in training',
+    get: (w) => [w.families['rotl(a,b&7)'], w.lookup['rotl(a,b&7)']] },
+  { name: 'T1 · 2 operations', note: 'random, always with an operation pair held out of training',
+    get: (w) => [w.families['T1 2 ops'], w.lookup['T1 2 ops']] },
+  { name: 'T2 · 3–4 operations', note: 'same, longer',
+    get: (w) => [w.families['T2 3-4 ops'], w.lookup['T2 3-4 ops']] },
+  { name: 'T3 · 5–7 operations', note: 'same, longer',
+    get: (w) => [w.families['T3 5-7 ops'], w.lookup['T3 5-7 ops']] },
+  { name: 'T6 · 4–6 operations, all concepts', note: 'includes division, comparisons, variable shifts, bit counts',
+    get: (w) => [w.families['T6 4-6 ops, all concepts'], w.lookup['T6 4-6 ops, all concepts']] },
+  { name: 'a*b+b', note: 'a product, then one more step',
+    get: (w) => [w.families['a*b+b'], w.lookup['a*b+b']] },
+  { name: '((a*b)^(a>>3))|(b+9)', note: 'the target: an unseen multi-step expression',
+    get: (w) => [w.families['((a*b)^(a>>3))|(b+9)'], w.lookup['((a*b)^(a>>3))|(b+9)']] },
+];
+const conditional = w32.families['a>b?a-b:a+b'];
 ---
 
-<Layout title="Teenie" description="A small model that reads 999 examples of a hidden relation and answers new questions exactly.">
+<Layout
+  title="Teenie"
+  description="A research model that reads 999 examples of a hidden relation on 16- and 32-bit integers and predicts the answer to a new question. Results next to lookup baselines, failures included."
+>
   <section class="hero">
-    <p class="eyebrow">Teenie · relation inference from examples</p>
-    <h1>Show it 999 examples. It works out the rule.</h1>
+    <p class="eyebrow">Teenie · a research experiment</p>
+    <h1>Can a small model infer a hidden rule from 999 examples?</h1>
     <p class="lede">
-      Each example is two 8-bit numbers <code>a</code>, <code>b</code> and an answer <code>c</code> from a hidden
-      relation — addition, multiplication, a random expression, even a loop. The model is never told which. It reads the
-      examples and must produce <strong>every bit</strong> of <code>c</code> for a new <code>(a, b)</code>; close
-      doesn't count.
+      Each episode is 999 examples <code>(a, b, c)</code> of a hidden relation on 16- or 32-bit integers — a random
+      expression, a conditional, a loop — and one new <code>(a, b)</code>. The model is never told the relation and its
+      weights never change while answering: in one forward pass it has to guess the rule from the examples and give
+      <strong>every bit</strong> of <code>c</code>. At 32 bits a lucky guess is one in four billion, so every right
+      answer has to come from the examples. It works on some kinds of relations and fails on others; both are below.
     </p>
   </section>
 
-  <section class="demo card" id="demo" data-guesses={JSON.stringify(guesses)} aria-label="The current model answering a multiplication question, round by round">
+  <section class="stats grid-3">
+    <div class="card stat">
+      <span class="label">Model size</span>
+      <span class="value">{wide.parameters ? `${Math.round(wide.parameters / 1000)}K` : '—'}</span>
+      <span class="note">{wide.parameters ? `${thousands(wide.parameters)} parameters, the same at every width up to 32 bits` : ''}</span>
+    </div>
+    <div class="card stat">
+      <span class="label">An unseen conditional at 32 bits</span>
+      <span class="value">{pct(conditional)}</span>
+      <span class="note">{`exact on a>b ? a−b : a+b, never trained; lookup gets ${pct(w32.lookup['a>b?a-b:a+b'])}`}</span>
+    </div>
+    <div class="card stat">
+      <span class="label">A product, then one more step, at 32 bits</span>
+      <span class="value">{pct(w32.families['a*b+b'])}</span>
+      <span class="note">a*b+b — the clearest failure so far (see below)</span>
+    </div>
+  </section>
+
+  <h2>Where it stands</h2>
+  <p>
+    The width-free model at 16 and 32 bits. Every method answers the same questions (64 episodes × 16 questions per
+    relation, never used in training). <b>Lookup</b> is the best of five methods that understand nothing: copy the
+    answer of the closest example, or match one or two neighbouring bits across the examples — chosen per relation
+    after the fact, so it is a generous reference. A score only means something where it clearly beats lookup.
+  </p>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>relation</th>
+          <th class="num">16 bits</th>
+          <th class="num">lookup</th>
+          <th class="num">32 bits</th>
+          <th class="num">lookup</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          table.map((row) => {
+            const [m16, l16] = row.get(w16);
+            const [m32, l32] = row.get(w32);
+            return (
+              <tr>
+                <td>
+                  <code>{row.name}</code> <span class="small muted">{row.note}</span>
+                </td>
+                <td class="num"><b>{pct(m16)}</b></td>
+                <td class="num muted">{pct(l16)}</td>
+                <td class="num"><b>{pct(m32)}</b></td>
+                <td class="num muted">{pct(l32)}</td>
+              </tr>
+            );
+          })
+        }
+      </tbody>
+    </table>
+  </div>
+  <p class="small muted">
+    {`Sure answers (least certain bit ≥ 0.99) were right ${pct(w32.sealed?.sure_accuracy)} of the time on the sealed set at 32 bits. One training seed; differences of a few points are within seed-to-seed spread.`}
+  </p>
+
+  <h2>What works and what doesn't</h2>
+  <div class="grid-3">
+    <div class="card">
+      <h3>Works: relations with local fingerprints</h3>
+      <p class="small">
+        Conditionals, rotations and short expressions leave patterns that are visible bit by bit in the examples. At
+        32 bits the model gets some of these well above lookup, including operation types it never saw in training —
+        most of the conditional above, a quarter of the variable rotations.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Fails: a product, then another step</h3>
+      <p class="small">
+        The model computes <code>a*b</code> itself, but <code>a*b+b</code> or the target expression are at or near
+        zero at 32 bits. Trained on just four such relations it computes them almost perfectly, so the failure is in
+        recognising which relation the examples come from when there are many candidates — not in the arithmetic.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Honest about it</h3>
+      <p class="small">
+        Its confidence is the certainty of its least certain bit. On relations it cannot work out it is rarely sure,
+        so its sure answers stay right almost every time even where its overall score is low.
+      </p>
+    </div>
+  </div>
+
+  <h2>How it answers</h2>
+  <section class="demo card" id="demo" data-guesses={JSON.stringify(guesses)} aria-label="An 8-bit model answering a multiplication question, round by round">
     <div class="demo-grid">
       <div>
         <p class="eyebrow">999 examples (4 shown) · relation hidden</p>
@@ -66,74 +178,32 @@ const namedLow = Math.min(...named.map((n) => current.families[n] ?? 0));
           </div>
         </div>
         <p class="small muted note">
-          The real model, recorded. It guesses all 8 bits at once and corrects the guess every round by looking back at the
-          examples. Here the hidden relation is <code>a*b</code>: {`${question.a} × ${question.b} = ${question.target} (mod 256).`}
-          Blue = surely 1, pale = surely 0.
+          A recording from the earlier 8-bit model, small enough to show: it guesses every bit at once and corrects the
+          guess each round by reading the examples again. Here the hidden relation is <code>a*b</code>:
+          {` ${question.a} × ${question.b} = ${question.target} (mod 256).`} Blue = surely 1, pale = surely 0. 8-bit results
+          are not used to judge the model: with only 256 possible answers and examples covering 1.5% of all inputs,
+          lookup alone does well there.
         </p>
       </div>
     </div>
   </section>
 
-  <section class="stats grid-3">
-    <div class="card stat">
-      <span class="label">Model size</span>
-      <span class="value">{Math.round(arch.parameters / 1000)}K</span>
-      <span class="note">
-        {`${thousands(arch.parameters)} parameters · ${arch.layers} ${arch.kind === 'bittoken' ? 'bit' : 'look'} layers × ${arch.rounds} rounds · width ${arch.hidden}`}
-      </span>
-    </div>
-    <div class="card stat">
-      <span class="label">8-bit multiplication, current model</span>
-      <span class="value">{pct(current.families['a*b'])}</span>
-      <span class="note"
-        >{`An earlier run with fewer relation kinds reached ${pct(mix?.families['a*b']?.exact)}; now more kinds share the same training budget. The first models: under 7%.`}</span
-      >
-    </div>
-    <div class="card stat">
-      <span class="label">Difficulty tiers won</span>
-      <span class="value">{won} of {tiers.length}</span>
-      <span class="note">≥50% exact on unseen relations with honest confidence</span>
-    </div>
-  </section>
-
-  <h2>What it does</h2>
-  <div class="grid-3">
-    <div class="card">
-      <h3>Finds the rule</h3>
-      <p class="small">
-        {`Every named relation it trained on is ${pct(namedLow)}–100% exact, and it multiplies 8-bit numbers — without an operation name, a formula menu or any retraining at answer time.`}
-      </p>
-    </div>
-    <div class="card">
-      <h3>Handles the unseen</h3>
-      <p class="small">
-        {`Combinations it was never shown average ${pct(current.summary.hidden?.exact)}; new operation types like division and conditionals ${pct(current.summary.T4?.exact)}. Copying the closest example gets about 9%.`}
-      </p>
-    </div>
-    <div class="card">
-      <h3>Knows when it knows</h3>
-      <p class="small">
-        {`Confidence is the certainty of its least certain bit. On unseen relations its sure answers were right ${pct(current.summary.hidden?.sure_accuracy)} of the time — and it rarely claims to be sure when it isn't.`}
-      </p>
-    </div>
-  </div>
-
   <h2>Read more</h2>
   <div class="grid-3 links">
     <a class="card link" href={`${base}/model/`}>
       <p class="eyebrow">Model</p>
-      <h3>How it reasons</h3>
-      <p>The architecture, where its {thousands(arch.parameters)} parameters are, and a replay of it thinking round by round.</p>
+      <h3>The bit-token design</h3>
+      <p>One token per answer bit, refined over rounds; the architecture and where its parameters are.</p>
     </a>
     <a class="card link" href={`${base}/results/`}>
       <p class="eyebrow">Results</p>
-      <h3>The difficulty ladder</h3>
-      <p>Unseen expressions, new operation types and loops — scored against a 50% bar.</p>
+      <h3>Every run on the test tiers</h3>
+      <p>Unseen expressions, new operation types and loops, run by run.</p>
     </a>
     <a class="card link" href={`${base}/changelog/`}>
       <p class="eyebrow">Changelog</p>
       <h3>How it got here</h3>
-      <p>Every experiment, from decimal regression to the first bit-by-bit model to multiplication and loops.</p>
+      <p>Every experiment, including the ones that did not work.</p>
     </a>
   </div>
 </Layout>
@@ -219,6 +289,10 @@ const namedLow = Math.min(...named.map((n) => current.families[n] ?? 0));
 
   .note {
     margin-top: 1rem;
+  }
+
+  .scroll {
+    overflow-x: auto;
   }
 
   .stats {

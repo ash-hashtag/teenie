@@ -134,11 +134,20 @@ export type Architecture = {
   parts: { part: string; detail: string; parameters: number }[];
 };
 
+export type WideWidth = {
+  groups: Record<string, GroupSummary>;
+  families: Record<string, number | null>;
+  lookup: Record<string, number>;
+  sealed?: GroupSummary;
+  sealed_lookup?: number | null;
+};
+
 export type Progress = {
   ladder: string[];
   tiers: Record<string, string[]>;
   experiments: Experiment[];
   architectures: Record<string, Architecture>;
+  wide: { checkpoint: string; parameters: number | null; widths: Record<string, WideWidth> };
 };
 
 export const progress = progressJson as unknown as Progress;

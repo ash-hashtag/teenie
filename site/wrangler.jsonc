@@ -3,6 +3,7 @@
 //   Root directory: site
 //   Build command:  pnpm build:static   (no Try it page: it needs the local Python relay)
 //   Deploy command: npx wrangler deploy
+//   Build variable: SITE_URL=https://<the public address>   (canonical links, social previews, sitemap.xml)
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "teenie",

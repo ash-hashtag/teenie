@@ -1,0 +1,30 @@
+{
+  "checkpoint": null,
+  "train_set": "base",
+  "tests": null,
+  "width": 16,
+  "episodes": 64,
+  "queries": 16,
+  "seed": 60000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {},
+  "results": {
+    "selected": {
+      "T2 3-4 ops": {
+        "nearest": 0.029296875,
+        "window1L": 0.181640625,
+        "window1H": 0.24609375,
+        "window2L": 0.1767578125,
+        "window2H": 0.2412109375
+      },
+      "T3 5-7 ops": {
+        "nearest": 0.0107421875,
+        "window1L": 0.099609375,
+        "window1H": 0.0595703125,
+        "window2L": 0.0859375,
+        "window2H": 0.072265625
+      }
+    }
+  }
+}

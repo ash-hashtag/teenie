@@ -8,6 +8,9 @@ interface Props {
 
 const { title, description } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const fullTitle = title === 'Teenie' ? 'Teenie — inferring hidden integer relations from 999 examples' : `${title} · Teenie`;
+// Absolute links only when the public address is known (SITE_URL at build time).
+const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : undefined;
 const pages = [
   { href: '/', label: 'Overview' },
   { href: '/model/', label: 'Model' },
@@ -24,8 +27,20 @@ const current = Astro.url.pathname.replace(base, '') || '/';
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
+    <meta name="robots" content="index, follow" />
+    <meta name="color-scheme" content="light dark" />
     <link rel="icon" href={`${base}/favicon.svg`} type="image/svg+xml" />
-    <title>{title === 'Teenie' ? title : `${title} · Teenie`}</title>
+    <title>{fullTitle}</title>
+    {canonical && <link rel="canonical" href={canonical} />}
+    {Astro.site && <link rel="sitemap" type="application/xml" href={new URL(`${base}/sitemap.xml`, Astro.site).href} />}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Teenie" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    {canonical && <meta property="og:url" content={canonical} />}
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
     <script is:inline>
       try {
         const saved = localStorage.getItem('theme');

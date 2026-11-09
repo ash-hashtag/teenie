@@ -25,7 +25,7 @@ const trustRows = order.map((name) => ({
   <h1>The first model: bit by bit</h1>
   <p class="lede">
     Kept for the record. This model read every example one bit position at a time — lowest bit first in one pass,
-    highest first in another. It solved every relation it trained on, but could not handle multiplication or decide
+    highest first in another. It was exact on the named relations it trained on, but could not handle multiplication or decide
     which direction to read for <code>min</code>; the <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/model/`}>current
     model</a> replaced it. Its training and benchmark pages:
     <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/learning/`}>how it learned</a> ·

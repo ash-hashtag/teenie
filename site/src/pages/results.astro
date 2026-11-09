@@ -25,6 +25,9 @@ const cell = (e: Experiment | undefined, name: string) => e?.families[name]?.exa
   <h1>The difficulty ladder</h1>
   <p class="lede">
     The goal: recognise the rule behind increasingly complex functions — including ones defined by loops — and get <strong>at least half</strong> of the never-seen ones exactly right, while staying honest about when it is sure.
+    Each run is scored at the width in its title (8 bits unless stated). At 8 bits the examples cover 1.5% of all
+    inputs and lookup methods that understand nothing reach about a third of the sealed set, so 8-bit scores overstate
+    what the model has inferred; the overview compares the 16- and 32-bit results with lookup directly.
     A tier is <strong>won</strong> at ≥50% exact with its sure answers right ≥95% of the time.
   </p>
 
@@ -120,11 +123,13 @@ const cell = (e: Experiment | undefined, name: string) => e?.families[name]?.exa
                 xLabel="training updates"
                 height={180}
                 reference={0.5}
-                series={withCurves.map((e) => ({
-                  name: e.title,
-                  color: colorOf(e),
-                  points: e.curve.filter((p) => typeof p[t] === 'number').map((p) => ({ x: p.update, y: p[t]! })),
-                }))}
+                series={withCurves
+                  .map((e) => ({
+                    name: e.title,
+                    color: colorOf(e),
+                    points: e.curve.filter((p) => typeof p[t] === 'number').map((p) => ({ x: p.update, y: p[t]! })),
+                  }))
+                  .filter((series) => series.points.length > 0)}
               />
             </div>
           ))}

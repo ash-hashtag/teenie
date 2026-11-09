@@ -1,0 +1,44 @@
+{
+  "checkpoint": null,
+  "train_set": "base",
+  "tests": null,
+  "width": 32,
+  "episodes": 64,
+  "queries": 16,
+  "seed": 60000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {},
+  "results": {
+    "selected": {
+      "a*b+b": {
+        "nearest": 0.0,
+        "window1L": 0.0,
+        "window1H": 0.0,
+        "window2L": 0.0,
+        "window2H": 0.0
+      },
+      "a*b+5": {
+        "nearest": 0.0,
+        "window1L": 0.0,
+        "window1H": 0.0,
+        "window2L": 0.0,
+        "window2H": 0.0
+      },
+      "a*b-a": {
+        "nearest": 0.0,
+        "window1L": 0.0,
+        "window1H": 0.0,
+        "window2L": 0.0,
+        "window2H": 0.0
+      },
+      "(a*b)^a": {
+        "nearest": 0.0,
+        "window1L": 0.0,
+        "window1H": 0.0,
+        "window2L": 0.0,
+        "window2H": 0.0
+      }
+    }
+  }
+}

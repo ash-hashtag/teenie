@@ -86,6 +86,17 @@ EXPERIMENTS: list[tuple[str, str, str, str, tuple[str, ...]]] = [
 # Architectures shown on the site besides the current model: (id, title, checkpoint).
 ARCHITECTURES = [('bittoken', 'Bit tokens', 'checkpoints/steps/bittoken-mix4.pt')]
 
+# The width-free model at 16 and 32 bits, next to the best of five lookup baselines on the same episodes (seed 60000,
+# sealed 61000): (width, model evaluation, model sealed evaluation, baseline files).
+WIDE_CHECKPOINT = 'checkpoints/wide/wide-32.pt'
+WIDE = [(16, 'experiments/wide/wide-32-w16-eval.json', 'experiments/sealed/wide-32-w16-sealed.json',
+         ('experiments/sealed/baselines-w16-sealed.json', 'experiments/wide/baselines-w16-target.json',
+          'experiments/wide/baselines-w16-T4.json', 'experiments/wide/baselines-w16-T2T3.json')),
+        (32, 'experiments/wide/wide-32-w32-eval.json', 'experiments/sealed/wide-32-w32-sealed.json',
+         ('experiments/sealed/baselines-w32-sealed.json', 'experiments/wide/baselines-w32-target.json',
+          'experiments/wide/baselines-w32-T4.json', 'experiments/wide/baselines-w32-near.json',
+          'experiments/wide/baselines-w32-T2T3.json'))]
+
 LADDER = ('target', 'T1', 'T2', 'T3', 'T4', 'T5a', 'T5b', 'hidden', 'near')
 HIGHLIGHTS = ('a*b', 'a*b+a', 'min', '3a', 'transducer')
 
@@ -125,6 +136,40 @@ def experiment(identifier: str, chapter: str, title: str, evaluation: Path, logs
             'families': {name: {k: report.get(k) for k in ('exact', 'bit', 'sure_coverage', 'sure_accuracy')}
                          for name, report in flat.items()},
             'curve': curve}
+
+
+def _best_lookup(report: Report) -> float:
+    return max(float(v) for k, v in report.items() if v is not None and k in
+               ('nearest', 'window1L', 'window1H', 'window2L', 'window2H'))
+
+
+def wide(root: Path) -> dict[str, object]:
+    """Exact match per relation and per group at each width, with the best lookup baseline where one was run."""
+    widths: dict[str, object] = {}
+    for width, evaluation, sealed, baselines in WIDE:
+        if not (root / evaluation).exists():
+            continue
+        results = regroup(json.loads((root / evaluation).read_text())['results'])
+        lookup: dict[str, float] = {}
+        for path in baselines:
+            if (root / path).exists():
+                for reports in json.loads((root / path).read_text())['results'].values():
+                    lookup |= {name: _best_lookup(r) for name, r in reports.items()}
+        entry: dict[str, object] = {
+            'groups': {group: summarise(reports) for group, reports in results.items()},
+            'families': {name: r.get('exact') for reports in results.values() for name, r in reports.items()},
+            'lookup': lookup}
+        if (root / sealed).exists():
+            reports = json.loads((root / sealed).read_text())['results']['sealed']
+            entry['sealed'] = summarise(reports)
+            entry['sealed_lookup'] = (sum(lookup[n] for n in reports if n in lookup) / len(reports)
+                                      if all(n in lookup for n in reports) else None)
+        widths[str(width)] = entry
+    parameters = None
+    if (root / WIDE_CHECKPOINT).exists():
+        model, _ = load_bit_model(root / WIDE_CHECKPOINT)
+        parameters = count(model)
+    return {'checkpoint': WIDE_CHECKPOINT, 'parameters': parameters, 'widths': widths}
 
 
 def count(module: nn.Module) -> int:
@@ -172,7 +217,7 @@ def main() -> None:
             if isinstance(model, BitTokenModel):
                 architectures[identifier] = {'title': title, 'checkpoint': checkpoint, **bit_token_parts(model)}
     Path(args.out).write_text(json.dumps({'ladder': list(LADDER), 'tiers': tiers, 'experiments': found,
-                                          'architectures': architectures}))
+                                          'architectures': architectures, 'wide': wide(root)}))
     print(f'exported {len(found)} experiments to {args.out}')
 
 

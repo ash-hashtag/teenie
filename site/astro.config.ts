@@ -1,4 +1,5 @@
 import { defineConfig } from 'astro/config';
+import sitemap from '@astrojs/sitemap';
 
 // TEENIE_STATIC=1 (`pnpm build:static`, used by Cloudflare) leaves out the Try it page,
 // which needs the local relay (`uv run teenie-serve`).
@@ -14,6 +15,8 @@ export default defineConfig({
   devToolbar: { enabled: false },
   vite: { define: { __TEENIE_RELAY__: JSON.stringify(relay) } },
   integrations: [
+    // sitemap-index.xml for search engines; the Try it page needs the local relay and is never public.
+    sitemap({ filter: (page) => !page.includes('/try/') }),
     {
       name: 'teenie-relay-pages',
       hooks: {

@@ -34,7 +34,7 @@ const current = Astro.url.pathname.replace(base, '') || '/';
     <link rel="icon" href={`${base}/favicon.svg`} type="image/svg+xml" />
     <title>{fullTitle}</title>
     {canonical && <link rel="canonical" href={canonical} />}
-    {Astro.site && <link rel="sitemap" type="application/xml" href={new URL(`${base}/sitemap.xml`, Astro.site).href} />}
+    {Astro.site && <link rel="sitemap" type="application/xml" href={new URL(`${base}/sitemap-index.xml`, Astro.site).href} />}
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Teenie" />
     <meta property="og:title" content={fullTitle} />

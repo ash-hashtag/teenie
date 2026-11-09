@@ -1,7 +1,7 @@
 """Named training sets and the test groups that go with them."""
 import torch
 Report = dict[str, float | None]
-from .expressions import (CONCEPTS, HIDDEN_FAMILIES, NEAR_FAMILIES, Pair, Tree, composed_family,
+from .expressions import (CONCEPTS, HIDDEN_FAMILIES, NEAR_FAMILIES, Pair, Tree, _draw, composed_family,
                           expression_family, named, pair_family, product_step_family)
 from .loops import NEW_OPERATIONS, bit_loop_family, hidden_bit_loops, hidden_loops, loop_family
 from .sealed import SEALED_FAMILIES
@@ -95,6 +95,52 @@ GRID_TRAIN: tuple[Family, ...] = tuple(_grid_cell(i, j) for i in range(8) for j 
 GRID_UNSEEN: tuple[Family, ...] = tuple(_grid_cell(i, j) for i, j in sorted(GRID_HELD))
 
 
+# Chains (section 27): a start followed by 1-2 steps, each step one of 21 types — + - ^ | & * with a, b or a fresh
+# random constant, or >>1, <<1, not. Thousands of combinations, each rare, while every part is frequent: too many to
+# memorise one by one. About one in seven (start, first step) pairs never appear together in training — including
+# a*b followed by +a — and are the test.
+CHAIN_STARTS: tuple[tuple[str, Tree], ...] = (
+    ('a*b', ('*', 'a', 'b')), ('a+b', ('+', 'a', 'b')), ('a-b', ('-', 'a', 'b')), ('a^b', ('^', 'a', 'b')),
+    ('a&b', ('&', 'a', 'b')), ('a|b', ('|', 'a', 'b')), ('a*a', ('*', 'a', 'a')), ('b*b', ('*', 'b', 'b')),
+    ('min(a,b)', ('min', 'a', 'b')), ('max(a,b)', ('max', 'a', 'b')),
+)
+CHAIN_STEPS: tuple[tuple[str, str | None], ...] = tuple(
+    (op, operand) for op in ('+', '-', '^', '|', '&', '*') for operand in ('a', 'b', 'k')) + (
+    ('>>1', None), ('<<1', None), ('~', None))
+CHAIN_HELD: frozenset[tuple[int, int]] = frozenset(
+    {(i, j) for i in range(len(CHAIN_STARTS)) for j in range(len(CHAIN_STEPS)) if (3 * i + 5 * j) % 7 == 0}
+    | {(0, 0)})  # (a*b, +a)
+
+
+def chain_family(held: bool, steps: tuple[int, int] = (1, 2), name: str | None = None) -> Family:
+    """A start then `steps` steps. `held`: the (start, first step) pair is held out (test); otherwise never."""
+    def draw(generator: torch.Generator, width: int) -> Tree:
+        while True:
+            start = int(torch.randint(0, len(CHAIN_STARTS), (), generator=generator))
+            first = int(torch.randint(0, len(CHAIN_STEPS), (), generator=generator))
+            if ((start, first) in CHAIN_HELD) == held:
+                break
+        tree: Tree = CHAIN_STARTS[start][1]
+        count = int(torch.randint(steps[0], steps[1] + 1, (), generator=generator))
+        for index in range(count):
+            step = first if index == 0 else int(torch.randint(0, len(CHAIN_STEPS), (), generator=generator))
+            op, operand = CHAIN_STEPS[step]
+            if operand is None:
+                tree = (op, tree)
+            else:
+                leaf: Tree = (int(torch.randint(1, 1 << width, (), generator=generator)) if operand == 'k'
+                              else operand)
+                tree = (op, tree, leaf)
+        return tree
+
+    def make(generator: torch.Generator, width: int) -> Relation:
+        return _draw(draw, () if held else FORBIDDEN, generator, width)
+    return Family(name or ('chains, unseen pair' if held else 'chains'), make)
+
+
+CHAINS: Family = chain_family(False)
+CHAINS_UNSEEN: Family = chain_family(True, (1, 1), 'chains, unseen pair, 1 step')
+CHAINS_UNSEEN2: Family = chain_family(True, (2, 2), 'chains, unseen pair, 2 steps')
 # The difficulty ladder (see docs/findings.md): T1-T3 always contain a held-out combination.
 TIERS: dict[str, tuple[Family, ...]] = {
     'T1': (expression_family(2, FORBIDDEN, 'T1 2 ops', 2., HELD_PAIRS, require_pair=True),),
@@ -136,6 +182,7 @@ TRAIN_SETS: dict[str, tuple[Family, ...]] = {
     'mix7': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + (PRODUCT_STEP,) + CONCEPT_STEPS,
     'compose': COMPOSE,
     'grid': GRID_TRAIN,
+    'chains': (CHAINS,),
     **{f'ps-pool{size}': (family,) for size, family in POOLS.items()},
     'near-only': NEAR_FAMILIES,  # diagnostic: can the model compute "a product, then another step" at all?
     # diagnostic: random products-then-a-step only; tested on fresh ones (fit) and on hidden compositions such as
@@ -145,6 +192,7 @@ TRAIN_SETS: dict[str, tuple[Family, ...]] = {
 
 ALL_NAMED: dict[str, Family] = {**NAMED, **{f.name: f for f in HIDDEN_FAMILIES + NEAR_FAMILIES + EXPRESSIONS + DEEPER
                                               + STEPS + DEEPER2 + LOOPS + (PRODUCT_STEP, PAIRS) + LOOPS31 + CONCEPT_STEPS + TARGET + GRID_TRAIN + GRID_UNSEEN
+                                              + (CHAINS, CHAINS_UNSEEN, CHAINS_UNSEEN2)
                                               + SEALED_FAMILIES
                                               + tuple(f for tier in TIERS.values() for f in tier)}}
 
@@ -161,6 +209,8 @@ def test_groups(train_set: str) -> dict[str, tuple[Family, ...]]:
         groups |= {'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER}
     if train_set == 'mix2':
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER2}
+    if train_set == 'chains':
+        groups |= {'unseen': (CHAINS_UNSEEN, CHAINS_UNSEEN2), 'hidden': HIDDEN_FAMILIES}
     if train_set == 'grid':
         groups |= {'unseen': GRID_UNSEEN, 'hidden': HIDDEN_FAMILIES}
     if train_set.startswith('ps-pool'):

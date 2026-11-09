@@ -491,6 +491,33 @@ Sure answers stay 98–100% right at every width.
   bits that fallback covers most bits, which hid the problem. The target needs exactly this: a product, then more
   steps.
 
+## 23. Why composition fails at 16 bits: identifying, not computing (`experiments/wide/wide-ps16*`, `wide-near16`)
+
+All three start from the stage-2 model (24/32-bit episodes added, `wide-32`), which computes `a*b` at 16 bits
+(99.4%) but `a*b+b` at 0.1%. Fine-tuned at 16 bits only, peak learning rate 3e-4; scored on 64 episodes.
+
+| | random product-then-step (fit) | `a*b+b`, `a*b-a`, `(a*b)^a` | unseen `a*b+a`, `(a*b)^b`, `(a+1)*(b+1)` |
+|---|---|---|---|
+| start | 19.9% | 0.1–1.2% | 0–0.6% |
+| 3,000 updates on random product-then-step | 23.8% | 0.4–0.6% | 0–0.5% |
+| same, questions also read deep probes (`--peers`) | 23.8% | 0.1–0.5% | 0–0.2% |
+| 2,000 updates on four fixed relations only | — | **98.2–99.5%** | — |
+
+- **Computing is not the problem.** Given only four candidates, the model computes product-then-step at 16 bits
+  with its existing 8 rounds within 500 updates (98–100%).
+- **Identifying is.** Drawn from a broad random family, it cannot tell from the 999 examples which
+  product-then-step relation it faces, even when that family is all it trains on — so it is not a training budget
+  problem either. `a*b` alone is recognisable because it is one relation seen often; conditionals and rotations
+  leave local fingerprints in the examples.
+- **Deep probes do not help** (`--peers`: questions read 16 probes worked through every round, with their true
+  answers): identical results. Depth for checking examples is not enough without a way to search among candidates.
+- The four-relation model is not general (held-out basic relations 2.9%, sure answers right 10.6%); it is only a
+  diagnostic.
+
+Next: search at answer time (Latent Program Network, Bonnet & Macfarlane): encode the examples into a program
+vector, compute answers from it, and at answer time refine the vector by gradient descent until it reproduces the
+examples, with the weights frozen.
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

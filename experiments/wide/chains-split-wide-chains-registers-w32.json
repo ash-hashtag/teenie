@@ -1,0 +1,56 @@
+{
+ "checkpoint": "checkpoints/wide/wide-chains-registers.pt",
+ "width": 32,
+ "seed": 60000,
+ "episodes": 48,
+ "summary": {
+  "no product 1 step": {
+   "exact": 0.9318181818181818,
+   "beyond_lookup": 0.8897058823529411,
+   "questions": 352,
+   "lookup_fails": 136,
+   "sure_coverage": 0.6392045454545454,
+   "sure_accuracy": 1.0
+  },
+  "no product 2 steps": {
+   "exact": 0.8225,
+   "beyond_lookup": 0.6542553191489362,
+   "questions": 400,
+   "lookup_fails": 188,
+   "sure_coverage": 0.4925,
+   "sure_accuracy": 1.0
+  },
+  "product 1 step": {
+   "exact": 0.0,
+   "beyond_lookup": 0.0,
+   "questions": 416,
+   "lookup_fails": 415,
+   "sure_coverage": 0.0,
+   "sure_accuracy": null
+  },
+  "product 2 steps": {
+   "exact": 0.0,
+   "beyond_lookup": 0.0,
+   "questions": 368,
+   "lookup_fails": 366,
+   "sure_coverage": 0.0,
+   "sure_accuracy": null
+  },
+  "product start 1 step": {
+   "exact": 0.0,
+   "beyond_lookup": 0.0,
+   "questions": 768,
+   "lookup_fails": 768,
+   "sure_coverage": 0.0,
+   "sure_accuracy": null
+  },
+  "product start 2 steps": {
+   "exact": 0.022135416666666668,
+   "beyond_lookup": 0.0013315579227696406,
+   "questions": 768,
+   "lookup_fails": 751,
+   "sure_coverage": 0.020833333333333332,
+   "sure_accuracy": 1.0
+  }
+ }
+}

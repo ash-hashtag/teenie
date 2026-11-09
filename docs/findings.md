@@ -689,6 +689,30 @@ rule across all chain families (`chain_held`), so no pair held out of one family
 Next: room for intermediate values that examples and questions can match on — if the model keeps `a*b` in a
 scratch register, `(a*b)+a` becomes as local as addition at every bit.
 
+## 31. Scratch registers: computing through a product (`experiments/wide/wide-chains-registers-*`)
+
+The product-heavy model (section 30) with two scratch registers per question and per worked example (numbers it
+writes and reads back every round) and 64 worked examples the questions read (`--registers 2 --peers --probes 64`),
+8,000 more updates on product-heavy chains at 16 bits. Nothing about products is built in.
+
+| held-out | before (16 bits) | with registers, 16 bits | with registers, 32 bits |
+|---|---|---|---|
+| no product 1 step | 100.0% | 100.0% (sure 98%, right 100%) | 93.2% (sure 64%, right 100%) |
+| no product 2 steps | 96.5% | 96.8% (sure 84%, right 100%) | 82.2% (sure 49%, right 100%) |
+| product 1 step | 25.4% | 31.6% (sure 15%, right 100%) | 0.0% (sure 0%) |
+| product 2 steps | 17.6% | 22.0% (sure 2%, right 100%) | 0.0% (sure 0%) |
+| product start 1 step | 2.9% | 5.2% (sure 0%) | 0.0% (sure 0%) |
+| product start 2 steps | 7.8% | 9.0% (sure 0%, right 100%) | 2.2% (sure 2%, right 100%) |
+
+- **Product chains improved across the board at 16 bits** — 25.4 → 31.6% for one step, 17.6 → 22.0% for two — and the
+  model is now sure of 15% of the one-step answers, all of them right.
+- **It computes through the product, not just matches:** on the never-trained `(a*b)+a`, bits 7–15 rose from 61–73% to
+  74–84% (50% is guessing; matching examples cannot get past bit 5), and its exact rate climbed through the run
+  (4 → 27% in the checks). `(a*b)^b` did not move: xor after a product is not learned yet.
+- At 32 bits products stay at zero; these runs train at 16 bits only, and even `a*b` alone was never learned at 32 bits.
+
+Since chain training began, held-out one-step product chains at 16 bits went 10.7 → 21.7 → 25.4 → 31.6%.
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

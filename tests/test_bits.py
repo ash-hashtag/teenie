@@ -478,3 +478,20 @@ def test_wide_code_bottleneck_reads_examples_only_through_the_code():
     changed = episode.context.clone()
     changed[:, :, 2] ^= 3  # different answers in the examples change the code, so the answers
     assert not torch.allclose(model(episode.context, episode.query, 16).logits, model(changed, episode.query, 16).logits)
+
+
+def test_wide_code_film_extends_a_code_model_unchanged():
+    from teenie.bits.data import BitSampler
+    from teenie.bits.sets import TRAIN_SETS
+    from teenie.bits.wide_model import WideBitModel
+    torch.manual_seed(0)
+    base = WideBitModel(hidden=32, heads=2, layers=1, probes=2, steps=2, code_slots=3, code_layers=1).eval()
+    film = WideBitModel(hidden=32, heads=2, layers=1, probes=2, steps=2, code_slots=3, code_layers=1,
+                        code_film=True).eval()
+    film.load_extending(base.state_dict())
+    episode = BitSampler(TRAIN_SETS['mix7'], 16, 0).sample(1, 3)
+    assert torch.allclose(base(episode.context, episode.query, 16).logits,
+                          film(episode.context, episode.query, 16).logits, atol=1e-5)
+    film.train()
+    film.loss(film(episode.context, episode.query, 16), episode.context, episode.target, 16).backward()
+    assert film.film[0].weight.grad is not None

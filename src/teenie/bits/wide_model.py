@@ -36,6 +36,9 @@ the examples (cross-attention to that bit of every example), share across bit po
 similar examples, an answer can only come from what the code holds about the relation — the separation of task
 inference from execution that lets in-context models combine known parts (Kobayashi et al., 2024). The code is free
 vectors, not a choice among fixed operations. Probes are not trained with a code (the code may hold their answers).
+With `code_film` the code also scales and shifts the answer bits after every layer (from that bit position's code),
+so it changes how they compute, not only what they read — multiplicative conditioning of the kind that lets a task
+code switch computation on and off. The scales start at zero, so adding it to a trained model changes nothing.
 """
 from typing import NotRequired, TypedDict
 
@@ -63,6 +66,7 @@ class WideConfig(TypedDict):
     example_layers: NotRequired[int]
     code_slots: NotRequired[int]
     code_layers: NotRequired[int]
+    code_film: NotRequired[bool]
 
 
 class _CodeLayer(nn.Module):
@@ -217,14 +221,14 @@ class _Seen(nn.Module):
 class WideBitModel(nn.Module):
     def __init__(self, hidden: int = 128, heads: int = 4, layers: int = 2, probes: int = 16, steps: int = 8,
                  span: int = 32, peers: bool = False, registers: int = 0, example_layers: int = 0,
-                 code_slots: int = 0, code_layers: int = 3) -> None:
+                 code_slots: int = 0, code_layers: int = 3, code_film: bool = False) -> None:
         super().__init__()
         if hidden % heads or not 0 < probes <= CONTEXT_SIZE or min(layers, steps, span) < 1:
             raise ValueError('hidden must divide into heads; probes in 1..999; layers, steps, span >= 1')
         self.config: WideConfig = {'hidden': hidden, 'heads': heads, 'layers': layers, 'probes': probes,
                                    'steps': steps, 'span': span, 'peers': peers, 'registers': registers,
                                    'example_layers': example_layers, 'code_slots': code_slots,
-                                   'code_layers': code_layers}
+                                   'code_layers': code_layers, 'code_film': code_film}
         self.example = nn.Sequential(_Seen(span, hidden), nn.GELU(), nn.Linear(hidden, hidden), nn.LayerNorm(hidden))
         self.ask = _Seen(span, hidden, registers)  # (a, b, current guess, registers) as seen from each answer bit
         self.layers = nn.ModuleList([_BitLayer(hidden, heads, span) for _ in range(layers)])
@@ -238,6 +242,12 @@ class WideBitModel(nn.Module):
         if code_slots:
             self.code = nn.Parameter(torch.randn(code_slots, hidden) * .02)
             self.coder = nn.ModuleList([_CodeLayer(hidden, heads, span) for _ in range(code_layers)])
+            if code_film:
+                films = [nn.Linear(hidden, 2 * hidden) for _ in range(layers)]
+                for film in films:
+                    nn.init.zeros_(film.weight)
+                    nn.init.zeros_(film.bias)
+                self.film = nn.ModuleList(films)
         self.recompute = True
         self.hint = 1.
 
@@ -281,12 +291,17 @@ class WideBitModel(nn.Module):
             for coder in self.coder:
                 code = checkpoint(coder, code, flat, use_reentrant=False) if self.training else coder(code, flat)
             flat = code.reshape(batch * width, slots, hidden)  # the answer bits read only the code
+            if self.config.get('code_film', False):
+                summary = code.mean(2)  # [B, W, H]: one code vector per bit position
+                modulation = [film(summary)[:, None] for film in self.film]  # [B, 1, W, 2H] per layer
         keys = [BitTokenModel._split(k(flat), heads, d) for k in self.keys]
         values = [BitTokenModel._split(v(flat), heads, d) for v in self.values]
         queries = asked.shape[1]
         asked = torch.cat([asked, bits[:, :probes, :2]], 1)
         known = bits[:, :probes, 2]  # [B, P, W]
         items = asked.shape[1]
+        if not (slots and self.config.get('code_film', False)):
+            modulation = []
         rows = torch.arange(items, device=bits.device)[:, None] - queries
         allowed = (rows != torch.arange(CONTEXT_SIZE, device=bits.device)[None, :]).repeat_interleave(width, 0)
         if slots:
@@ -297,20 +312,23 @@ class WideBitModel(nn.Module):
         for _ in range(rounds):
             if self.training and self.recompute:
                 state, written = checkpoint(self._round, asked, guess, state, keys, values, allowed, known,
-                                            use_reentrant=False)
+                                            modulation, use_reentrant=False)
             else:
-                state, written = self._round(asked, guess, state, keys, values, allowed, known)
+                state, written = self._round(asked, guess, state, keys, values, allowed, known, modulation)
             outputs.append(written[:, :, 0])
             guess = torch.tanh(written / 2)
         return torch.stack(outputs)
 
     def _round(self, asked: Tensor, guess: Tensor, state: Tensor, keys: list[Tensor], values: list[Tensor],
-               allowed: Tensor, known: Tensor) -> tuple[Tensor, Tensor]:
+               allowed: Tensor, known: Tensor, modulation: list[Tensor]) -> tuple[Tensor, Tensor]:
         batch, items, _, width = guess.shape
         hidden = self.config['hidden']
         x = self.ask(torch.cat([asked, guess], 2)) + state.view(batch, items, width, hidden)
         for i, (layer, k, v) in enumerate(zip(self.layers, keys, values)):
             x = layer(x, k, v, allowed)
+            if modulation:
+                scale, shift = modulation[i].chunk(2, -1)
+                x = x * (1 + scale) + shift
             if self.config.get('peers', False):
                 x = self.peers[i](x, known)
         state = self.cell(x.reshape(-1, hidden), state)

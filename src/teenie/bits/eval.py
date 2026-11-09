@@ -26,7 +26,9 @@ def evaluate_family(model: AnyBitModel | None, family: Family, *, width: int = 8
                     queries: int = 16, seed: int = 50000, device: str | torch.device = 'cpu',
                     baselines: bool = True, steps: int | None = None) -> Report:
     """Fresh episodes for one family; `seed` fixes contexts and queries for every method.
-    `steps` overrides the number of answer-refinement rounds of a loop model."""
+    `steps` overrides the number of answer-refinement rounds of a loop model. With a model and baselines, also
+    `beyond_lookup`: the model's exact rate on the questions that every lookup baseline gets wrong, and
+    `lookup_fails`: how many questions those are."""
     sampler = BitSampler([family], width, seed)
     report: dict[str, list[torch.Tensor]] = {}
     for _ in range(episodes):
@@ -44,12 +46,19 @@ def evaluate_family(model: AnyBitModel | None, family: Family, *, width: int = 8
             if isinstance(prediction, LoopPrediction) and (prediction.halts is not None or prediction.done is not None):
                 report.setdefault('rounds', []).append(prediction.stop().flatten().float() + 1)
         if baselines:
-            report.setdefault('nearest', []).append((nearest(episode) == episode.target).flatten())
+            lookup = [(nearest(episode) == episode.target).flatten()]
+            report.setdefault('nearest', []).append(lookup[0])
             for window in (1, 2):
                 for high_first in (False, True):
                     key = f'window{window}{"H" if high_first else "L"}'
                     found = window_lookup(episode, window, high_first)
-                    report.setdefault(key, []).append((found == episode.target).flatten())
+                    lookup.append((found == episode.target).flatten())
+                    report.setdefault(key, []).append(lookup[-1])
+            if model is not None:
+                # Questions no lookup method answers: what the model gets there cannot come from copying examples.
+                hard = ~torch.stack(lookup).any(0)
+                report.setdefault('lookup_fails', []).append(hard)
+                report.setdefault('beyond_lookup', []).append(correct.flatten()[hard])
     result: Report = {}
     for key, parts in report.items():
         values = torch.cat(parts).float()

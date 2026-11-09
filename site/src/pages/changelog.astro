@@ -269,13 +269,34 @@ const phases = [
     </li>
 
     <li class="card">
-      <p class="eyebrow">Now</p>
-      <h3>Every composition, mixed, for a long time</h3>
+      <p class="eyebrow">Mixed training, longer</p>
+      <h3>No late jump</h3>
       <p>
-        Multiplication at 16 bits stayed near zero for 7,000 updates of mixed training and then rose to 70–80% within
-        3,000. The current run trains on every kind of composition at random — no single-operation relations, which
-        are only watched — at 16, 24 and 32 bits for 30,000 updates, checked at every saved checkpoint, to see whether
-        composing appears late in the same way.
+        Multiplication at 16 bits had stayed near zero for 7,000 updates of mixed training before rising to 70–80%, so
+        a long run trained on every kind of composition at random, at 16, 24 and 32 bits. Six thousand updates in,
+        every composition built on a product was still at 0–2% at every check, and it was stopped.
+      </p>
+    </li>
+
+    <li class="card result">
+      <p class="eyebrow">A composition grid</p>
+      <h3>It memorises combinations instead of combining parts</h3>
+      <p>
+        Eight product-like first steps × eight second steps: 52 combinations trained, 12 held out, every part still
+        trained in other combinations. The trained combinations it learned reached 87–97%, but held-out ones whose
+        parts it knew stayed low:
+        {` (a*b)+a ${pct(fam('wide-grid', '(a*b)+a'))} and ((a+1)*b)^b ${pct(fam('wide-grid', '((a+1)*b)^b'))}.`}
+      </p>
+    </li>
+
+    <li class="card">
+      <p class="eyebrow">Now</p>
+      <h3>Guess the relation first, then apply it</h3>
+      <p>
+        The answer bits read the 999 examples directly, which lets the model look up similar examples and learn each
+        relation on its own. The current experiment adds a bottleneck: a few relation-code tokens per bit position read
+        the examples, and the answer bits read only that code. Still one pass, nothing fitted at answer time, and the
+        code is free vectors rather than a choice among fixed operations. Same grid, same start, same length.
       </p>
     </li>
   </ol>

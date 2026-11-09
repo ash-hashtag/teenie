@@ -89,8 +89,10 @@ EXPERIMENTS: list[tuple[str, str, str, str, tuple[str, ...]]] = [
      'experiments/wide/wide-near16-eval.json', ('experiments/wide/wide-near16-train.jsonl',)),
     ('wide-pool16', 'Composition at 16 bits', 'a pool of 16 product-then-step relations',
      'experiments/wide/wide-pool16-eval.json', ('experiments/wide/wide-pool16-train.jsonl',)),
-    ('wide-compose', 'Composition at 16 bits', 'every composition kind mixed, 16/24/32 bits, 30,000 updates',
-     'experiments/wide/wide-compose-w32-eval.json', ('experiments/wide/wide-compose-train.jsonl',)),
+    ('wide-grid', 'Composition at 16 bits', 'composition grid: 52 combinations trained, 12 held out',
+     'experiments/wide/wide-grid-eval.json', ('experiments/wide/wide-grid-train.jsonl',)),
+    ('wide-grid-code', 'Composition at 16 bits', 'same grid, answers read only a relation code',
+     'experiments/wide/wide-grid-code-eval.json', ('experiments/wide/wide-grid-code-train.jsonl',)),
 ]
 
 # Architectures shown on the site besides the current model: (id, title, checkpoint).

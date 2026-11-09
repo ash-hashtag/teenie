@@ -26,7 +26,12 @@ const sure = all.filter((x) => x.r.sure_accuracy !== null && x.r.sure_accuracy !
 const sureCorrect = sure.every((x) => x.r.sure_accuracy === 1);
 ---
 
-<Layout title="Benchmarks" description="Exact-match accuracy of Teenie against nearest-example and hand-written lookup baselines.">
+<Layout
+  title="First-model benchmarks vs lookup (8-bit)"
+  description="Exact-match accuracy of Teenie's first model on 8-bit relations, against closest-example and hand-written lookup baselines on identical questions."
+  keywords={['benchmark', 'exact match', 'nearest neighbour baseline']}
+  kind="article"
+>
   <p class="eyebrow">Changelog · first model</p>
   <h1>How good is it, honestly?</h1>
   <p class="lede">

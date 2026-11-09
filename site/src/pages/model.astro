@@ -11,8 +11,10 @@ const share = (n: number) => `${((100 * n) / model.parameters).toFixed(1)}%`;
 ---
 
 <Layout
-  title="Model"
-  description="The current model: width-free bit tokens that read 999 examples bit by bit, refine every answer bit over rounds, keep scratch registers and check worked examples — one set of weights for 16- and 32-bit numbers."
+  title="Model: a width-free bit-level transformer"
+  description="How Teenie works: one token per answer bit, plus scratch registers and worked examples that let a small transformer compute through products, up to 32 bits."
+  keywords={['bit-level transformer', 'scratch registers', 'model architecture', 'width-free model', 'parameter breakdown']}
+  kind="article"
 >
   <p class="eyebrow">Model</p>
   <h1>The current model</h1>

@@ -20,7 +20,12 @@ const first = (threshold: number) => training.find((r) => r.known_exact >= thres
 const last = training[training.length - 1]!;
 ---
 
-<Layout title="Learning" description="Training curves, per-relation progress and replayed checkpoints of the bit-serial model.">
+<Layout
+  title="Training curves of the first model (8-bit)"
+  description="Training curves, per-relation progress and replayed checkpoints of the first, bit-serial Teenie model on 8-bit integer relations."
+  keywords={['training curves', 'learning dynamics', 'checkpoints']}
+  kind="article"
+>
   <p class="eyebrow">Changelog · first model</p>
   <h1>Watch it learn</h1>
   <p class="lede">

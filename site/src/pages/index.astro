@@ -22,11 +22,14 @@ const wide = progress.wide;
 const w16 = wide.widths['16']!;
 const w32 = wide.widths['32']!;
 const conditional = w32.families['a>b?a-b:a+b'];
+const size = progress.current?.parameters ?? wide.parameters;
 ---
 
 <Layout
-  title="Teenie"
-  description="A research model that reads 999 examples of a hidden relation on 16- and 32-bit integers and predicts the answer to a new question. Results next to lookup baselines, failures included."
+  title="Teenie: in-context learning of hidden integer functions"
+  description="A 1.1M-parameter research model that infers hidden integer functions from 999 examples and predicts exact 16- and 32-bit answers, with honest confidence."
+  keywords={['few-shot learning', 'function inference from examples', 'bit-level transformer', 'learning multiplication', '32-bit integers']}
+  kind="website"
 >
   <section class="hero">
     <p class="eyebrow">Teenie · a research experiment</p>
@@ -43,8 +46,8 @@ const conditional = w32.families['a>b?a-b:a+b'];
   <section class="stats grid-3">
     <div class="card stat">
       <span class="label">Model size</span>
-      <span class="value">{wide.parameters ? `${Math.round(wide.parameters / 1000)}K` : '—'}</span>
-      <span class="note">{wide.parameters ? `${thousands(wide.parameters)} parameters, the same at every width up to 32 bits` : ''}</span>
+      <span class="value">{size ? `${(size / 1e6).toFixed(2)}M` : '—'}</span>
+      <span class="note">{size ? `${thousands(size)} parameters in the current model, the same at every width up to 32 bits` : ''}</span>
     </div>
     <div class="card stat">
       <span class="label">An unseen conditional at 32 bits</span>

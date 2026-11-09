@@ -24,8 +24,10 @@ const cell = (e: Experiment | undefined, name: string) => e?.families[name]?.exa
 ---
 
 <Layout
-  title="Results"
-  description="Where the model stands at 16 and 32 bits: unseen relations against lookup baselines, multi-step chains with confidence, and learning to compute through a product."
+  title="Results: in-context arithmetic at 16 and 32 bits"
+  description="How well Teenie infers unseen integer functions at 16 and 32 bits, against lookup baselines: multi-step chains, products and calibrated confidence."
+  keywords={['benchmark', 'lookup baseline', 'calibrated confidence', 'out-of-distribution generalization', '32-bit arithmetic']}
+  kind="article"
 >
   <p class="eyebrow">Results</p>
   <h1>Where the model stands</h1>

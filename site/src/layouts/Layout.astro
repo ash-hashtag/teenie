@@ -4,15 +4,59 @@ import '../styles/global.css';
 interface Props {
   title: string;
   description: string;
+  keywords?: string[];
+  kind?: 'website' | 'article';
 }
 
-const { title, description } = Astro.props;
+// Search terms the whole site is about; each page adds its own.
+const SITE_KEYWORDS = [
+  'in-context learning',
+  'transformer arithmetic',
+  'neural network learns arithmetic',
+  'algorithmic reasoning',
+  'compositional generalization',
+  'program induction',
+  'machine learning research',
+];
+const AUTHOR = { name: 'ash-hashtag', url: 'https://github.com/ash-hashtag' };
+
+const { title, description, keywords = [], kind = 'article' } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-const fullTitle = title === 'Teenie' ? 'Teenie — inferring hidden integer relations from 999 examples' : `${title} · Teenie`;
+const fullTitle = title.includes('Teenie') ? title : `${title} | Teenie`;
+const allKeywords = [...new Set([...keywords, ...SITE_KEYWORDS])];
 // Absolute links only when the public address is known (SITE_URL at build time).
 const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : undefined;
 // Social preview image, as WebP (site/icons/build.sh regenerates it from site/icons/og.svg).
 const ogImage = Astro.site ? new URL(`${base}/og.webp`, Astro.site).href : undefined;
+const home = Astro.site ? new URL(`${base}/`, Astro.site).href : undefined;
+// Structured data for search engines: the site, and this page as part of it.
+const structured = home && canonical
+  ? [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: 'Teenie',
+        url: home,
+        description: 'A research model that infers hidden integer functions from examples and predicts exact answers.',
+        inLanguage: 'en',
+        creator: { '@type': 'Person', ...AUTHOR },
+        sameAs: ['https://github.com/ash-hashtag/teenie'],
+      },
+      {
+        '@context': 'https://schema.org',
+        '@type': kind === 'website' ? 'WebPage' : 'TechArticle',
+        ...(kind === 'website' ? { name: fullTitle } : { headline: fullTitle }),
+        description,
+        url: canonical,
+        inLanguage: 'en',
+        keywords: allKeywords.join(', '),
+        author: { '@type': 'Person', ...AUTHOR },
+        isPartOf: { '@type': 'WebSite', name: 'Teenie', url: home },
+        dateModified: new Date().toISOString().slice(0, 10),
+        ...(ogImage ? { image: ogImage } : {}),
+      },
+    ]
+  : [];
 const pages = [
   { href: '/', label: 'Overview' },
   { href: '/model/', label: 'Model' },
@@ -31,6 +75,8 @@ const current = Astro.url.pathname.replace(base, '') || '/';
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
+    <meta name="keywords" content={allKeywords.join(', ')} />
+    <meta name="author" content={AUTHOR.name} />
     <meta name="robots" content="index, follow" />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href={`${base}/favicon.ico`} sizes="16x16 32x32 48x48" />
@@ -39,7 +85,8 @@ const current = Astro.url.pathname.replace(base, '') || '/';
     <title>{fullTitle}</title>
     {canonical && <link rel="canonical" href={canonical} />}
     {Astro.site && <link rel="sitemap" type="application/xml" href={new URL(`${base}/sitemap-index.xml`, Astro.site).href} />}
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={kind === 'website' ? 'website' : 'article'} />
+    <meta property="og:locale" content="en_US" />
     <meta property="og:site_name" content="Teenie" />
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
@@ -59,6 +106,7 @@ const current = Astro.url.pathname.replace(base, '') || '/';
     <meta name="twitter:card" content={ogImage ? 'summary_large_image' : 'summary'} />
     <meta name="twitter:title" content={fullTitle} />
     <meta name="twitter:description" content={description} />
+    {structured.map((data) => <script type="application/ld+json" set:html={JSON.stringify(data)} />)}
     <script is:inline>
       try {
         const saved = localStorage.getItem('theme');

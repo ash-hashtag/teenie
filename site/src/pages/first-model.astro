@@ -20,7 +20,12 @@ const trustRows = order.map((name) => ({
 }));
 ---
 
-<Layout title="First model" description="The first learned model: a recurrent loop over bit positions with a lookup over the examples.">
+<Layout
+  title="First model: bit-serial in-context learning (8-bit)"
+  description="Teenie's first model: a recurrent network that reads 8-bit examples one bit position at a time with a learned lookup over the examples, kept for the record."
+  keywords={['recurrent neural network', 'GRU', 'bit-serial', 'attention']}
+  kind="article"
+>
   <p class="eyebrow">Changelog · first model</p>
   <h1>The first model: bit by bit</h1>
   <p class="lede">

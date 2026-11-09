@@ -1,0 +1,524 @@
+{
+  "checkpoint": "checkpoints/wide/wide-grid.pt",
+  "train_set": "grid",
+  "tests": null,
+  "width": 16,
+  "episodes": 64,
+  "queries": 16,
+  "seed": 60000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {
+    "train": {
+      "exact": 0.17966871995192307,
+      "sure_accuracy": 0.9999999980420661,
+      "won": false
+    },
+    "heldout": {
+      "exact": 0.4,
+      "sure_accuracy": 0.9975728096024504,
+      "won": false
+    },
+    "stress": {
+      "exact": 0.48779296875,
+      "sure_accuracy": 0.4961240310335361,
+      "won": false
+    },
+    "unseen": {
+      "exact": 0.038899739583333336,
+      "sure_accuracy": 0.6666666716337204,
+      "won": false
+    },
+    "hidden": {
+      "exact": 0.13330078125,
+      "sure_accuracy": 1.0,
+      "won": false
+    }
+  },
+  "results": {
+    "train": {
+      "(a*b)+b": {
+        "exact": 0.935546875,
+        "bit": 0.99554443359375,
+        "sure_coverage": 0.25390625,
+        "sure_accuracy": 1.0
+      },
+      "(a*b)^a": {
+        "exact": 0.939453125,
+        "bit": 0.9951171875,
+        "sure_coverage": 0.2353515625,
+        "sure_accuracy": 1.0
+      },
+      "(a*b)^b": {
+        "exact": 0.8681640625,
+        "bit": 0.9898681640625,
+        "sure_coverage": 0.123046875,
+        "sure_accuracy": 1.0
+      },
+      "(a*b)-b": {
+        "exact": 0.00390625,
+        "bit": 0.7305908203125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*b)|b": {
+        "exact": 0.9560546875,
+        "bit": 0.99700927734375,
+        "sure_coverage": 0.3544921875,
+        "sure_accuracy": 1.0
+      },
+      "(a*b)>>1": {
+        "exact": 0.0029296875,
+        "bit": 0.71331787109375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*a)+a": {
+        "exact": 0.037109375,
+        "bit": 0.8240966796875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*a)^a": {
+        "exact": 0.0576171875,
+        "bit": 0.83416748046875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*a)^b": {
+        "exact": 0.0419921875,
+        "bit": 0.8203125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*a)-a": {
+        "exact": 0.046875,
+        "bit": 0.82647705078125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*a)|b": {
+        "exact": 0.234375,
+        "bit": 0.91510009765625,
+        "sure_coverage": 0.009765625,
+        "sure_accuracy": 1.0
+      },
+      "(a*a)>>1": {
+        "exact": 0.1103515625,
+        "bit": 0.859130859375,
+        "sure_coverage": 0.0009765625,
+        "sure_accuracy": 1.0
+      },
+      "(b*b)+a": {
+        "exact": 0.025390625,
+        "bit": 0.7977294921875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(b*b)+b": {
+        "exact": 0.0390625,
+        "bit": 0.82049560546875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(b*b)^b": {
+        "exact": 0.03125,
+        "bit": 0.8212890625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(b*b)-a": {
+        "exact": 0.0146484375,
+        "bit": 0.791015625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(b*b)-b": {
+        "exact": 0.0341796875,
+        "bit": 0.821044921875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(b*b)>>1": {
+        "exact": 0.0703125,
+        "bit": 0.8563232421875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a+1)*b)+a": {
+        "exact": 0.87890625,
+        "bit": 0.990234375,
+        "sure_coverage": 0.052734375,
+        "sure_accuracy": 1.0
+      },
+      "((a+1)*b)+b": {
+        "exact": 0.8857421875,
+        "bit": 0.9901123046875,
+        "sure_coverage": 0.0283203125,
+        "sure_accuracy": 1.0
+      },
+      "((a+1)*b)^a": {
+        "exact": 0.8271484375,
+        "bit": 0.986572265625,
+        "sure_coverage": 0.0595703125,
+        "sure_accuracy": 0.9999999403953552
+      },
+      "((a+1)*b)-a": {
+        "exact": 0.0029296875,
+        "bit": 0.71624755859375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a+1)*b)-b": {
+        "exact": 0.97265625,
+        "bit": 0.99810791015625,
+        "sure_coverage": 0.435546875,
+        "sure_accuracy": 1.0
+      },
+      "((a+1)*b)|b": {
+        "exact": 0.9404296875,
+        "bit": 0.99542236328125,
+        "sure_coverage": 0.255859375,
+        "sure_accuracy": 1.0
+      },
+      "(a*(b>>1))+a": {
+        "exact": 0.0009765625,
+        "bit": 0.70452880859375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*(b>>1))+b": {
+        "exact": 0.001953125,
+        "bit": 0.7010498046875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*(b>>1))^a": {
+        "exact": 0.001953125,
+        "bit": 0.702392578125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*(b>>1))^b": {
+        "exact": 0.001953125,
+        "bit": 0.6986083984375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*(b>>1))-b": {
+        "exact": 0.0009765625,
+        "bit": 0.69891357421875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*(b>>1))|b": {
+        "exact": 0.0576171875,
+        "bit": 0.84783935546875,
+        "sure_coverage": 0.0009765625,
+        "sure_accuracy": 1.0
+      },
+      "(a*(b>>1))>>1": {
+        "exact": 0.0009765625,
+        "bit": 0.68524169921875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a^b)*a)+a": {
+        "exact": 0.001953125,
+        "bit": 0.70123291015625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a^b)*a)+b": {
+        "exact": 0.001953125,
+        "bit": 0.69586181640625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a^b)*a)^a": {
+        "exact": 0.00390625,
+        "bit": 0.70318603515625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a^b)*a)^b": {
+        "exact": 0.001953125,
+        "bit": 0.69989013671875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a^b)*a)-a": {
+        "exact": 0.001953125,
+        "bit": 0.69549560546875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a^b)*a)|b": {
+        "exact": 0.0537109375,
+        "bit": 0.84417724609375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a^b)*a)>>1": {
+        "exact": 0.0009765625,
+        "bit": 0.6964111328125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a|b)*b)+a": {
+        "exact": 0.0126953125,
+        "bit": 0.74273681640625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a|b)*b)+b": {
+        "exact": 0.041015625,
+        "bit": 0.786865234375,
+        "sure_coverage": 0.001953125,
+        "sure_accuracy": 1.0
+      },
+      "((a|b)*b)^a": {
+        "exact": 0.0234375,
+        "bit": 0.7567138671875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a|b)*b)^b": {
+        "exact": 0.0341796875,
+        "bit": 0.7750244140625,
+        "sure_coverage": 0.0009765625,
+        "sure_accuracy": 1.0
+      },
+      "((a|b)*b)-a": {
+        "exact": 0.013671875,
+        "bit": 0.73504638671875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a|b)*b)-b": {
+        "exact": 0.02734375,
+        "bit": 0.773193359375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a|b)*b)>>1": {
+        "exact": 0.0302734375,
+        "bit": 0.76776123046875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a-b)*(a+b))+a": {
+        "exact": 0.0009765625,
+        "bit": 0.6993408203125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a-b)*(a+b))+b": {
+        "exact": 0.001953125,
+        "bit": 0.6976318359375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a-b)*(a+b))^a": {
+        "exact": 0.0009765625,
+        "bit": 0.6976318359375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a-b)*(a+b))^b": {
+        "exact": 0.001953125,
+        "bit": 0.69134521484375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a-b)*(a+b))-a": {
+        "exact": 0.001953125,
+        "bit": 0.692626953125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a-b)*(a+b))-b": {
+        "exact": 0.0,
+        "bit": 0.69586181640625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a-b)*(a+b))|b": {
+        "exact": 0.0625,
+        "bit": 0.845947265625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      }
+    },
+    "heldout": {
+      "a+b+1": {
+        "exact": 0.3095703125,
+        "bit": 0.8707275390625,
+        "sure_coverage": 0.0400390625,
+        "sure_accuracy": 0.9999999403953552
+      },
+      "a-2b": {
+        "exact": 0.2421875,
+        "bit": 0.85943603515625,
+        "sure_coverage": 0.001953125,
+        "sure_accuracy": 1.0
+      },
+      "min": {
+        "exact": 0.03515625,
+        "bit": 0.76763916015625,
+        "sure_coverage": 0.001953125,
+        "sure_accuracy": 0.5
+      },
+      "nand": {
+        "exact": 0.9677734375,
+        "bit": 0.99749755859375,
+        "sure_coverage": 0.3486328125,
+        "sure_accuracy": 1.0
+      },
+      "3a": {
+        "exact": 0.4453125,
+        "bit": 0.92828369140625,
+        "sure_coverage": 0.009765625,
+        "sure_accuracy": 1.0
+      }
+    },
+    "stress": {
+      "a*(b&63)": {
+        "exact": 0.0029296875,
+        "bit": 0.71435546875,
+        "sure_coverage": 0.4462890625,
+        "sure_accuracy": 0.004376367665827274
+      },
+      "a*b": {
+        "exact": 0.97265625,
+        "bit": 0.99810791015625,
+        "sure_coverage": 0.435546875,
+        "sure_accuracy": 1.0
+      }
+    },
+    "unseen": {
+      "(a*b)+a": {
+        "exact": 0.0771484375,
+        "bit": 0.77880859375,
+        "sure_coverage": 0.0009765625,
+        "sure_accuracy": 1.0
+      },
+      "(a*b)-a": {
+        "exact": 0.00390625,
+        "bit": 0.7078857421875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*a)+b": {
+        "exact": 0.009765625,
+        "bit": 0.7452392578125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*a)-b": {
+        "exact": 0.001953125,
+        "bit": 0.6982421875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(b*b)^a": {
+        "exact": 0.021484375,
+        "bit": 0.8031005859375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(b*b)|b": {
+        "exact": 0.14453125,
+        "bit": 0.88482666015625,
+        "sure_coverage": 0.00390625,
+        "sure_accuracy": 1.0
+      },
+      "((a+1)*b)^b": {
+        "exact": 0.1005859375,
+        "bit": 0.8514404296875,
+        "sure_coverage": 0.005859375,
+        "sure_accuracy": 0.3333333432674408
+      },
+      "((a+1)*b)>>1": {
+        "exact": 0.0009765625,
+        "bit": 0.68914794921875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*(b>>1))-a": {
+        "exact": 0.00390625,
+        "bit": 0.70294189453125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a^b)*a)-b": {
+        "exact": 0.0029296875,
+        "bit": 0.686767578125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "((a|b)*b)|b": {
+        "exact": 0.099609375,
+        "bit": 0.86285400390625,
+        "sure_coverage": 0.0009765625,
+        "sure_accuracy": 1.0
+      },
+      "((a-b)*(a+b))>>1": {
+        "exact": 0.0,
+        "bit": 0.693603515625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      }
+    },
+    "hidden": {
+      "a*b+a": {
+        "exact": 0.0771484375,
+        "bit": 0.77880859375,
+        "sure_coverage": 0.0009765625,
+        "sure_accuracy": 1.0
+      },
+      "a*a": {
+        "exact": 0.0537109375,
+        "bit": 0.83905029296875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a+1)*(b+1)": {
+        "exact": 0.0087890625,
+        "bit": 0.72027587890625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a^b)*3": {
+        "exact": 0.00390625,
+        "bit": 0.67828369140625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "|a-b|": {
+        "exact": 0.0009765625,
+        "bit": 0.57598876953125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a+b)>>1": {
+        "exact": 0.0322265625,
+        "bit": 0.7623291015625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*b)^b": {
+        "exact": 0.8681640625,
+        "bit": 0.9898681640625,
+        "sure_coverage": 0.123046875,
+        "sure_accuracy": 1.0
+      },
+      "(a<<1)+(b>>1)": {
+        "exact": 0.021484375,
+        "bit": 0.7056884765625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      }
+    }
+  }
+}

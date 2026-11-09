@@ -534,6 +534,25 @@ of episodes each, it learns all four in 500 updates. The model learns these rela
 on the order of a thousand episodes, rather than one way to compose "product, then a step" that transfers to
 relations seen rarely or never. More training, deep probes and deep examples change none of that.
 
+## 25. Can it combine parts it knows? A composition grid (`experiments/wide/wide-grid-*`, `wide-pool16-*`)
+
+**Pool of 16.** Training on a fixed pool of 16 random product-then-step relations (2,000 updates at 16 bits): the
+pool itself only reached 35.9%, fresh relations from the same family stayed at the starting 18.5%, unseen ones at 0.
+Stopped there; it repeats section 24.
+
+**The grid.** 8 product-like first steps (`a*b`, `a*a`, `b*b`, `(a+1)*b`, `a*(b>>1)`, `(a^b)*a`, `(a|b)*b`,
+`(a-b)*(a+b)`) × 8 second steps (`+a`, `+b`, `^a`, `^b`, `-a`, `-b`, `|b`, `>>1`). 52 cells trained, each about 900
+episodes over 6,000 updates at 16 bits from the stage-2 model; 12 held out so that every first and every second step
+is still trained in other cells, all checked to match no trained cell. (A diagnostic: real relations are not limited
+to a grid like this.)
+
+- **Trained:** 9 of 52 cells reached 50% or more — nearly all on the two products the model already handled, `a*b`
+  and `(a+1)*b`, with several second steps each (87–97%). The other first steps barely started.
+- **Held out, where both parts are learned:** `(a*b)+a` **7.7%** — while `a*b` with `+b`, `^a`, `^b`, `|b` is
+  87–96% and `+a` after `(a+1)*b` is 88%. `((a+1)*b)^b` **10.1%** with its row and column learned. The rest 0–15%.
+- **Reading:** a little transfer, far below the cells themselves. The model memorises combinations rather than
+  composing known parts. Next: separate guessing the relation from applying it (section 26).
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

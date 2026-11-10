@@ -1,6 +1,7 @@
 """Named training sets and the test groups that go with them."""
 import torch
 Report = dict[str, float | None]
+from .opaque import OPAQUE
 from .expressions import (CONCEPTS, HIDDEN_FAMILIES, NEAR_FAMILIES, Pair, Tree, _draw, composed_family,
                           expression_family, named, pair_family, product_step_family)
 from .loops import NEW_OPERATIONS, bit_loop_family, hidden_bit_loops, hidden_loops, loop_family
@@ -207,6 +208,9 @@ TRAIN_SETS: dict[str, tuple[Family, ...]] = {
     'grid': GRID_TRAIN,
     'chains': (CHAINS,),
     'chains-products': (CHAINS, PRODUCT_CHAINS),  # half the episodes through a product (adaptive sampling)
+    # the general set plus chains through products, so training on products does not erode loops and concepts
+    'mix7-chains': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + (PRODUCT_STEP,) + CONCEPT_STEPS
+                   + (CHAINS, PRODUCT_CHAINS),
     **{f'ps-pool{size}': (family,) for size, family in POOLS.items()},
     'near-only': NEAR_FAMILIES,  # diagnostic: can the model compute "a product, then another step" at all?
     # diagnostic: random products-then-a-step only; tested on fresh ones (fit) and on hidden compositions such as
@@ -219,6 +223,7 @@ ALL_NAMED: dict[str, Family] = {**NAMED, **{f.name: f for f in HIDDEN_FAMILIES +
                                               + (CHAINS, CHAINS_UNSEEN, CHAINS_UNSEEN2, PRODUCT_CHAINS,
                                                  PRODUCT_CHAINS_UNSEEN, PRODUCT_CHAINS_UNSEEN2)
                                               + SEALED_FAMILIES
+                                              + tuple(f for kind in OPAQUE.values() for f in kind)
                                               + tuple(f for tier in TIERS.values() for f in tier)}}
 
 
@@ -227,6 +232,8 @@ def test_groups(train_set: str) -> dict[str, tuple[Family, ...]]:
     everyday functions (see sealed.py), only to be read at the end of a round of experiments."""
     if train_set == 'sealed':
         return {'sealed': SEALED_FAMILIES}
+    if train_set == 'opaque':
+        return dict(OPAQUE)
     trained = TRAIN_SETS[train_set]
     groups = {'train': trained, 'heldout': HELDOUT_FAMILIES,
               'stress': tuple(f for f in STRESS_FAMILIES if f not in trained)}
@@ -234,7 +241,7 @@ def test_groups(train_set: str) -> dict[str, tuple[Family, ...]]:
         groups |= {'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER}
     if train_set == 'mix2':
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER2}
-    if train_set in ('chains', 'chains-products'):
+    if train_set in ('chains', 'chains-products', 'mix7-chains'):
         groups |= {'unseen': (CHAINS_UNSEEN, CHAINS_UNSEEN2, PRODUCT_CHAINS_UNSEEN, PRODUCT_CHAINS_UNSEEN2),
                    'hidden': HIDDEN_FAMILIES}
     if train_set == 'grid':
@@ -244,7 +251,7 @@ def test_groups(train_set: str) -> dict[str, tuple[Family, ...]]:
         groups |= {'family': (PRODUCT_STEP,), 'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES}
     if train_set == 'product-step-only':
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES}
-    if train_set in ('mix3', 'mix4', 'mix5', 'mix6', 'mix7', 'compose'):
+    if train_set in ('mix3', 'mix4', 'mix5', 'mix6', 'mix7', 'mix7-chains', 'compose'):
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES} | TIERS | {'target': TARGET}
     if train_set == 'compose':
         groups['primitives'] = PRIMITIVES  # watched only

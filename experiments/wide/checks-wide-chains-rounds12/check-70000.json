@@ -1,0 +1,52 @@
+{
+  "checkpoint": "experiments/wide/snapshots-wide-chains-rounds12/update-70000.pt",
+  "train_set": "chains-products",
+  "tests": null,
+  "width": 32,
+  "episodes": 16,
+  "queries": 16,
+  "seed": 70000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {
+    "selected": {
+      "exact": 0.3390625,
+      "sure_accuracy": 1.0,
+      "won": false
+    }
+  },
+  "results": {
+    "selected": {
+      "chains, unseen pair, 1 step": {
+        "exact": 0.51171875,
+        "bit": 0.8692626953125,
+        "sure_coverage": 0.4453125,
+        "sure_accuracy": 1.0
+      },
+      "a*b": {
+        "exact": 0.0859375,
+        "bit": 0.9373779296875,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*b)+a": {
+        "exact": 0.05078125,
+        "bit": 0.930908203125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*b)^b": {
+        "exact": 0.046875,
+        "bit": 0.9134521484375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "add": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 1.0,
+        "sure_accuracy": 1.0
+      }
+    }
+  }
+}

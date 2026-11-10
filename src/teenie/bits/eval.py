@@ -20,6 +20,33 @@ from .wide_model import WideBitModel
 
 Report = dict[str, float | None]
 SURE = .99
+IN_BITS = ('rounds', 'recovered', 'recovered_median', 'lookup_recovered', 'advantage')  # reported as is, not as a percentage
+
+
+FLOOR = 2. ** -20  # a confidently wrong bit costs at most 20 bits, so one saturated mistake stays finite
+
+
+def recovered_bits(probabilities: torch.Tensor, target: torch.Tensor, width: int) -> torch.Tensor:
+    """Per question: how much the model's guess beats chance, in bits — width + log2 of the probability its per-bit
+    confidences give the true answer. 0 is pure guessing, `width` is certain and right; confident mistakes go
+    negative. Unlike exact match, it counts a guess that gets most bits right with honest confidence."""
+    p = probabilities.double().clamp(FLOOR, 1 - FLOOR)
+    truth = to_bits(target, width).double()
+    return (width + (truth * p.log2() + (1 - truth) * (1 - p).log2()).sum(-1)).flatten().float()
+
+
+def baseline_recovered(answers: list[torch.Tensor], targets: list[torch.Tensor], width: int) -> float:
+    """Bits recovered by a method that gives one answer without confidence, scored as generously as possible: each
+    bit gets the probability of being right that this method has at that bit position on these very questions
+    (calibrated after the fact). So a lookup that gets a bit right half the time earns nothing for it."""
+    right = (to_bits(torch.cat(answers), width) == to_bits(torch.cat(targets), width)).double()
+    # Rates measured on one half of the questions score the other half (and vice versa): rates measured on the
+    # questions they score would credit chance agreement, about a bit on a hash with a few hundred questions.
+    scores = []
+    for fit, score in ((right[0::2], right[1::2]), (right[1::2], right[0::2])):
+        rate = fit.mean(0, keepdim=True).clamp(FLOOR, 1 - FLOOR)
+        scores.append(width + (score * rate.log2() + (1 - score) * (1 - rate).log2()).sum(-1))
+    return float(torch.cat(scores).mean())
 
 
 @torch.no_grad()
@@ -32,6 +59,8 @@ def evaluate_family(model: AnyBitModel | None, family: Family, *, width: int = 8
     `lookup_fails`: how many questions those are."""
     sampler = BitSampler([family], width, seed)
     report: dict[str, list[torch.Tensor]] = {}
+    answers: dict[str, list[torch.Tensor]] = {}
+    targets: list[torch.Tensor] = []
     for _ in range(episodes):
         episode = sampler.sample(1, queries).to(device)
         if model is not None:
@@ -42,17 +71,22 @@ def evaluate_family(model: AnyBitModel | None, family: Family, *, width: int = 8
             bits = (prediction.probabilities() > .5).float() == to_bits(episode.target, width)
             report.setdefault('exact', []).append(correct.flatten())
             report.setdefault('bit', []).append(bits.flatten())
+            report.setdefault('recovered', []).append(recovered_bits(prediction.probabilities(), episode.target, width))
             report.setdefault('sure', []).append(sure.flatten())
             report.setdefault('sure_correct', []).append(correct[sure])
             if isinstance(prediction, LoopPrediction) and (prediction.halts is not None or prediction.done is not None):
                 report.setdefault('rounds', []).append(prediction.stop().flatten().float() + 1)
         if baselines:
-            lookup = [(nearest(episode) == episode.target).flatten()]
+            targets.append(episode.target.flatten())
+            found = nearest(episode)
+            answers.setdefault('nearest', []).append(found.flatten())
+            lookup = [(found == episode.target).flatten()]
             report.setdefault('nearest', []).append(lookup[0])
             for window in (1, 2):
                 for high_first in (False, True):
                     key = f'window{window}{"H" if high_first else "L"}'
                     found = window_lookup(episode, window, high_first)
+                    answers.setdefault(key, []).append(found.flatten())
                     lookup.append((found == episode.target).flatten())
                     report.setdefault(key, []).append(lookup[-1])
             if model is not None:
@@ -65,6 +99,13 @@ def evaluate_family(model: AnyBitModel | None, family: Family, *, width: int = 8
         values = torch.cat(parts).float()
         name = {'sure': 'sure_coverage', 'sure_correct': 'sure_accuracy'}.get(key, key)
         result[name] = float(values.mean()) if len(values) else None
+        if key == 'recovered' and len(values):
+            result['recovered_median'] = float(values.median())
+    if answers:
+        # The best lookup's bits recovered, and how far the model's guess goes beyond it.
+        result['lookup_recovered'] = max(baseline_recovered(parts, targets, width) for parts in answers.values())
+        if result.get('recovered') is not None:
+            result['advantage'] = result['recovered'] - result['lookup_recovered']
     return result
 
 
@@ -81,7 +122,12 @@ def summarise(reports: dict[str, Report]) -> dict[str, float | bool | None]:
     weight = sum(c for c, _ in covered)
     sure = sum(c * (a or 0.) for c, a in covered) / weight if weight else None
     mean = sum(e for e in exact if e is not None) / len(exact) if exact else None
-    return {'exact': mean, 'sure_accuracy': sure,
+
+    def average(key: str) -> float | None:
+        values = [r[key] for r in reports.values() if r.get(key) is not None]
+        return sum(values) / len(values) if values else None
+    return {'exact': mean, 'sure_accuracy': sure, 'recovered': average('recovered'),
+            'lookup_recovered': average('lookup_recovered'), 'advantage': average('advantage'),
             'won': mean is not None and mean >= .5 and (sure is None or sure >= .95)}
 
 
@@ -130,12 +176,14 @@ def main() -> None:
     for group, reports in results.items():
         print(f'[{group}]')
         for name, report in reports.items():
-            print(f'  {name:12s} ' + ' '.join(f'{k}={v:5.2f}' if k == 'rounds' else f'{k}={100 * v:5.1f}'
+            print(f'  {name:12s} ' + ' '.join(f'{k}={v:5.2f}' if k in IN_BITS else f'{k}={100 * v:5.1f}'
                                               for k, v in report.items() if v is not None))
     for group, line in summary.items():
         exact, sure = line['exact'], line['sure_accuracy']
+        bits = '' if line.get('recovered') is None else f'  recovered={line["recovered"]:5.2f} bits' + (
+            '' if line.get('advantage') is None else f' (lookup {line["lookup_recovered"]:5.2f}, advantage {line["advantage"]:+5.2f})')
         print(f'{group:8s} exact={100 * float(exact or 0):5.1f}%  sure-right='
-              f'{"   -" if sure is None else f"{100 * float(sure):5.1f}%"}  {"WON" if line["won"] else ""}')
+              f'{"   -" if sure is None else f"{100 * float(sure):5.1f}%"}{bits}  {"WON" if line["won"] else ""}')
 
 
 if __name__ == '__main__':

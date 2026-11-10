@@ -11,7 +11,7 @@ import sys
 import torch
 from teenie.bits.checkpoint import load_bit_model
 from teenie.bits.data import BitSampler
-from teenie.bits.eval import be_gentle_on_cpu
+from teenie.bits.eval import be_gentle_on_cpu, recovered_bits
 from teenie.bits.baselines import nearest, window_lookup
 from teenie.bits.sets import CHAINS_UNSEEN, CHAINS_UNSEEN2, PRODUCT_CHAINS_UNSEEN, PRODUCT_CHAINS_UNSEEN2
 
@@ -19,6 +19,7 @@ be_gentle_on_cpu()
 model, metadata = load_bit_model(sys.argv[1], 'cpu')
 width = int(sys.argv[3]) if len(sys.argv) > 3 else 16
 stats: dict[str, list[int]] = {}
+recovered: dict[str, list[torch.Tensor]] = {}
 with torch.no_grad():
     families = (CHAINS_UNSEEN, CHAINS_UNSEEN2) + ((PRODUCT_CHAINS_UNSEEN, PRODUCT_CHAINS_UNSEEN2)
                                                   if len(sys.argv) > 4 and sys.argv[4] == 'products' else ())
@@ -37,16 +38,19 @@ with torch.no_grad():
             lookup = [(nearest(e) == e.target).flatten()] + [(window_lookup(e, w, h) == e.target).flatten()
                                                               for w in (1, 2) for h in (False, True)]
             hard = ~torch.stack(lookup).any(0)
+            recovered.setdefault(kind, []).append(recovered_bits(prediction.probabilities(), e.target, width))
             s = stats.setdefault(kind, [0, 0, 0, 0, 0, 0])
             s[0] += int(right.sum()); s[1] += len(right); s[2] += int(right[hard].sum()); s[3] += int(hard.sum())
             s[4] += int(sure.sum()); s[5] += int(right[sure].sum())
 summary = {kind: {'exact': r / n, 'beyond_lookup': rh / max(nh, 1), 'questions': n, 'lookup_fails': nh,
-                  'sure_coverage': ns / n, 'sure_accuracy': rs / ns if ns else None}
+                  'sure_coverage': ns / n, 'sure_accuracy': rs / ns if ns else None,
+                  'recovered': float(torch.cat(recovered[kind]).mean()),
+                  'recovered_median': float(torch.cat(recovered[kind]).median())}
            for kind, (r, n, rh, nh, ns, rs) in sorted(stats.items())}
 for kind, (r, n, rh, nh, ns, rs) in sorted(stats.items()):
     right_when_sure = f'{100 * rs / ns:.1f}%' if ns else '-'
     print(f'{kind:20s} exact {100 * r / n:5.1f}%  beyond lookup {100 * rh / max(nh, 1):5.1f}% of {nh} hard questions'
-          f'  sure {100 * ns / n:5.1f}% (right {right_when_sure})')
+          f'  sure {100 * ns / n:5.1f}% (right {right_when_sure})  recovered {summary[kind]["recovered"]:5.2f}/{width} bits')
 if len(sys.argv) > 2:
     with open(sys.argv[2], 'w') as handle:
         json.dump({'checkpoint': sys.argv[1], 'width': width, 'seed': 60000, 'episodes': 48, 'summary': summary}, handle,

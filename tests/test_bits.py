@@ -495,3 +495,39 @@ def test_wide_code_film_extends_a_code_model_unchanged():
     film.train()
     film.loss(film(episode.context, episode.query, 16), episode.context, episode.target, 16).backward()
     assert film.film[0].weight.grad is not None
+
+
+def test_bits_recovered_scores_chance_certainty_and_confident_mistakes():
+    from teenie.bits.eval import FLOOR, baseline_recovered, recovered_bits
+    target = torch.tensor([[5, 3]])  # width 4: 0101, 0011
+    truth = to_bits(target, 4).float()
+    assert torch.allclose(recovered_bits(torch.full((1, 2, 4), .5), target, 4), torch.zeros(2))
+    assert torch.allclose(recovered_bits(truth, target, 4), torch.full((2,), 4.))
+    wrong = recovered_bits(1 - truth, target, 4)  # certain and wrong on every bit: floored, so finite and negative
+    assert torch.isfinite(wrong).all() and (wrong < 0).all()
+    assert abs(float(wrong[0]) - (4 + 4 * torch.log2(torch.tensor(FLOOR, dtype=torch.float64)))) < 1e-3
+    # a lookup that is always right earns every bit; one that matches a random target by chance earns about nothing
+    generator = torch.Generator().manual_seed(0)
+    targets = [torch.randint(0, 256, (16,), generator=generator) for _ in range(32)]
+    assert abs(baseline_recovered(targets, targets, 8) - 8) < 1e-3
+    guesses = [torch.randint(0, 256, (16,), generator=generator) for _ in range(32)]
+    assert abs(baseline_recovered(guesses, targets, 8)) < .5
+
+
+def test_opaque_relations_are_defined_and_unlike_training_relations():
+    from teenie.bits.data import BitSampler
+    from teenie.bits.expressions import fingerprint
+    from teenie.bits.opaque import OPAQUE
+    from teenie.bits.sets import TRAIN_SETS
+    trained = set()
+    for family in TRAIN_SETS['mix7-chains']:
+        for seed in range(4):  # a few draws of each generator
+            relation = family.make(torch.Generator().manual_seed(seed), 16)
+            trained.add(fingerprint(relation, 16))
+    for kind, families in OPAQUE.items():
+        for family in families:
+            relation = family.make(torch.Generator().manual_seed(0), 16)
+            assert fingerprint(relation, 16) not in trained, family.name
+            for width in (16, 32):
+                episode = BitSampler([family], width, 1).sample(1, 4)
+                assert 0 <= int(episode.target.min()) and int(episode.target.max()) < 1 << width, family.name

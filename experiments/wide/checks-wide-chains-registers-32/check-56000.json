@@ -1,0 +1,52 @@
+{
+  "checkpoint": "experiments/wide/snapshots-wide-chains-registers-32/update-56000.pt",
+  "train_set": "chains-products",
+  "tests": null,
+  "width": 32,
+  "episodes": 16,
+  "queries": 16,
+  "seed": 70000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {
+    "selected": {
+      "exact": 0.2984375,
+      "sure_accuracy": 1.0,
+      "won": false
+    }
+  },
+  "results": {
+    "selected": {
+      "chains, unseen pair, 1 step": {
+        "exact": 0.4921875,
+        "bit": 0.8525390625,
+        "sure_coverage": 0.43359375,
+        "sure_accuracy": 1.0
+      },
+      "a*b": {
+        "exact": 0.0,
+        "bit": 0.8011474609375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*b)+a": {
+        "exact": 0.0,
+        "bit": 0.792724609375,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*b)^b": {
+        "exact": 0.0,
+        "bit": 0.7325439453125,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "add": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 0.99609375,
+        "sure_accuracy": 1.0
+      }
+    }
+  }
+}

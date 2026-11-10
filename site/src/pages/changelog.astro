@@ -6,6 +6,9 @@ import { pct } from '../lib/format';
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const fam = (id: string, name: string) => experimentById(id)?.families[name]?.exact ?? null;
 const grp = (id: string, group: string) => experimentById(id)?.groups[group]?.exact ?? null;
+const productStage = (stage: string) => progress.products.find((row) => row.stage === stage);
+const registersRun = productStage('Scratch registers');
+const longerRun = productStage('Scratch registers, trained longer');
 
 const train = evaluation.results.train;
 
@@ -339,17 +342,31 @@ const phases = [
         Two scratch numbers per question and per worked example, written and read back every round — room for an
         intermediate value, with nothing about products built in. On the never-trained <code>(a*b)+a</code> the bits
         matching cannot reach rose from about 65% to about 77% right, and held-out product chains at 16 bits reached
-        {` ${pct(progress.products.at(-1)?.summary['product 1 step']?.exact)} for one step`}, with sure answers
+        {` ${pct(registersRun?.summary['product 1 step']?.exact)} for one step`}, with sure answers
         right. At 32 bits they are still at zero. <a href={`${base}/`}>The progression on the overview →</a>
       </p>
     </li>
 
     <li class="card">
-      <p class="eyebrow">Now</p>
+      <p class="eyebrow">Experiment</p>
       <h3>Registers, trained longer</h3>
       <p>
-        Product chains were still improving at the end of the first registers run, so it continues on the same
-        product-heavy chains at 16 bits, checked at every saved checkpoint.
+        Product chains were still improving at the end of the first registers run, so it continued on the same
+        product-heavy chains at 16 bits. The never-trained <code>(a*b)+a</code> went from 4% to 100% exact on the
+        checkpoint checks, and <code>(a*b)^b</code> from 0% to about half. On the full held-out split, product chains
+        reached{` ${pct(longerRun?.summary['product 1 step']?.exact)} for one step and ${pct(longerRun?.summary['product 2 steps']?.exact)} for two`},
+        with sure answers right 97–100% of the time; chains that start from a product form never seen in training stay low, at
+        {` ${pct(longerRun?.summary['product start 1 step']?.exact)}`}. At 32 bits products are still at zero: the skill
+        reaches only about bit 15, the width it was trained at.
+      </p>
+    </li>
+
+    <li class="card">
+      <p class="eyebrow">Now</p>
+      <h3>Products at 32 bits</h3>
+      <p>
+        The same model now trains on 16- and 32-bit episodes in turn, with each checkpoint scored at 32 bits on
+        <code>a*b</code>, <code>(a*b)+a</code> and <code>(a*b)^b</code>.
       </p>
     </li>
   </ol>

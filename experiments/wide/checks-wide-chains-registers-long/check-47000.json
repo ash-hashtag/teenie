@@ -1,0 +1,64 @@
+{
+  "checkpoint": "experiments/wide/checks-wide-chains-registers-long/snapshot.pt",
+  "train_set": "chains-products",
+  "tests": null,
+  "width": 16,
+  "episodes": 16,
+  "queries": 16,
+  "seed": 70000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {
+    "selected": {
+      "exact": 0.66796875,
+      "sure_accuracy": 1.0,
+      "won": true
+    }
+  },
+  "results": {
+    "selected": {
+      "chains": {
+        "exact": 0.54296875,
+        "bit": 0.908447265625,
+        "sure_coverage": 0.37109375,
+        "sure_accuracy": 1.0
+      },
+      "chains, unseen pair, 1 step": {
+        "exact": 0.76953125,
+        "bit": 0.962890625,
+        "sure_coverage": 0.66796875,
+        "sure_accuracy": 1.0
+      },
+      "chains, unseen pair, 2 steps": {
+        "exact": 0.515625,
+        "bit": 0.900146484375,
+        "sure_coverage": 0.37109375,
+        "sure_accuracy": 1.0
+      },
+      "(a*b)+a": {
+        "exact": 0.7890625,
+        "bit": 0.98095703125,
+        "sure_coverage": 0.015625,
+        "sure_accuracy": 1.0
+      },
+      "(a*b)^b": {
+        "exact": 0.09765625,
+        "bit": 0.84765625,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*b": {
+        "exact": 0.9609375,
+        "bit": 0.997314453125,
+        "sure_coverage": 0.40234375,
+        "sure_accuracy": 1.0
+      },
+      "add": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "sure_coverage": 1.0,
+        "sure_accuracy": 1.0
+      }
+    }
+  }
+}

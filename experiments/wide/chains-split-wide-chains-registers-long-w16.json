@@ -1,0 +1,56 @@
+{
+ "checkpoint": "checkpoints/wide/wide-chains-registers-long.pt",
+ "width": 16,
+ "seed": 60000,
+ "episodes": 48,
+ "summary": {
+  "no product 1 step": {
+   "exact": 0.9979838709677419,
+   "beyond_lookup": 0.993421052631579,
+   "questions": 496,
+   "lookup_fails": 152,
+   "sure_coverage": 0.9858870967741935,
+   "sure_accuracy": 1.0
+  },
+  "no product 2 steps": {
+   "exact": 0.9699074074074074,
+   "beyond_lookup": 0.9338842975206612,
+   "questions": 432,
+   "lookup_fails": 121,
+   "sure_coverage": 0.8356481481481481,
+   "sure_accuracy": 1.0
+  },
+  "product 1 step": {
+   "exact": 0.4117647058823529,
+   "beyond_lookup": 0.38910505836575876,
+   "questions": 272,
+   "lookup_fails": 257,
+   "sure_coverage": 0.27205882352941174,
+   "sure_accuracy": 1.0
+  },
+  "product 2 steps": {
+   "exact": 0.32142857142857145,
+   "beyond_lookup": 0.2682119205298013,
+   "questions": 336,
+   "lookup_fails": 302,
+   "sure_coverage": 0.09523809523809523,
+   "sure_accuracy": 0.96875
+  },
+  "product start 1 step": {
+   "exact": 0.1015625,
+   "beyond_lookup": 0.09772423025435073,
+   "questions": 768,
+   "lookup_fails": 747,
+   "sure_coverage": 0.029947916666666668,
+   "sure_accuracy": 1.0
+  },
+  "product start 2 steps": {
+   "exact": 0.12630208333333334,
+   "beyond_lookup": 0.09871244635193133,
+   "questions": 768,
+   "lookup_fails": 699,
+   "sure_coverage": 0.013020833333333334,
+   "sure_accuracy": 1.0
+  }
+ }
+}

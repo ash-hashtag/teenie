@@ -1,0 +1,18 @@
+{
+  "checkpoint": "checkpoints/wide/wide-mix7-chains.pt",
+  "update": 85000,
+  "train_set": "mix7-chains",
+  "parameters": 1145339,
+  "rounds": 12,
+  "context": 999,
+  "widths": {
+    "16": {
+      "file": "teenie-w16.onnx",
+      "bytes": 7656148
+    },
+    "32": {
+      "file": "teenie-w32.onnx",
+      "bytes": 8109696
+    }
+  }
+}

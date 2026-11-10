@@ -1,0 +1,89 @@
+{
+  "checkpoint": "experiments/wide/snapshots-wide-mix7-chains/update-79000.pt",
+  "train_set": "mix7-chains",
+  "tests": null,
+  "width": 32,
+  "episodes": 16,
+  "queries": 16,
+  "seed": 70000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {
+    "selected": {
+      "exact": 0.376953125,
+      "sure_accuracy": 1.0,
+      "recovered": 22.01203489303589,
+      "lookup_recovered": null,
+      "advantage": null,
+      "won": false
+    }
+  },
+  "results": {
+    "selected": {
+      "T6 4-6 ops, all concepts": {
+        "exact": 0.18359375,
+        "bit": 0.74609375,
+        "recovered": 13.521644592285156,
+        "recovered_median": 9.408048629760742,
+        "sure_coverage": 0.078125,
+        "sure_accuracy": 1.0
+      },
+      "((a*b)^(a>>3))|(b+9)": {
+        "exact": 0.0,
+        "bit": 0.7476806640625,
+        "recovered": 15.180225372314453,
+        "recovered_median": 15.257558822631836,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*b": {
+        "exact": 0.33984375,
+        "bit": 0.9656982421875,
+        "recovered": 28.314123153686523,
+        "recovered_median": 29.27848243713379,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*b)+a": {
+        "exact": 0.2265625,
+        "bit": 0.952392578125,
+        "recovered": 26.8227596282959,
+        "recovered_median": 28.169601440429688,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "accumulate n15": {
+        "exact": 0.60546875,
+        "bit": 0.8773193359375,
+        "recovered": 22.857452392578125,
+        "recovered_median": 31.947895050048828,
+        "sure_coverage": 0.484375,
+        "sure_accuracy": 1.0
+      },
+      "recurrence n15": {
+        "exact": 0.58203125,
+        "bit": 0.880859375,
+        "recovered": 22.078102111816406,
+        "recovered_median": 31.823745727539062,
+        "sure_coverage": 0.4375,
+        "sure_accuracy": 1.0
+      },
+      "concepts3": {
+        "exact": 0.5546875,
+        "bit": 0.9046630859375,
+        "recovered": 25.06238555908203,
+        "recovered_median": 30.825801849365234,
+        "sure_coverage": 0.42578125,
+        "sure_accuracy": 1.0
+      },
+      "steps3": {
+        "exact": 0.5234375,
+        "bit": 0.8646240234375,
+        "recovered": 22.259586334228516,
+        "recovered_median": 30.993316650390625,
+        "sure_coverage": 0.34765625,
+        "sure_accuracy": 1.0
+      }
+    }
+  }
+}

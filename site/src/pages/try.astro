@@ -1,0 +1,450 @@
+---
+import Layout from '../layouts/Layout.astro';
+import info from '../../public/weights/teenie.json';
+
+// Ordinary rules, then ones with no textbook solution (from the held-out middle band), then rules it cannot see.
+const presets = [
+  { label: 'a + b', formula: 'a + b' },
+  { label: 'a * b', formula: 'a * b' },
+  { label: '(a*b)+a', formula: 'a * b + a' },
+  { label: 'max − min', formula: 'max(a, b) - min(a, b)' },
+  { label: '3·(a xor b)', formula: '(a ^ b) * 3' },
+  { label: 'the target', formula: '((a * b) ^ (a >> 3)) | (b + 9)' },
+  { label: 'deep, with a constant', formula: '(((a ^ 0x5A5A5A5A) + b) >> 1) ^ (a & b)' },
+  { label: 'bit-select', formula: 'a + b if (a >> (b & 15)) & 1 else a ^ (b << 1)' },
+  { label: 'max of mixed', formula: 'max(a * 3, b ^ a) - min(a, b) * 2' },
+  { label: 'rotation', formula: 'rotl(a, 7) ^ b' },
+  { label: 'square minus b', formula: 'a ** 2 - b' },
+];
+const parameters = info.parameters.toLocaleString('en-US');
+---
+
+<Layout
+  title="Try it: infer a hidden rule in your browser"
+  description="Type any integer function of a and b. Your browser generates 999 examples, and a 1.1M-parameter model infers the rule and answers new 32-bit questions in one pass, entirely on your device."
+  keywords={['interactive demo', 'in-browser inference', 'onnx runtime web', 'webassembly']}
+  kind="website"
+>
+  <p class="eyebrow">Try it</p>
+  <h1>Give it a rule it has never seen</h1>
+  <p class="lede">
+    Write any function of <code>a</code> and <code>b</code>. Your browser draws 999 examples of it and 16 new
+    questions; the model, never told the rule, reads the examples and answers every bit of every question in one
+    pass, with how sure it is of each bit. It all runs on your device: the {parameters}-parameter model is a few MB.
+  </p>
+
+  <p class="status small" data-role="status">Loading the model…</p>
+
+  <section class="card form">
+    <label for="formula" class="eyebrow">The hidden rule</label>
+    <div class="row">
+      <span class="prefix">c =</span>
+      <input id="formula" type="text" value="a * b + a" spellcheck="false" autocomplete="off" />
+    </div>
+    <div class="chips">
+      {presets.map((p) => <button class="chip" type="button" data-formula={p.formula} title={p.formula}>{p.label}</button>)}
+    </div>
+    <div class="options">
+      <label class="small">Numbers of
+        <select data-role="width">
+          <option value="32" selected>32 bits</option>
+          <option value="16">16 bits</option>
+        </select>
+      </label>
+      <button class="primary" type="button" data-role="run" disabled>Ask 16 questions</button>
+    </div>
+    <details class="small muted help">
+      <summary>What you can write</summary>
+      <p>
+        Python-style: <code>+ - * // % **</code>, <code>&amp; | ^ ~ &lt;&lt; &gt;&gt;</code>, comparisons (1 or 0),
+        <code>not and or</code>, <code>x if cond else y</code> or <code>cond ? x : y</code>, and
+        <code>min max popcount reverse rotl rotr</code>. Numbers are unsigned and wrap at the width, like the rules the
+        model trained on; division by zero gives all ones. Rules that scramble the bits on purpose (hashes, ciphers)
+        are beyond it, and it is still weak at rotations.
+      </p>
+    </details>
+    <p class="error small" data-role="error" hidden></p>
+  </section>
+
+  <section class="card result" data-role="result" hidden>
+    <div class="grid-4 tiles">
+      <div class="stat">
+        <span class="label">Exactly right</span>
+        <span class="value" data-role="exact">—</span>
+      </div>
+      <div class="stat">
+        <span class="label">Bits right</span>
+        <span class="value" data-role="bits">—</span>
+      </div>
+      <div class="stat">
+        <span class="label">Bits recovered (of <span data-role="w">32</span>)</span>
+        <span class="value" data-role="recovered">—</span>
+        <span class="note" data-role="times"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Sure of every bit · right when sure</span>
+        <span class="value" data-role="sure">—</span>
+      </div>
+    </div>
+    <p class="small muted" data-role="note"></p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th class="num">a</th><th class="num">b</th><th class="num">true c</th><th class="num">its answer</th><th>each bit, high → low (dark 1, light 0, in between unsure)</th><th class="num">bits recovered</th></tr>
+        </thead>
+        <tbody data-role="rows"></tbody>
+      </table>
+    </div>
+    <details class="small">
+      <summary>The first 8 of the 999 examples it read</summary>
+      <div data-role="examples"></div>
+    </details>
+    <p class="small muted">
+      <strong>Bits recovered</strong> is {'{'}width{'}'} + log<sub>2</sub> of the probability the model gave the true
+      answer: 0 means a blind guess, the full width means certain and right, and confident mistakes count against it.
+      A rule like addition scores the full width; a hash scores about 0.
+    </p>
+  </section>
+</Layout>
+
+<script>
+  import { evaluate, parse } from '../lib/expression';
+
+  const CONTEXT = 999;
+  const QUESTIONS = 16;
+  const FLOOR = 2 ** -20;
+  const ORT = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/';
+
+  type Ort = {
+    env: { wasm: { wasmPaths: string; numThreads: number } };
+    Tensor: new (type: 'float32', data: Float32Array, dims: number[]) => { data: Float32Array };
+    InferenceSession: { create(url: string, options: object): Promise<Session> };
+  };
+  type Session = { run(feeds: Record<string, unknown>): Promise<Record<string, { data: Float32Array }>> };
+
+  const $ = <T extends Element>(role: string) => document.querySelector<T>(`[data-role="${role}"]`)!;
+  const input = document.getElementById('formula') as HTMLInputElement;
+  const widthSelect = $<HTMLSelectElement>('width');
+  const runButton = $<HTMLButtonElement>('run');
+  let ort: Ort | null = null;
+  let backend = '';
+  const sessions = new Map<number, Promise<Session>>();
+
+  function showError(message: string | null): void {
+    const box = $<HTMLParagraphElement>('error');
+    box.hidden = message === null;
+    box.textContent = message ?? '';
+  }
+
+  async function loadRuntime(): Promise<Ort> {
+    if (ort) return ort;
+    // WebAssembly only: onnxruntime-web's WebGPU backend fails on one of this graph's concatenations and returns
+    // wrong answers without an error (checked in Chromium), so it is not worth the risk for a few seconds.
+    const module = (await import(/* @vite-ignore */ `${ORT}ort.min.mjs`)) as Ort;
+    module.env.wasm.wasmPaths = ORT;
+    module.env.wasm.numThreads = 1; // no cross-origin isolation on a static site, so one thread
+    ort = module;
+    return module;
+  }
+
+  function session(width: number): Promise<Session> {
+    if (!sessions.has(width)) {
+      sessions.set(width, (async () => {
+        const runtime = await loadRuntime();
+        const url = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/weights/teenie-w${width}.onnx`;
+        const s = await runtime.InferenceSession.create(url, { executionProviders: ['wasm'] });
+        backend = 'WebAssembly';
+        return s;
+      })());
+    }
+    return sessions.get(width)!;
+  }
+
+  function random(width: number): bigint {
+    const words = new Uint32Array(Math.ceil(width / 32));
+    crypto.getRandomValues(words);
+    let x = 0n;
+    for (const word of words) x = (x << 32n) | BigInt(word);
+    return x & ((1n << BigInt(width)) - 1n);
+  }
+
+  function fill(target: Float32Array, offset: number, value: bigint, width: number): void {
+    for (let k = 0; k < width; k++) target[offset + k] = (value >> BigInt(k)) & 1n ? 1 : -1;
+  }
+
+  async function run(): Promise<void> {
+    showError(null);
+    const width = Number(widthSelect.value);
+    let tree;
+    try {
+      tree = parse(input.value);
+    } catch (error) {
+      showError((error as Error).message);
+      return;
+    }
+    runButton.disabled = true;
+    runButton.textContent = 'Thinking…';
+    try {
+      // 999 distinct examples, then questions that are not among them.
+      const seen = new Set<string>();
+      const pairs: [bigint, bigint][] = [];
+      while (pairs.length < CONTEXT + QUESTIONS) {
+        const a = random(width);
+        const b = random(width);
+        const key = `${a},${b}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        pairs.push([a, b]);
+      }
+      const answers = pairs.map(([a, b]) => evaluate(tree, a, b, width));
+      const distinct = new Set(answers.slice(0, CONTEXT).map(String)).size;
+      const bits = new Float32Array(CONTEXT * 3 * width);
+      for (let n = 0; n < CONTEXT; n++) {
+        fill(bits, (n * 3) * width, pairs[n]![0], width);
+        fill(bits, (n * 3 + 1) * width, pairs[n]![1], width);
+        fill(bits, (n * 3 + 2) * width, answers[n]!, width);
+      }
+      const asked = new Float32Array(QUESTIONS * 2 * width);
+      for (let q = 0; q < QUESTIONS; q++) {
+        fill(asked, (q * 2) * width, pairs[CONTEXT + q]![0], width);
+        fill(asked, (q * 2 + 1) * width, pairs[CONTEXT + q]![1], width);
+      }
+      const runtime = await loadRuntime();
+      const s = await session(width);
+      const started = performance.now();
+      const output = await s.run({
+        bits: new runtime.Tensor('float32', bits, [1, CONTEXT, 3, width]),
+        asked: new runtime.Tensor('float32', asked, [1, QUESTIONS, 2, width]),
+      });
+      const seconds = (performance.now() - started) / 1000;
+      const p = output.probabilities!.data;
+      render(width, pairs, answers, p, seconds, distinct);
+    } catch (error) {
+      showError(`Something went wrong: ${(error as Error).message}`);
+    } finally {
+      runButton.disabled = false;
+      runButton.textContent = 'Ask 16 new questions';
+    }
+  }
+
+  function render(width: number, pairs: [bigint, bigint][], answers: bigint[], p: Float32Array, seconds: number, distinct: number): void {
+    let exact = 0;
+    let bitsRight = 0;
+    let recoveredSum = 0;
+    let sure = 0;
+    let sureRight = 0;
+    const rows: string[] = [];
+    for (let q = 0; q < QUESTIONS; q++) {
+      const [a, b] = pairs[CONTEXT + q]!;
+      const truth = answers[CONTEXT + q]!;
+      let guess = 0n;
+      let recovered = width;
+      let least = 1;
+      const cells: string[] = [];
+      for (let k = width - 1; k >= 0; k--) {
+        const one = p[q * width + k]!;
+        const bit = (truth >> BigInt(k)) & 1n;
+        if (one > 0.5) guess |= 1n << BigInt(k);
+        const pTrue = Math.min(Math.max(bit ? one : 1 - one, FLOOR), 1 - FLOOR);
+        recovered += Math.log2(pTrue);
+        least = Math.min(least, Math.max(one, 1 - one));
+        const right = (one > 0.5) === (bit === 1n);
+        if (right) bitsRight++;
+        cells.push(`<span class="cell${right ? '' : ' miss'}" style="--p:${one.toFixed(3)}" title="bit ${k}: p(1) = ${one.toFixed(3)}, true ${bit}"></span>`);
+      }
+      const ok = guess === truth;
+      if (ok) exact++;
+      if (least >= 0.99) {
+        sure++;
+        if (ok) sureRight++;
+      }
+      recoveredSum += recovered;
+      rows.push(`<tr><td class="num">${a}</td><td class="num">${b}</td><td class="num">${truth}</td>
+        <td class="num ${ok ? 'ok' : 'bad'}">${guess}${ok ? ' ✓' : ''}</td>
+        <td><span class="bits">${cells.join('')}</span></td><td class="num">${recovered.toFixed(1)}</td></tr>`);
+    }
+    const mean = recoveredSum / QUESTIONS;
+    $('exact').textContent = `${exact} / ${QUESTIONS}`;
+    $('bits').textContent = `${((bitsRight / (QUESTIONS * width)) * 100).toFixed(1)}%`;
+    $('recovered').textContent = mean.toFixed(1);
+    $('w').textContent = String(width);
+    $('times').textContent = mean > 1 ? `≈ ${formatPower(mean)}× better than a blind guess` : 'about a blind guess';
+    $('sure').textContent = `${sure} / ${QUESTIONS} · ${sure ? `${sureRight} / ${sure}` : '—'}`;
+    $('note').textContent = `c = ${input.value} at ${width} bits — 999 examples (${distinct.toLocaleString('en-US')} different answers), ${QUESTIONS} new questions, answered in ${seconds.toFixed(1)} s on ${backend}.`;
+    $('rows').innerHTML = rows.join('');
+    $('examples').innerHTML = `<table><thead><tr><th class="num">a</th><th class="num">b</th><th class="num">c</th></tr></thead><tbody>${pairs
+      .slice(0, 8)
+      .map(([a, b], n) => `<tr><td class="num">${a}</td><td class="num">${b}</td><td class="num">${answers[n]}</td></tr>`)
+      .join('')}</tbody></table>`;
+    $<HTMLElement>('result').hidden = false;
+  }
+
+  function formatPower(bits: number): string {
+    const value = 2 ** bits;
+    if (value < 1e4) return Math.round(value).toLocaleString('en-US');
+    if (value < 1e9) return `${Math.round(value / 1e3).toLocaleString('en-US')} thousand`.replace(/^(\d+),(\d{3}) thousand$/, '$1.$2 million');
+    return `2^${bits.toFixed(0)}`;
+  }
+
+  document.querySelectorAll<HTMLButtonElement>('[data-formula]').forEach((button) =>
+    button.addEventListener('click', () => {
+      input.value = button.dataset.formula ?? '';
+      void run();
+    }),
+  );
+  runButton.addEventListener('click', () => void run());
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') void run();
+  });
+  widthSelect.addEventListener('change', () => void session(Number(widthSelect.value)));
+
+  session(Number(widthSelect.value))
+    .then(() => {
+      $('status').innerHTML = `<span class="dot"></span> Model loaded — running on your device with ${backend}.`;
+      runButton.disabled = false;
+      void run();
+    })
+    .catch((error: Error) => {
+      $('status').textContent = `Could not load the model in this browser (${error.message}).`;
+    });
+</script>
+
+<style>
+  .status {
+    color: var(--ink-2);
+  }
+
+  .status :global(.dot) {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--good);
+    margin-right: 0.3rem;
+  }
+
+  .form {
+    display: grid;
+    gap: 0.8rem;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .prefix {
+    font-family: var(--mono);
+    color: var(--muted);
+  }
+
+  #formula {
+    flex: 1;
+    min-width: 0;
+    font: 1rem var(--mono);
+    padding: 0.55rem 0.7rem;
+    border-radius: 8px;
+    border: 1px solid var(--axis);
+    background: var(--page);
+    color: var(--ink);
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .chips .chip {
+    font-size: 0.8rem;
+  }
+
+  .options {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.8rem;
+  }
+
+  .options select {
+    font: inherit;
+    margin-left: 0.3rem;
+    padding: 0.3rem 0.4rem;
+    border-radius: 6px;
+    border: 1px solid var(--axis);
+    background: var(--page);
+    color: var(--ink);
+  }
+
+  .help p {
+    margin: 0.4rem 0 0;
+  }
+
+  .primary {
+    font: inherit;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    padding: 0.55rem 1rem;
+    background: var(--series-1);
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .primary:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .error {
+    color: var(--bad);
+    margin: 0;
+  }
+
+  .result {
+    margin-top: 1.25rem;
+    display: grid;
+    gap: 0.9rem;
+  }
+
+  .grid-4 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+  }
+
+  .table-wrap table {
+    font-size: 0.85rem;
+  }
+
+  .result :global(.ok) {
+    color: var(--good);
+    font-weight: 600;
+  }
+
+  .result :global(.bad) {
+    color: var(--bad);
+  }
+
+  .result :global(.bits) {
+    display: inline-flex;
+    gap: 1px;
+  }
+
+  .result :global(.cell) {
+    width: 6px;
+    height: 14px;
+    border-radius: 1px;
+    background: color-mix(in oklab, var(--series-1) calc(var(--p, 0) * 100%), var(--bit-off));
+  }
+
+  .result :global(.cell.miss) {
+    outline: 1.5px solid var(--bad);
+    outline-offset: -1px;
+  }
+</style>

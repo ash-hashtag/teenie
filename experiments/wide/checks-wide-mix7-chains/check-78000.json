@@ -1,0 +1,81 @@
+{
+  "checkpoint": "experiments/wide/snapshots-wide-mix7-chains/update-78000.pt",
+  "train_set": "mix7-chains",
+  "tests": null,
+  "width": 32,
+  "episodes": 16,
+  "queries": 16,
+  "seed": 70000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {
+    "selected": {
+      "exact": 0.3173828125,
+      "sure_accuracy": 1.0,
+      "recovered": 21.12283504009247,
+      "lookup_recovered": null,
+      "advantage": null,
+      "won": false
+    }
+  },
+  "results": {
+    "selected": {
+      "T6 4-6 ops, all concepts": {
+        "exact": 0.1328125,
+        "bit": 0.733642578125,
+        "recovered": 13.019323348999023,
+        "sure_coverage": 0.0625,
+        "sure_accuracy": 1.0
+      },
+      "((a*b)^(a>>3))|(b+9)": {
+        "exact": 0.0,
+        "bit": 0.7489013671875,
+        "recovered": 15.4154634475708,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*b": {
+        "exact": 0.1875,
+        "bit": 0.9503173828125,
+        "recovered": 27.147418975830078,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a*b)+a": {
+        "exact": 0.0546875,
+        "bit": 0.918212890625,
+        "recovered": 23.887195587158203,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "accumulate n15": {
+        "exact": 0.5859375,
+        "bit": 0.8701171875,
+        "recovered": 22.560420989990234,
+        "sure_coverage": 0.42578125,
+        "sure_accuracy": 1.0
+      },
+      "recurrence n15": {
+        "exact": 0.54296875,
+        "bit": 0.8560791015625,
+        "recovered": 20.695457458496094,
+        "sure_coverage": 0.37109375,
+        "sure_accuracy": 1.0
+      },
+      "concepts3": {
+        "exact": 0.55078125,
+        "bit": 0.901123046875,
+        "recovered": 24.85527229309082,
+        "sure_coverage": 0.39453125,
+        "sure_accuracy": 1.0
+      },
+      "steps3": {
+        "exact": 0.484375,
+        "bit": 0.863525390625,
+        "recovered": 21.402128219604492,
+        "sure_coverage": 0.29296875,
+        "sure_accuracy": 1.0
+      }
+    }
+  }
+}

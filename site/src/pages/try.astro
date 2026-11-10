@@ -53,6 +53,18 @@ const parameters = info.parameters.toLocaleString('en-US');
       </label>
       <button class="primary" type="button" data-role="run" disabled>Ask 16 questions</button>
     </div>
+    <details class="own" data-role="own-box">
+      <summary class="small">Ask your own questions too</summary>
+      <label for="own" class="small muted">
+        One <code>a, b</code> per line (decimal or <code>0x…</code>), up to 16. They are answered along with random
+        ones to make 16, and are never among the 999 examples.
+      </label>
+      <textarea id="own" rows="3" spellcheck="false" placeholder="12, 34&#10;1000000, 0xdeadbeef"></textarea>
+    </details>
+    <div class="progress" data-role="progress" hidden>
+      <div class="track"><div class="fill" data-role="fill"></div></div>
+      <span class="small muted" data-role="progress-label"></span>
+    </div>
     <details class="small muted help">
       <summary>What you can write</summary>
       <p>
@@ -113,51 +125,76 @@ const parameters = info.parameters.toLocaleString('en-US');
   const CONTEXT = 999;
   const QUESTIONS = 16;
   const FLOOR = 2 ** -20;
-  const ORT = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/';
-
-  type Ort = {
-    env: { wasm: { wasmPaths: string; numThreads: number } };
-    Tensor: new (type: 'float32', data: Float32Array, dims: number[]) => { data: Float32Array };
-    InferenceSession: { create(url: string, options: object): Promise<Session> };
-  };
-  type Session = { run(feeds: Record<string, unknown>): Promise<Record<string, { data: Float32Array }>> };
+  const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
   const $ = <T extends Element>(role: string) => document.querySelector<T>(`[data-role="${role}"]`)!;
   const input = document.getElementById('formula') as HTMLInputElement;
+  const own = document.getElementById('own') as HTMLTextAreaElement;
   const widthSelect = $<HTMLSelectElement>('width');
   const runButton = $<HTMLButtonElement>('run');
-  let ort: Ort | null = null;
-  let backend = '';
-  const sessions = new Map<number, Promise<Session>>();
+  const worker = new Worker(new URL('../lib/infer.worker.ts', import.meta.url), { type: 'module' });
+  const modelUrl = (width: number) => `${BASE}/weights/teenie-w${width}.onnx`;
+
+  // Seconds one pass took last time, per width: drives the estimated progress while the model thinks.
+  const lastSeconds: Record<number, number> = { 16: 3, 32: 6 };
+  const loaded = new Set<number>();
+  let nextId = 0;
+  const waiting = new Map<number, { resolve: (p: Float32Array, s: number) => void; reject: (e: Error) => void }>();
+  let loadWaiters: { width: number; resolve: () => void; reject: (e: Error) => void }[] = [];
+
+  worker.onmessage = (event: MessageEvent) => {
+    const m = event.data;
+    if (m.type === 'progress') {
+      const mb = (n: number) => (n / 1e6).toFixed(1);
+      showProgress(m.total ? m.loaded / m.total : 0, `Downloading the model: ${mb(m.loaded)}${m.total ? ` of ${mb(m.total)}` : ''} MB`);
+    } else if (m.type === 'ready') {
+      loaded.add(m.width);
+      loadWaiters.filter((w) => w.width === m.width).forEach((w) => w.resolve());
+      loadWaiters = loadWaiters.filter((w) => w.width !== m.width);
+    } else if (m.type === 'result') {
+      waiting.get(m.id)?.resolve(m.probabilities, m.seconds);
+      waiting.delete(m.id);
+    } else if (m.type === 'error') {
+      const error = new Error(m.message);
+      if (m.id !== undefined && waiting.has(m.id)) {
+        waiting.get(m.id)!.reject(error);
+        waiting.delete(m.id);
+      } else {
+        loadWaiters.forEach((w) => w.reject(error));
+        loadWaiters = [];
+      }
+    }
+  };
+
+  function load(width: number): Promise<void> {
+    if (loaded.has(width)) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      loadWaiters.push({ width, resolve, reject });
+      worker.postMessage({ type: 'load', width, url: new URL(modelUrl(width), location.href).href });
+    });
+  }
+
+  function think(width: number, bits: Float32Array, asked: Float32Array): Promise<[Float32Array, number]> {
+    const id = nextId++;
+    return new Promise((resolve, reject) => {
+      waiting.set(id, { resolve: (p, s) => resolve([p, s]), reject });
+      worker.postMessage({ type: 'run', id, width, bits, asked, questions: QUESTIONS, url: new URL(modelUrl(width), location.href).href },
+        [bits.buffer, asked.buffer]);
+    });
+  }
+
+  function showProgress(fraction: number | null, label: string): void {
+    const box = $<HTMLElement>('progress');
+    box.hidden = fraction === null;
+    if (fraction === null) return;
+    $<HTMLElement>('fill').style.width = `${Math.round(Math.min(fraction, 1) * 100)}%`;
+    $('progress-label').textContent = label;
+  }
 
   function showError(message: string | null): void {
     const box = $<HTMLParagraphElement>('error');
     box.hidden = message === null;
     box.textContent = message ?? '';
-  }
-
-  async function loadRuntime(): Promise<Ort> {
-    if (ort) return ort;
-    // WebAssembly only: onnxruntime-web's WebGPU backend fails on one of this graph's concatenations and returns
-    // wrong answers without an error (checked in Chromium), so it is not worth the risk for a few seconds.
-    const module = (await import(/* @vite-ignore */ `${ORT}ort.min.mjs`)) as Ort;
-    module.env.wasm.wasmPaths = ORT;
-    module.env.wasm.numThreads = 1; // no cross-origin isolation on a static site, so one thread
-    ort = module;
-    return module;
-  }
-
-  function session(width: number): Promise<Session> {
-    if (!sessions.has(width)) {
-      sessions.set(width, (async () => {
-        const runtime = await loadRuntime();
-        const url = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/weights/teenie-w${width}.onnx`;
-        const s = await runtime.InferenceSession.create(url, { executionProviders: ['wasm'] });
-        backend = 'WebAssembly';
-        return s;
-      })());
-    }
-    return sessions.get(width)!;
   }
 
   function random(width: number): bigint {
@@ -172,54 +209,92 @@ const parameters = info.parameters.toLocaleString('en-US');
     for (let k = 0; k < width; k++) target[offset + k] = (value >> BigInt(k)) & 1n ? 1 : -1;
   }
 
+  // The user's own questions: "a, b" per line, decimal or 0x/0b, below 2**width.
+  function ownQuestions(width: number): [bigint, bigint][] {
+    const limit = 1n << BigInt(width);
+    const found: [bigint, bigint][] = [];
+    const seen = new Set<string>();
+    own.value.split('\n').forEach((line, index) => {
+      if (!line.trim()) return;
+      const parts = line.split(/[\s,;]+/).filter(Boolean);
+      if (parts.length !== 2) throw new Error(`Line ${index + 1}: write two numbers, a and b`);
+      const values = parts.map((part) => {
+        if (!/^(0x[0-9a-f]+|0b[01]+|\d+)$/i.test(part)) throw new Error(`Line ${index + 1}: "${part}" is not a whole number`);
+        const value = BigInt(part.toLowerCase());
+        if (value >= limit) throw new Error(`Line ${index + 1}: ${part} does not fit in ${width} bits`);
+        return value;
+      }) as [bigint, bigint];
+      const key = values.join(',');
+      if (!seen.has(key)) {
+        seen.add(key);
+        found.push(values);
+      }
+    });
+    if (found.length > QUESTIONS) throw new Error(`At most ${QUESTIONS} questions of your own`);
+    return found;
+  }
+
   async function run(): Promise<void> {
     showError(null);
     const width = Number(widthSelect.value);
     let tree;
+    let mine: [bigint, bigint][];
     try {
       tree = parse(input.value);
+      mine = ownQuestions(width);
     } catch (error) {
       showError((error as Error).message);
       return;
     }
     runButton.disabled = true;
     runButton.textContent = 'Thinking…';
+    let ticking = 0;
     try {
-      // 999 distinct examples, then questions that are not among them.
-      const seen = new Set<string>();
-      const pairs: [bigint, bigint][] = [];
-      while (pairs.length < CONTEXT + QUESTIONS) {
+      // 999 distinct examples (never one of the questions), then the questions: the user's first, random ones after.
+      const seen = new Set<string>(mine.map(([a, b]) => `${a},${b}`));
+      const examples: [bigint, bigint][] = [];
+      const questions: [bigint, bigint][] = [...mine];
+      while (examples.length < CONTEXT || questions.length < QUESTIONS) {
         const a = random(width);
         const b = random(width);
         const key = `${a},${b}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        pairs.push([a, b]);
+        (examples.length < CONTEXT ? examples : questions).push([a, b]);
       }
+      const pairs = [...examples, ...questions];
       const answers = pairs.map(([a, b]) => evaluate(tree, a, b, width));
       const distinct = new Set(answers.slice(0, CONTEXT).map(String)).size;
       const bits = new Float32Array(CONTEXT * 3 * width);
       for (let n = 0; n < CONTEXT; n++) {
-        fill(bits, (n * 3) * width, pairs[n]![0], width);
+        fill(bits, n * 3 * width, pairs[n]![0], width);
         fill(bits, (n * 3 + 1) * width, pairs[n]![1], width);
         fill(bits, (n * 3 + 2) * width, answers[n]!, width);
       }
       const asked = new Float32Array(QUESTIONS * 2 * width);
       for (let q = 0; q < QUESTIONS; q++) {
-        fill(asked, (q * 2) * width, pairs[CONTEXT + q]![0], width);
+        fill(asked, q * 2 * width, pairs[CONTEXT + q]![0], width);
         fill(asked, (q * 2 + 1) * width, pairs[CONTEXT + q]![1], width);
       }
-      const runtime = await loadRuntime();
-      const s = await session(width);
+      await load(width);
+      // Estimated progress while the worker thinks; the page stays usable meanwhile.
       const started = performance.now();
-      const output = await s.run({
-        bits: new runtime.Tensor('float32', bits, [1, CONTEXT, 3, width]),
-        asked: new runtime.Tensor('float32', asked, [1, QUESTIONS, 2, width]),
-      });
-      const seconds = (performance.now() - started) / 1000;
-      const p = output.probabilities!.data;
-      render(width, pairs, answers, p, seconds, distinct);
+      const expected = lastSeconds[width] ?? 5;
+      const tick = () => {
+        const elapsed = (performance.now() - started) / 1000;
+        showProgress(0.95 * (1 - Math.exp(-elapsed / (expected * 0.6))),
+          `Reading the 999 examples and answering ${QUESTIONS} questions… ${elapsed.toFixed(1)} s (about ${expected.toFixed(0)} s)`);
+        ticking = requestAnimationFrame(tick);
+      };
+      tick();
+      const [p, seconds] = await think(width, bits, asked);
+      lastSeconds[width] = seconds;
+      cancelAnimationFrame(ticking);
+      showProgress(null, '');
+      render(width, pairs, answers, p, seconds, distinct, mine.length);
     } catch (error) {
+      cancelAnimationFrame(ticking);
+      showProgress(null, '');
       showError(`Something went wrong: ${(error as Error).message}`);
     } finally {
       runButton.disabled = false;
@@ -227,7 +302,8 @@ const parameters = info.parameters.toLocaleString('en-US');
     }
   }
 
-  function render(width: number, pairs: [bigint, bigint][], answers: bigint[], p: Float32Array, seconds: number, distinct: number): void {
+  function render(width: number, pairs: [bigint, bigint][], answers: bigint[], p: Float32Array, seconds: number,
+    distinct: number, mine: number): void {
     let exact = 0;
     let bitsRight = 0;
     let recoveredSum = 0;
@@ -245,8 +321,7 @@ const parameters = info.parameters.toLocaleString('en-US');
         const one = p[q * width + k]!;
         const bit = (truth >> BigInt(k)) & 1n;
         if (one > 0.5) guess |= 1n << BigInt(k);
-        const pTrue = Math.min(Math.max(bit ? one : 1 - one, FLOOR), 1 - FLOOR);
-        recovered += Math.log2(pTrue);
+        recovered += Math.log2(Math.min(Math.max(bit ? one : 1 - one, FLOOR), 1 - FLOOR));
         least = Math.min(least, Math.max(one, 1 - one));
         const right = (one > 0.5) === (bit === 1n);
         if (right) bitsRight++;
@@ -259,7 +334,8 @@ const parameters = info.parameters.toLocaleString('en-US');
         if (ok) sureRight++;
       }
       recoveredSum += recovered;
-      rows.push(`<tr><td class="num">${a}</td><td class="num">${b}</td><td class="num">${truth}</td>
+      const yours = q < mine ? ' <span class="yours">yours</span>' : '';
+      rows.push(`<tr><td class="num">${a}${yours}</td><td class="num">${b}</td><td class="num">${truth}</td>
         <td class="num ${ok ? 'ok' : 'bad'}">${guess}${ok ? ' ✓' : ''}</td>
         <td><span class="bits">${cells.join('')}</span></td><td class="num">${recovered.toFixed(1)}</td></tr>`);
     }
@@ -270,7 +346,7 @@ const parameters = info.parameters.toLocaleString('en-US');
     $('w').textContent = String(width);
     $('times').textContent = mean > 1 ? `≈ ${formatPower(mean)}× better than a blind guess` : 'about a blind guess';
     $('sure').textContent = `${sure} / ${QUESTIONS} · ${sure ? `${sureRight} / ${sure}` : '—'}`;
-    $('note').textContent = `c = ${input.value} at ${width} bits — 999 examples (${distinct.toLocaleString('en-US')} different answers), ${QUESTIONS} new questions, answered in ${seconds.toFixed(1)} s on ${backend}.`;
+    $('note').textContent = `c = ${input.value} at ${width} bits — 999 examples (${distinct.toLocaleString('en-US')} different answers), ${QUESTIONS} new questions${mine ? ` (${mine} of yours)` : ''}, answered in ${seconds.toFixed(1)} s on your device.`;
     $('rows').innerHTML = rows.join('');
     $('examples').innerHTML = `<table><thead><tr><th class="num">a</th><th class="num">b</th><th class="num">c</th></tr></thead><tbody>${pairs
       .slice(0, 8)
@@ -282,7 +358,8 @@ const parameters = info.parameters.toLocaleString('en-US');
   function formatPower(bits: number): string {
     const value = 2 ** bits;
     if (value < 1e4) return Math.round(value).toLocaleString('en-US');
-    if (value < 1e9) return `${Math.round(value / 1e3).toLocaleString('en-US')} thousand`.replace(/^(\d+),(\d{3}) thousand$/, '$1.$2 million');
+    if (value < 1e6) return `${Math.round(value / 1e3).toLocaleString('en-US')} thousand`;
+    if (value < 1e9) return `${(value / 1e6).toFixed(1)} million`;
     return `2^${bits.toFixed(0)}`;
   }
 
@@ -296,15 +373,17 @@ const parameters = info.parameters.toLocaleString('en-US');
   input.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') void run();
   });
-  widthSelect.addEventListener('change', () => void session(Number(widthSelect.value)));
+  widthSelect.addEventListener('change', () => void load(Number(widthSelect.value)).catch(() => undefined));
 
-  session(Number(widthSelect.value))
+  load(Number(widthSelect.value))
     .then(() => {
-      $('status').innerHTML = `<span class="dot"></span> Model loaded — running on your device with ${backend}.`;
+      showProgress(null, '');
+      $('status').innerHTML = '<span class="dot"></span> Model loaded — it runs on your device, in a background thread.';
       runButton.disabled = false;
       void run();
     })
     .catch((error: Error) => {
+      showProgress(null, '');
       $('status').textContent = `Could not load the model in this browser (${error.message}).`;
     });
 </script>
@@ -400,6 +479,60 @@ const parameters = info.parameters.toLocaleString('en-US');
   .error {
     color: var(--bad);
     margin: 0;
+  }
+
+  .own textarea {
+    width: 100%;
+    margin-top: 0.4rem;
+    font: 0.9rem var(--mono);
+    padding: 0.5rem 0.6rem;
+    border-radius: 8px;
+    border: 1px solid var(--axis);
+    background: var(--page);
+    color: var(--ink);
+    resize: vertical;
+    box-sizing: border-box;
+  }
+
+  .own label {
+    display: block;
+    margin-top: 0.4rem;
+  }
+
+  .progress {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  /* display: grid would otherwise override the hidden attribute */
+  .progress[hidden],
+  .result[hidden] {
+    display: none;
+  }
+
+  .progress .track {
+    height: 8px;
+    border-radius: 4px;
+    background: var(--bit-off);
+    overflow: hidden;
+  }
+
+  .progress .fill {
+    height: 100%;
+    width: 0;
+    background: var(--series-1);
+    transition: width 0.2s linear;
+  }
+
+  .result :global(.yours) {
+    display: inline-block;
+    margin-left: 0.3rem;
+    padding: 0 0.3rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    background: var(--series-1);
+    color: #fff;
+    vertical-align: middle;
   }
 
   .result {

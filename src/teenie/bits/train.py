@@ -51,7 +51,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
           adaptive: bool = False, init: str | Path | None = None, resume: bool = False,
           scratch: int = 0, halting: bool = False, stepwise: bool = False, bf16: bool = False,
           recompute: bool = True, aligned: bool = False, hint_fade: int = 0,
-          widths: Sequence[int] = (), recompute_above: int = 32, peers: bool = False,
+          widths: Sequence[int] = (), recompute_above: int = 32, peers: bool = False, small_inputs: float = 0.,
           registers: int = 0, example_layers: int = 0, code_slots: int = 0, code_layers: int = 3,
           code_film: bool = False) -> AnyBitModel:
     """`init` starts from saved weights and trains `updates` more (fresh optimizer and schedule; update numbers
@@ -118,7 +118,7 @@ def train(*, device: str = 'auto', updates: int = 3000, batch_size: int = 8, que
             model.load_state_dict(loaded.state_dict())
         start = int(str(init_metadata.get('update', 0)))
     end = start + updates
-    samplers = [BitSampler(families, w, seed + i) for i, w in enumerate(widths)]
+    samplers = [BitSampler(families, w, seed + i, small_inputs) for i, w in enumerate(widths)]
     sampler = max(samplers, key=lambda s: s.width)  # the widest; every sampler shares its sampling weights
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     schedule = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr, total_steps=updates, pct_start=.05)
@@ -270,6 +270,8 @@ def main() -> None:
     parser.add_argument('--layers', type=int, default=2, help='loop/think: attention layers per round')
     parser.add_argument('--steps', type=int, default=8, help='loop/think: rounds')
     parser.add_argument('--snapshots', help='directory for a checkpoint at every log step (and update 0)')
+    parser.add_argument('--small-inputs', type=float, default=0.,
+                        help='share of training episodes with inputs below 2**(width/4..width/2), so answers do not wrap')
     args = parser.parse_args()
     train(device=args.device, updates=args.updates, batch_size=args.batch_size, queries=args.queries,
           width=args.width, hidden=args.hidden, heads=args.heads, probes=args.probes, lr=args.lr,
@@ -280,6 +282,7 @@ def main() -> None:
           resume=args.resume, scratch=args.scratch, halting=args.halting, stepwise=args.stepwise, bf16=args.bf16,
           recompute=not args.no_recompute, validation_episodes=args.validation_episodes, aligned=args.aligned,
           hint_fade=args.hint_fade, widths=args.widths, recompute_above=args.recompute_above,
+          small_inputs=args.small_inputs,
           peers=args.peers, registers=args.registers, example_layers=args.example_layers,
           code_slots=args.code_slots, code_layers=args.code_layers, code_film=args.code_film)
 

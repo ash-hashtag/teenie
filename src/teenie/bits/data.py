@@ -47,27 +47,41 @@ class BitEpisodes:
 
 
 class BitSampler:
-    def __init__(self, families: Sequence[Family] = TRAIN_FAMILIES, width: int = 8, seed: int = 0) -> None:
-        if not families or not 1 <= width <= 32:
-            raise ValueError('need families and 1 <= width <= 32')
+    def __init__(self, families: Sequence[Family] = TRAIN_FAMILIES, width: int = 8, seed: int = 0,
+                 small: float = 0.) -> None:
+        """`small`: the share of episodes whose inputs a and b are drawn below 2**L, with L between max(width/4, 6)
+        and width/2 bits (chosen per episode), so that products, squares and sums keep their true size instead of
+        wrapping at the width: the size of the answer is then a hint, as it is for a person. Answers keep the full
+        width. Other episodes draw inputs over the whole width, as before."""
+        if not families or not 1 <= width <= 32 or not 0 <= small <= 1:
+            raise ValueError('need families, 1 <= width <= 32 and 0 <= small <= 1')
+        self.small = small
         self.families = list(families)
         # Relative chance of drawing each family; uniform unless training reweights it.
         self.weights = torch.ones(len(self.families))
         self.width = width
         self.generator = torch.Generator().manual_seed(seed)
 
-    def pairs(self, count: int) -> tuple[Tensor, Tensor]:
-        if self.width > 15:  # draw a and b separately; a repeated pair is all but impossible, but still removed
+    def input_bits(self) -> int:
+        """How many bits this episode's inputs use: the full width, or for a `small` episode fewer."""
+        low = max(self.width // 4, 6)
+        if self.small and low <= self.width // 2 and float(torch.rand((), generator=self.generator)) < self.small:
+            return int(torch.randint(low, self.width // 2 + 1, (), generator=self.generator))
+        return self.width
+
+    def pairs(self, count: int, bits: int | None = None) -> tuple[Tensor, Tensor]:
+        bits = self.width if bits is None else bits
+        if bits > 15:  # draw a and b separately; a repeated pair is all but impossible, but still removed
             chosen = torch.empty(0, 2, dtype=torch.long)
             while len(chosen) < count:
-                drawn = torch.randint(0, 1 << self.width, (count, 2), generator=self.generator)
+                drawn = torch.randint(0, 1 << bits, (count, 2), generator=self.generator)
                 chosen = torch.cat([chosen, drawn])
                 unique, first = _first_rows(chosen)
                 chosen = chosen[first]
             return chosen[:count, 0], chosen[:count, 1]
-        space = 1 << (2 * self.width)
+        space = 1 << (2 * bits)
         if count > space:
-            raise ValueError(f'{count} distinct pairs do not exist at width {self.width}')
+            raise ValueError(f'{count} distinct pairs do not exist at {bits} bits')
         if space <= 1 << 20:
             chosen = torch.randperm(space, generator=self.generator)[:count]
         else:
@@ -76,7 +90,7 @@ class BitSampler:
                 drawn = torch.randint(0, space, (2 * count,), generator=self.generator)
                 chosen = torch.unique(torch.cat([chosen, drawn]))
             chosen = chosen[torch.randperm(len(chosen), generator=self.generator)[:count]]
-        return chosen >> self.width, chosen & ((1 << self.width) - 1)
+        return chosen >> bits, chosen & ((1 << bits) - 1)
 
     def sample(self, batch_size: int, queries: int = 1, steps: bool = False) -> BitEpisodes:
         contexts, query_pairs, targets, names = [], [], [], []
@@ -89,7 +103,7 @@ class BitSampler:
                 index = int(torch.multinomial(self.weights, 1, generator=self.generator))
             family = self.families[index]
             relation = family.make(self.generator, self.width)
-            a, b = self.pairs(CONTEXT_SIZE + queries)
+            a, b = self.pairs(CONTEXT_SIZE + queries, self.input_bits())
             c = relation(a, b, self.width)
             if steps:
                 if relation.steps is None:

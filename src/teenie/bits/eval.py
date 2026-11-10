@@ -52,12 +52,12 @@ def baseline_recovered(answers: list[torch.Tensor], targets: list[torch.Tensor],
 @torch.no_grad()
 def evaluate_family(model: AnyBitModel | None, family: Family, *, width: int = 8, episodes: int = 32,
                     queries: int = 16, seed: int = 50000, device: str | torch.device = 'cpu',
-                    baselines: bool = True, steps: int | None = None) -> Report:
+                    baselines: bool = True, steps: int | None = None, small: float = 0.) -> Report:
     """Fresh episodes for one family; `seed` fixes contexts and queries for every method.
     `steps` overrides the number of answer-refinement rounds of a loop model. With a model and baselines, also
     `beyond_lookup`: the model's exact rate on the questions that every lookup baseline gets wrong, and
     `lookup_fails`: how many questions those are."""
-    sampler = BitSampler([family], width, seed)
+    sampler = BitSampler([family], width, seed, small)
     report: dict[str, list[torch.Tensor]] = {}
     answers: dict[str, list[torch.Tensor]] = {}
     targets: list[torch.Tensor] = []
@@ -150,6 +150,8 @@ def main() -> None:
     parser.add_argument('--tests', help='use the test groups of this training set (default: the checkpoint\'s own)')
     parser.add_argument('--steps', type=int, help='refinement rounds for a loop model (default: as trained)')
     parser.add_argument('--width', type=int, help='bits per number for a width-free model (default: as trained)')
+    parser.add_argument('--small-inputs', type=float, default=0.,
+                        help='share of episodes with small inputs (below 2**(width/4..width/2)), as in training')
     parser.add_argument('--output')
     args = parser.parse_args()
     if args.device == 'cpu':
@@ -163,7 +165,7 @@ def main() -> None:
         groups = {'selected': tuple(ALL_NAMED[n] for n in args.families)}
     results = {group: evaluate(model, families, width=width, episodes=args.episodes, queries=args.queries,
                                seed=args.seed, device=args.device, baselines=not args.no_baselines,
-                               steps=args.steps)
+                               steps=args.steps, small=args.small_inputs)
                for group, families in groups.items()}
     summary = {group: summarise(reports) for group, reports in results.items()} if model is not None else {}
     output = {'checkpoint': args.load, 'train_set': metadata.get('train_set', 'base'), 'tests': args.tests,

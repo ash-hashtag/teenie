@@ -531,3 +531,15 @@ def test_opaque_relations_are_defined_and_unlike_training_relations():
             for width in (16, 32):
                 episode = BitSampler([family], width, 1).sample(1, 4)
                 assert 0 <= int(episode.target.min()) and int(episode.target.max()) < 1 << width, family.name
+
+
+def test_small_input_episodes_keep_answers_from_wrapping():
+    from teenie.bits.relations import NAMED
+    for width in (16, 32):
+        sampler = BitSampler([NAMED['mul']] if 'mul' in NAMED else [next(iter(NAMED.values()))], width, 0, small=1.)
+        e = sampler.sample(4, 16)
+        assert int(e.context[..., :2].max()) < 1 << (width // 2) and int(e.query.max()) < 1 << (width // 2)
+        pairs = {(int(a), int(b)) for a, b in e.context[0, :, :2]}
+        assert len(pairs) == 999 and not pairs & {(int(a), int(b)) for a, b in e.query[0]}
+    full = BitSampler([next(iter(NAMED.values()))], 32, 0).sample(2, 4)
+    assert int(full.context[..., :2].max()) >= 1 << 30  # the default still draws over the whole width

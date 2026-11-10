@@ -520,7 +520,7 @@ def test_opaque_relations_are_defined_and_unlike_training_relations():
     from teenie.bits.opaque import OPAQUE
     from teenie.bits.sets import TRAIN_SETS
     trained = set()
-    for family in TRAIN_SETS['mix7-chains']:
+    for family in TRAIN_SETS['broad']:
         for seed in range(4):  # a few draws of each generator
             relation = family.make(torch.Generator().manual_seed(seed), 16)
             trained.add(fingerprint(relation, 16))

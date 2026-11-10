@@ -52,6 +52,23 @@ UNARY |= {'sq': lambda x: x * x, 'pop': _popcount}
 CONCEPTS: tuple[tuple[str, ...], tuple[str, ...]] = (tuple(BINARY), tuple(UNARY))
 
 
+def _rotate_left(x: Tensor, amount: Tensor | int, width: int) -> Tensor:
+    amount = amount % width if isinstance(amount, int) else (amount % width)
+    return ((x << amount) | (x >> ((width - amount) % width))) & ((1 << width) - 1)
+
+
+# Operations that need the width: rotations by a fixed amount, and by a variable amount (y mod width). Training
+# rotates by even amounts and 1; the held-out tests (opaque.py) rotate by 3, 5, 7, 9 and 13, so a rotation there is
+# a new amount, not a memorised one.
+ROTATION_AMOUNTS = (1, 2, 4, 6, 10, 12)
+WIDTH_UNARY: dict[str, Callable[[Tensor, int], Tensor]] = {
+    f'rl{k}': (lambda k: lambda x, w: _rotate_left(x, k, w))(k) for k in ROTATION_AMOUNTS
+} | {f'rr{k}': (lambda k: lambda x, w: _rotate_left(x, w - k % w, w))(k) for k in (1, 2, 4)}
+WIDTH_BINARY: dict[str, Callable[[Tensor, Tensor, int], Tensor]] = {'rotv': lambda x, y, w: _rotate_left(x, y, w)}
+# Every concept plus rotations: the `broad` training set.
+BROAD: tuple[tuple[str, ...], tuple[str, ...]] = (tuple(BINARY) + tuple(WIDTH_BINARY), tuple(UNARY) + tuple(WIDTH_UNARY))
+
+
 def _parts(tree: Tree) -> tuple[str, list[Tree]]:
     """An operation node as (op, children)."""
     assert isinstance(tree, tuple)
@@ -67,6 +84,10 @@ def evaluate_with(tree: Tree, variables: dict[str, Tensor], width: int) -> Tenso
         return torch.full_like(next(iter(variables.values())), tree & mask)
     op, children = _parts(tree)
     values = [evaluate_with(child, variables, width) for child in children]
+    if op in WIDTH_UNARY:
+        return WIDTH_UNARY[op](values[0], width)
+    if op in WIDTH_BINARY:
+        return WIDTH_BINARY[op](values[0], values[1], width)
     return (UNARY[op](values[0]) if len(values) == 1 else BINARY[op](values[0], values[1])) & mask
 
 
@@ -93,9 +114,13 @@ def show(tree: Tree) -> str:
     op, children = _parts(tree)
     shown = [show(child) for child in children]
     if len(shown) == 1:
+        if op[:2] in ('rl', 'rr') and op[2:].isdigit():
+            return f'rot{"l" if op[1] == "l" else "r"}({shown[0]},{op[2:]})'
         return {'~': f'~{shown[0]}', 'sq': f'({shown[0]})²', 'pop': f'popcount({shown[0]})'}.get(op, f'({shown[0]}){op}')
     if op in ('<<v', '>>v'):
         return f'({shown[0]}{op[:2]}({shown[1]}&7))'
+    if op == 'rotv':
+        return f'rotl({shown[0]},{shown[1]})'
     if op in ('min', 'max'):
         return f'{op}({shown[0]}, {shown[1]})'
     return f'({shown[0]}{op}{shown[1]})'

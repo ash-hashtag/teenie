@@ -18,6 +18,15 @@ teenie-bits = "teenie.bits.train:main"
 teenie-bits-eval = "teenie.bits.eval:main"
 teenie-serve = "teenie.bits.serve:main"
 
+[project.optional-dependencies]
+baselines = [
+    "lightgbm>=4.7.0",
+    "scikit-learn>=1.9.1",
+]
+tabpfn = [
+    "tabpfn>=9.2.0",
+]
+
 [build-system]
 requires = ["uv_build>=0.12.10,<0.13.0"]
 build-backend = "uv_build"

@@ -713,6 +713,50 @@ writes and reads back every round) and 64 worked examples the questions read (`-
 
 Since chain training began, held-out one-step product chains at 16 bits went 10.7 → 21.7 → 25.4 → 31.6%.
 
+## 32. Registers trained longer, then 32-bit products with 12 rounds (`wide-chains-registers-long`, `-registers-32`, `-rounds12*`)
+
+- **Registers, longer (16 bits, to update 55,000):** held-out product chains 41.2% (1 step) and 32.1% (2 steps), up
+  from 31.6 / 22.0%; never-trained `(a*b)+a` reached 100% on the checks. At 32 bits products were still 0%.
+- **32-bit episodes, 8 rounds:** `a*b` at 32 bits went from bits 0-12 right to bits 0-22 right, then stalled at about
+  89% of bits (1% exact). Running the trained model with more rounds did not help.
+- **12 rounds (`--steps 12`, trained):** the frontier moved again: bits 0-28 right, `a*b` 34% exact at 32 bits by
+  update 77,000. Depth, not data, was the limit at 8 rounds. Each continuation run dips for its first 1,000 updates:
+  the learning rate warms up again (OneCycleLR per run).
+- At 32 bits, chains without products reached 98.9% (1 step) and 95.8% (2 steps), sure answers always right.
+
+## 33. Chain-only training erodes the rest; mixing it back fixes it (`wide-mix7-chains`, `opaque.py`)
+
+The general benchmark (mix7 tiers, 32 bits) on the 12-round model showed what chain-only training cost: the target tier
+9.9 -> 6.3%, short loops 13.2 -> 2.4%, concepts down 4-7 points. Training on the general set plus product chains
+(`--train-set mix7-chains`, 8,000 updates) brought loops back (accumulate 34 -> 65%, recurrence 22 -> 62% exact) while
+products kept improving: at update 85,000, `a*b` **89%** and `(a*b)+a` **85%** exact at 32 bits. This is the release
+model.
+
+## 34. Bits recovered, and a held-out middle band (`eval.py`, `opaque.py`, `learners.py`)
+
+Exact match hid progress: `((a*b)^(a>>3))|(b+9)` is 0% exact but its guesses are right on 75% of bits. The score is now
+**bits recovered**, width + log2 of the probability the model gives the true answer (0 = a blind guess, confident
+mistakes negative), next to the same score for lookups (per-bit rates fitted on half the questions, scored on the
+other) and for models fitted to each task's own 999 examples (LightGBM per answer bit and a small MLP, calibrated on
+held-back examples). The middle band is 37 held-out relations with a definite rule but no textbook solution; hashes
+and 6-8 mixing rounds are a control that must score 0, and do. At 32 bits (bits recovered, release model vs fitted
+trees): random 6-10 operation expressions 19.9 vs 18.5, products 11.7 vs 3.8, cellular automata 9.1 vs 2.9, deep
+constant expressions 8.7 vs 2.0, an S-box 7.8 vs 1.2, data-dependent steps 6.4 vs 1.5, loops 3.8 vs 2.4; rotations 3.6
+vs **8.6** (a fitted tree reads a rotated bit directly; rotation was never a training operation). Teenie answers each
+task in one pass; the fitted baselines train 32 classifiers per task.
+
+## 35. Multiplying computed values is the wall (2026-11-10)
+
+The release model multiplies its inputs (`a*b` 84-100% exact) but not values it computes first: `(a+b)*a`, `a*a-b*b`,
+`(a-b)^2`, `(a^b)*(a+1)` get only their lowest ~6 bits right, at 16 and 32 bits, with or without small inputs; `a*a`
+reaches 10-11 bits. The forms in training (`(a+b)*(a-b)` is a product chain start) did not move in ~30,000 updates.
+Where one operand is an input plus a constant or the other a constant, it works at 16 bits (`(a+1)*(b+1)` 84%,
+`(a^b)*3` 65%). Bitwise and additive chains are easy because they collapse to a per-bit truth table or a small carry
+automaton (lookups solve them too); bit k of a product needs every lower bit of both operands, so the multiplication
+the model learned reads the input tokens and does not yet take computed values as operands. Next: train on products of
+freshly random computed operands, final answers only (`computed products` in `sets.py`, tested on the held-out
+`computed products` group in `opaque.py`).
+
 ## Guardrails against fitting our own benchmarks (from 2026-11-08)
 
 Every test in sections 6–14 has been used to choose architectures and data, so repeated selection slowly tunes

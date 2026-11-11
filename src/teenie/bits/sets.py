@@ -2,7 +2,7 @@
 import torch
 Report = dict[str, float | None]
 from .opaque import OPAQUE
-from .expressions import (BROAD, CONCEPTS, HIDDEN_FAMILIES, NEAR_FAMILIES, Pair, Tree, _draw, composed_family,
+from .expressions import (BROAD, CONCEPTS, HIDDEN_FAMILIES, NEAR_FAMILIES, Pair, Tree, _draw, composed_family, evaluate, random_tree,
                           expression_family, named, pair_family, product_step_family)
 from .loops import NEW_OPERATIONS, bit_loop_family, hidden_bit_loops, hidden_loops, loop_family
 from .sealed import SEALED_FAMILIES
@@ -58,10 +58,42 @@ COMPOSE: tuple[Family, ...] = STEPS3[1:] + CONCEPT_STEPS[1:] + (PRODUCT_STEP,) +
 # including the fixed middle-band relations of opaque.py.
 BROAD_FORBIDDEN: tuple[Family, ...] = CONCEPT_FORBIDDEN + tuple(
     f for kind in OPAQUE.values() for f in kind if f.name.split()[0] not in ('arx', 'random', 'sbox(a^b)+a'))
+def computed_products(forbidden: tuple[Family, ...], name: str) -> Family:
+    """A product of two values computed from a and b, f(a, b) * g(a, b), with f and g fresh random expressions of 0-2
+    simple operations each episode (at least one not a bare a or b), sometimes followed by one more step. Only the final
+    answer is trained: to score, the model has to work out by itself how to multiply values it computed."""
+    simple = (('+', '-', '^', '&', '|'), ('<<1', '>>1', '~'))
+
+    probe_a = torch.randint(0, 1 << 16, (64,), generator=torch.Generator().manual_seed(1))
+    probe_b = torch.randint(0, 1 << 16, (64,), generator=torch.Generator().manual_seed(2))
+
+    def varies(tree: Tree, width: int) -> bool:  # takes many values: not a constant such as b-b
+        return len(set(evaluate(tree, probe_a, probe_b, width).tolist())) >= 32
+
+    def draw(generator: torch.Generator, width: int) -> Tree:
+        while True:
+            sizes = [int(torch.randint(0, 3, (), generator=generator)) for _ in range(2)]
+            if max(sizes) == 0:
+                continue
+            left, right = (random_tree(n, generator, width, vocabulary=simple) for n in sizes)
+            if varies(left, width) and varies(right, width):
+                break
+        tree: Tree = ('*', left, right)
+        if float(torch.rand((), generator=generator)) < .3:
+            op = ('+', '^', '-')[int(torch.randint(0, 3, (), generator=generator))]
+            tree = (op, tree, 'a' if float(torch.rand((), generator=generator)) < .5 else 'b')
+        return tree
+
+    def make(generator: torch.Generator, width: int):
+        return _draw(draw, forbidden, generator, width, distinct=100)
+    return Family(name, make)
+
+
 BROAD_STEPS: tuple[Family, ...] = (
     expression_family((1, 3), BROAD_FORBIDDEN, 'broad1-3', 1.5, HELD_PAIRS, vocabulary=BROAD),
     expression_family((3, 8), BROAD_FORBIDDEN, 'broad3-8', 1.5, HELD_PAIRS, vocabulary=BROAD),
 )
+COMPUTED_PRODUCTS: Family = computed_products(BROAD_FORBIDDEN, 'computed products')
 PRIMITIVES: tuple[Family, ...] = TRAIN_FAMILIES + (MULTIPLY, STEPS3[0], CONCEPT_STEPS[0])
 def pool_family(base: Family, size: int, seed: int = 123, name: str | None = None) -> Family:
     """A fixed pool of `size` relations drawn once from `base` (per width), sampled uniformly: how many different
@@ -218,6 +250,8 @@ TRAIN_SETS: dict[str, tuple[Family, ...]] = {
     'chains': (CHAINS,),
     'chains-products': (CHAINS, PRODUCT_CHAINS),  # half the episodes through a product (adaptive sampling)
     # the general set plus chains through products, so training on products does not erode loops and concepts
+    'broad-products': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + (PRODUCT_STEP,) + CONCEPT_STEPS
+                      + (CHAINS, PRODUCT_CHAINS) + BROAD_STEPS + (COMPUTED_PRODUCTS,),
     'broad': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + (PRODUCT_STEP,) + CONCEPT_STEPS
              + (CHAINS, PRODUCT_CHAINS) + BROAD_STEPS,
     'mix7-chains': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + (PRODUCT_STEP,) + CONCEPT_STEPS
@@ -252,7 +286,7 @@ def test_groups(train_set: str) -> dict[str, tuple[Family, ...]]:
         groups |= {'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER}
     if train_set == 'mix2':
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER2}
-    if train_set in ('chains', 'chains-products', 'mix7-chains', 'broad'):
+    if train_set in ('chains', 'chains-products', 'mix7-chains', 'broad', 'broad-products'):
         groups |= {'unseen': (CHAINS_UNSEEN, CHAINS_UNSEEN2, PRODUCT_CHAINS_UNSEEN, PRODUCT_CHAINS_UNSEEN2),
                    'hidden': HIDDEN_FAMILIES}
     if train_set == 'grid':
@@ -262,7 +296,7 @@ def test_groups(train_set: str) -> dict[str, tuple[Family, ...]]:
         groups |= {'family': (PRODUCT_STEP,), 'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES}
     if train_set == 'product-step-only':
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES}
-    if train_set in ('mix3', 'mix4', 'mix5', 'mix6', 'mix7', 'mix7-chains', 'broad', 'compose'):
+    if train_set in ('mix3', 'mix4', 'mix5', 'mix6', 'mix7', 'mix7-chains', 'broad', 'broad-products', 'compose'):
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES} | TIERS | {'target': TARGET}
     if train_set == 'compose':
         groups['primitives'] = PRIMITIVES  # watched only

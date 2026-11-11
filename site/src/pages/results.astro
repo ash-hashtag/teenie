@@ -5,6 +5,7 @@ import LineChart from '../components/LineChart.astro';
 import ChainsTable from '../components/ChainsTable.astro';
 import ProductsTable from '../components/ProductsTable.astro';
 import WideTable from '../components/WideTable.astro';
+import MiddleTable from '../components/MiddleTable.astro';
 import { ladderRuns, progress, TIER_LABELS, type Experiment } from '../lib/data';
 import { pct } from '../lib/format';
 
@@ -36,6 +37,22 @@ const cell = (e: Experiment | undefined, name: string) => e?.families[name]?.exa
     the 999 examples cover a vanishing fraction of all inputs — so a right answer has to come from inferring the
     relation. Scores are shown next to lookup methods that understand nothing, and with how often the model is sure
     and right.
+  </p>
+
+  <h2>Rules with no textbook solution</h2>
+  <p class="small muted">
+    37 held-out relations with a definite rule but no obvious way to work it out from examples, at 32 bits. The score
+    is <strong>bits recovered</strong>: 32 + log<sub>2</sub> of the probability the model gives the true answer, so 0
+    is a blind guess, 32 is certain and right, and 10 means the true answer is about 1,000 times more likely than by
+    chance. The fitted baselines are gradient-boosted trees (one per answer bit) and a small neural network trained on
+    each task's own 999 examples and calibrated on held-back ones; Teenie reads the examples in one pass and is never
+    trained on any of these rules. Green: ahead of every baseline by more than half a bit; red: behind.
+  </p>
+  <MiddleTable />
+  <p class="small muted">
+    Teenie wins wherever the rule needs real computation (carries, products, automaton steps, substitution tables),
+    is narrowly ahead on random expressions, and loses on rotations, which it had never trained on; fitted trees read a rotated bit
+    directly. Hashes and many mixing rounds score about zero for everyone, as they must. Not yet compared: TabPFN.
   </p>
 
   <h2>Unseen relations against lookup</h2>

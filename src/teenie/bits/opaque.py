@@ -25,7 +25,7 @@ Constants are 32-bit and cut to the width, so the same relation is defined at ev
 import torch
 from torch import Tensor
 
-from .expressions import CONCEPTS, expression_family
+from .expressions import CONCEPTS, expression_family, named
 from .relations import Family, Relation, fixed
 
 
@@ -185,6 +185,16 @@ OPAQUE: dict[str, tuple[Family, ...]] = {
         fixed('x=a; b&7 times: x=rotl(x,1)^b', _repeat_rotate_xor),
         fixed('x=a; 8 times: x=(x*3)^b', _times3_xor),
         fixed('x=a; 4 times: x=(x>>1)+(x&b)', _halve_add_and),
+    ),
+    # Products of values the model must compute first: the gap found on 2026-11-10 (only the lowest ~6 bits right).
+    # Never generated in training (behaviour-checked), including by the computed-products training family.
+    'computed products': (
+        named('(a+b)*a', ('*', ('+', 'a', 'b'), 'a')),
+        named('a*a-b*b', ('-', ('*', 'a', 'a'), ('*', 'b', 'b'))),
+        named('(a^b)*(a+1)', ('*', ('^', 'a', 'b'), ('+', 'a', 1))),
+        named('(a|b)*(b>>1)', ('*', ('|', 'a', 'b'), ('>>1', 'b'))),
+        named('(a-b)*(a-b)', ('*', ('-', 'a', 'b'), ('-', 'a', 'b'))),
+        named('(a+b)*(a+b)+a', ('+', ('*', ('+', 'a', 'b'), ('+', 'a', 'b')), 'a')),
     ),
     'control: hash': (
         fixed('murmur finalizer of a^b', _finalizer),

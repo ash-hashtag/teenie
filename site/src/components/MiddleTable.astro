@@ -1,0 +1,69 @@
+---
+import { progress } from '../lib/data';
+// The middle band at 32 bits: bits recovered (0 = a blind guess, 32 = certain and right) per group of held-out
+// relations, the model next to the best lookup and to models fitted to each task's own 999 examples.
+const middle = progress.middle;
+const LABELS: Record<string, string> = {
+  random: 'Random 6–10-step expressions',
+  'floor: products': 'Products (floor)',
+  automaton: 'Cellular automata (rules 30, 110)',
+  deep: 'Deep expressions with constants',
+  sbox: 'A random S-box inside arithmetic',
+  'data-dependent': 'Data-dependent steps',
+  loops: 'Loops',
+  mixes: 'Rotation / xor / multiply mixes',
+  'arx ladder': 'Add-rotate-xor rounds 1–4',
+  'control: hash': 'Control: hashes (must be ≈ 0)',
+};
+const order = ['random', 'floor: products', 'automaton', 'deep', 'sbox', 'data-dependent', 'loops', 'mixes', 'arx ladder', 'control: hash'];
+const groups = middle ? order.map((g) => middle.groups.find((x) => x.group === g)).filter((g) => g !== undefined) : [];
+const bits = (x: number | null | undefined) => (x == null ? '—' : (Math.abs(x) < 0.05 ? 0 : x).toFixed(1));
+const best = (g: (typeof groups)[number]) => Math.max(g.lookup ?? -99, g.trees ?? -99, g.mlp ?? -99);
+---
+
+{middle && (
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>held-out group</th>
+          <th class="num">Teenie</th>
+          <th class="num">best lookup</th>
+          <th class="num">trees fitted per task</th>
+          <th class="num">small net fitted per task</th>
+          <th class="num">older general model</th>
+        </tr>
+      </thead>
+      <tbody>
+        {groups.map((g) => {
+          const wins = (g.model ?? 0) > best(g) + 0.5;
+          const loses = (g.model ?? 0) < best(g) - 0.5;
+          return (
+            <tr>
+              <td>{LABELS[g.group] ?? g.group}</td>
+              <td class={`num ${wins ? 'win' : loses ? 'lose' : ''}`}><b>{bits(g.model)}</b></td>
+              <td class="num">{bits(g.lookup)}</td>
+              <td class="num">{bits(g.trees)}</td>
+              <td class="num">{bits(g.mlp)}</td>
+              <td class="num muted">{bits(g.older)}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+)}
+
+<style>
+  .scroll {
+    overflow-x: auto;
+  }
+
+  .win b {
+    color: var(--good);
+  }
+
+  .lose b {
+    color: var(--bad);
+  }
+</style>

@@ -163,7 +163,15 @@ export type Progress = {
     parts: { part: string; detail: string; parameters: number }[];
   } | null;
   products: { stage: string; summary: Record<string, { exact: number; sure_coverage?: number; sure_accuracy?: number | null }> }[];
+  middle: {
+    width: number;
+    episodes: number;
+    checkpoint: string;
+    groups: ({ group: string; rows: MiddleRow[] } & MiddleScores)[];
+  } | null;
 };
+type MiddleScores = { model: number | null; older: number | null; lookup: number | null; trees: number | null; mlp: number | null };
+export type MiddleRow = { name: string; exact: number | null } & MiddleScores;
 
 export const progress = progressJson as unknown as Progress;
 

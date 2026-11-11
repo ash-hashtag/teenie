@@ -111,7 +111,38 @@ WIDE = [(16, 'experiments/wide/wide-32-w16-eval.json', 'experiments/sealed/wide-
           'experiments/wide/baselines-w32-T2T3.json'))]
 
 # The current model: the width-free model the Model page describes (parameters from the checkpoint).
-CURRENT_WIDE = 'checkpoints/wide/wide-chains-registers-long.pt'
+CURRENT_WIDE = 'checkpoints/wide/wide-mix7-chains.pt'
+
+# The middle band (opaque.py) at 32 bits, scored by bits recovered on the same episodes (seed 80000, first 8): the
+# release model, the older general model, the best lookup and models fitted to each task's 999 examples.
+MIDDLE = {
+    'model': 'experiments/wide/checks-wide-mix7-chains/opaque-85000.json',
+    'older': 'experiments/wide/opaque-wide-32-w32.json',
+    'learners': 'experiments/baselines/learners-opaque-w32.json',
+}
+
+
+def middle(root: Path) -> dict[str, object] | None:
+    if not all((root / path).exists() for path in MIDDLE.values()):
+        return None
+    model = json.loads((root / MIDDLE['model']).read_text())
+    older = json.loads((root / MIDDLE['older']).read_text())
+    learners = json.loads((root / MIDDLE['learners']).read_text())['results']
+    groups = []
+    for group, families in model['results'].items():
+        if group not in learners:
+            continue
+        rows = []
+        for name, report in families.items():
+            fitted = learners[group].get(name, {})
+            rows.append({'name': name, 'model': report.get('recovered'), 'exact': report.get('exact'),
+                         'older': older['results'].get(group, {}).get(name, {}).get('recovered'),
+                         'lookup': report.get('lookup_recovered'),
+                         'trees': fitted.get('lgbm', {}).get('recovered'), 'mlp': fitted.get('mlp', {}).get('recovered')})
+        average = lambda key: _mean([r[key] for r in rows if r[key] is not None])
+        groups.append({'group': group, 'rows': rows, **{key: average(key) for key in
+                                                          ('model', 'older', 'lookup', 'trees', 'mlp')}})
+    return {'width': model['width'], 'episodes': model['episodes'], 'checkpoint': model['checkpoint'], 'groups': groups}
 
 # Product chains at 16 bits as training progressed (held-out start-step pairs; chain_split.py), oldest first.
 PRODUCT_STAGES = [
@@ -120,6 +151,7 @@ PRODUCT_STAGES = [
     ('Product-heavy chains', 'experiments/wide/chains-split-wide-chains-products-w16.json'),
     ('Scratch registers', 'experiments/wide/chains-split-wide-chains-registers-w16.json'),
     ('Scratch registers, trained longer', 'experiments/wide/chains-split-wide-chains-registers-long-w16.json'),
+    ('32-bit episodes, 12 rounds', 'experiments/wide/chains-split-wide-chains-rounds12-w16.json'),
 ]
 
 LADDER = ('target', 'T1', 'T2', 'T3', 'T4', 'T5a', 'T5b', 'hidden', 'near')
@@ -279,7 +311,7 @@ def main() -> None:
                 for stage, path in PRODUCT_STAGES if (root / path).exists()]
     Path(args.out).write_text(json.dumps({'ladder': list(LADDER), 'tiers': tiers, 'experiments': found,
                                           'architectures': architectures, 'wide': wide(root),
-                                          'products': products, 'current': current}))
+                                          'products': products, 'current': current, 'middle': middle(root)}))
     print(f'exported {len(found)} experiments to {args.out}')
 
 

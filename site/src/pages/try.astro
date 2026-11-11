@@ -2,19 +2,23 @@
 import Layout from '../layouts/Layout.astro';
 import info from '../../public/weights/teenie.json';
 
-// Ordinary rules, then ones with no textbook solution (from the held-out middle band), then rules it cannot see.
+// Rules it handles well (ordinary ones, then ones with no textbook solution from the held-out middle band), then rules
+// it is known to be weak at, so visitors see both.
 const presets = [
   { label: 'a + b', formula: 'a + b' },
   { label: 'a * b', formula: 'a * b' },
   { label: '(a*b)+a', formula: 'a * b + a' },
   { label: 'max − min', formula: 'max(a, b) - min(a, b)' },
   { label: '3·(a xor b)', formula: '(a ^ b) * 3' },
-  { label: 'the target', formula: '((a * b) ^ (a >> 3)) | (b + 9)' },
   { label: 'deep, with a constant', formula: '(((a ^ 0x5A5A5A5A) + b) >> 1) ^ (a & b)' },
   { label: 'bit-select', formula: 'a + b if (a >> (b & 15)) & 1 else a ^ (b << 1)' },
   { label: 'max of mixed', formula: 'max(a * 3, b ^ a) - min(a, b) * 2' },
+  { label: 'the target', formula: '((a * b) ^ (a >> 3)) | (b + 9)' },
+];
+const weak = [
+  { label: 'product of computed values', formula: '(a + b) * a' },
+  { label: 'difference of squares', formula: 'a * a - b * b' },
   { label: 'rotation', formula: 'rotl(a, 7) ^ b' },
-  { label: 'square minus b', formula: 'a ** 2 - b' },
 ];
 const parameters = info.parameters.toLocaleString('en-US');
 ---
@@ -44,6 +48,14 @@ const parameters = info.parameters.toLocaleString('en-US');
     <div class="chips">
       {presets.map((p) => <button class="chip" type="button" data-formula={p.formula} title={p.formula}>{p.label}</button>)}
     </div>
+    <div class="chips weak">
+      <span class="small muted">Known weak spots:</span>
+      {weak.map((p) => <button class="chip" type="button" data-formula={p.formula} title={p.formula}>{p.label}</button>)}
+    </div>
+    <p class="small muted weak-note">
+      It multiplies <code>a</code> by <code>b</code>, but not yet values it has to compute first, such as
+      <code>(a + b) * a</code>: it gets their lowest few bits and guesses the rest. Rotations are new to it too.
+    </p>
     <div class="options">
       <label class="small">Numbers of
         <select data-role="width">
@@ -437,6 +449,14 @@ const parameters = info.parameters.toLocaleString('en-US');
 
   .chips .chip {
     font-size: 0.8rem;
+  }
+
+  .chips.weak {
+    align-items: center;
+  }
+
+  .weak-note {
+    margin: 0;
   }
 
   .options {

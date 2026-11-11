@@ -18,7 +18,7 @@ const SITE_KEYWORDS = [
   'program induction',
   'machine learning research',
 ];
-const AUTHOR = { name: 'ash-hashtag', url: 'https://github.com/ash-hashtag' };
+const AUTHOR = { name: 'Sri Pranav Tene', url: 'https://www.linkedin.com/in/sri-pranav-tene' };
 
 const { title, description, keywords = [], kind = 'article' } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -39,8 +39,8 @@ const structured = home && canonical
         url: home,
         description: 'A research model that infers hidden integer functions from examples and predicts exact answers.',
         inLanguage: 'en',
-        creator: { '@type': 'Person', ...AUTHOR },
-        sameAs: ['https://github.com/ash-hashtag/teenie'],
+        creator: { '@type': 'Person', ...AUTHOR, sameAs: ['https://github.com/ash-hashtag'] },
+        sameAs: ['https://github.com/ash-hashtag/teenie', 'https://huggingface.co/TheLupyd/teenie'],
       },
       {
         '@context': 'https://schema.org',
@@ -153,7 +153,7 @@ const current = Astro.url.pathname.replace(base, '') || '/';
     </main>
     <footer class="wrap footer">
       <p class="small muted">
-        Teenie. Every number on this site comes from the experiment files in <code>experiments/</code>
+        Teenie, by <a href="https://www.linkedin.com/in/sri-pranav-tene">Sri Pranav Tene</a>. Every number on this site comes from the experiment files in <code>experiments/</code>
         (<code>uv run python -m teenie.bits.export_progress</code>, and <code>teenie.bits.export</code> for the
         bit-by-bit model's recordings). One training seed per run. Source, data and notebook:
         <a href={repository}>github.com/ash-hashtag/teenie</a>. Weights:

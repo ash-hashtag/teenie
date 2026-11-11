@@ -34,7 +34,7 @@ const release = progress.release?.results ?? {};
   kind="website"
 >
   <section class="hero">
-    <p class="eyebrow">Teenie · a research experiment</p>
+    <p class="eyebrow">Teenie · a research experiment by <a href="https://www.linkedin.com/in/sri-pranav-tene">Sri Pranav Tene</a></p>
     <h1>Can a small model infer a hidden rule from 999 examples?</h1>
     <p class="lede">
       Each episode shows the model 999 examples <code>(a, b, c)</code> of a hidden rule on 16- or 32-bit integers (a
@@ -178,6 +178,24 @@ const release = progress.release?.results ?? {};
     </div>
   </section>
 
+  <h2 id="next">What's next: Mega</h2>
+  <div class="card mega">
+    <p>
+      Teenie answers from 999 examples with 1.1M parameters trained on a laptop GPU. <b>Mega</b> is the scaled-up
+      version, and it goes after the problems this page lists rather than just adding size:
+    </p>
+    <ul>
+      <li>multiplying values it computes itself, like <code>(a+b)*a</code>, which more training of Teenie couldn't fix;</li>
+      <li>rotations and real bit mixing, where Teenie is at chance;</li>
+      <li>longer chains of steps and rules with more inputs than <code>a</code> and <code>b</code>;</li>
+      <li>a fair comparison with TabPFN, and then examples with noise in them.</li>
+    </ul>
+    <p class="small muted">
+      Progress will show up on this site as it happens, the runs that fail included. The <a href="/changelog/">changelog</a>
+      and the <a href="/findings/">findings</a> get every result first.
+    </p>
+  </div>
+
   <h2>Read more</h2>
   <div class="grid-2 links">
     <a class="card link" href={`${base}/model/`}>
@@ -229,6 +247,13 @@ const release = progress.release?.results ?? {};
 </script>
 
 <style>
+  .mega ul {
+    margin: 0.4rem 0 0.6rem;
+    padding-left: 1.2rem;
+    display: grid;
+    gap: 0.25rem;
+  }
+
   .hero {
     margin-bottom: 2rem;
   }

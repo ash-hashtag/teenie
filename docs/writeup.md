@@ -1,6 +1,7 @@
 # Teenie: inferring hidden integer rules from examples, in one pass
 
-*November 2026. Numbers are for the release model (the mixed run, update 85,000) unless we say otherwise.*
+*By [Sri Pranav Tene](https://www.linkedin.com/in/sri-pranav-tene), November 2026. Numbers are for the release model (the mixed run, update 85,000) unless
+said otherwise.*
 
 ## The task
 
@@ -99,6 +100,13 @@ and, closest of all, TabPFN (Hollmann et al., Nature 2025), which pretrains on s
 We haven't seen arbitrary composed integer and bitwise rules at 32 bits inferred from about a thousand examples before,
 nor a width-free bit-level model for it, nor this way of scoring against lookups and fitted models on a held-out set of
 rules with no textbook solution. We haven't compared against TabPFN yet, and until we do we won't claim to beat it.
+
+## What's next: Mega
+
+Mega is the scaled-up successor. Size alone won't fix what Teenie gets wrong, so it starts from the failures above:
+multiplying values it computed, rotations and mixing, longer chains and rules with more than two inputs. It will also get
+the TabPFN comparison we owe, and after that, examples with noise in them. Progress goes up on
+[the site](https://teenie.lupyd.com/) as it happens, failed runs included.
 
 ## Try it
 

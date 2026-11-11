@@ -33,56 +33,61 @@ const cell = (e: Experiment | undefined, name: string) => e?.families[name]?.exa
   <p class="eyebrow">Results</p>
   <h1>Where the model stands</h1>
   <p class="lede">
-    Everything here is measured at 16 and 32 bits, where a lucky guess is one in 65,536 or one in four billion and
-    the 999 examples cover a vanishing fraction of all inputs — so a right answer has to come from inferring the
-    relation. Scores are shown next to lookup methods that understand nothing, and with how often the model is sure
-    and right.
+    Everything here is measured at 16 or 32 bits. A lucky guess comes up once in 65,536 or once in four billion
+    tries, and 999 examples cover almost none of the possible inputs, so a right answer has to come from working out
+    the rule. Each score sits next to lookup methods that understand nothing, and next to how often the model was
+    right when it was sure.
   </p>
 
   <h2>Rules with no textbook solution</h2>
   <p class="small muted">
-    37 held-out relations with a definite rule but no obvious way to work it out from examples, at 32 bits. The score
-    is <strong>bits recovered</strong>: 32 + log<sub>2</sub> of the probability the model gives the true answer, so 0
-    is a blind guess, 32 is certain and right, and 10 means the true answer is about 1,000 times more likely than by
-    chance. The fitted baselines are gradient-boosted trees (one per answer bit) and a small neural network trained on
-    each task's own 999 examples and calibrated on held-back ones; Teenie reads the examples in one pass and is never
-    trained on any of these rules. Green: ahead of every baseline by more than half a bit; red: behind.
+    37 held-out rules at 32 bits, each with a definite rule but no obvious way to work it out from examples. The score
+    is <strong>bits recovered</strong>, 32 + log<sub>2</sub> of the probability the model gives the true answer: 0 is a
+    blind guess and 32 is certain and right, while 10 means the true answer is about 1,000 times likelier than by
+    chance. For the fitted baselines we trained gradient-boosted trees (one per answer bit) and a small neural network
+    on each task's own 999 examples and calibrated them on held-back ones. Teenie reads the examples once and never
+    trained on any of these rules. Green means ahead of every baseline by more than half a bit, red means behind; click
+    a group for its rules.
   </p>
   <MiddleTable />
   <p class="small muted">
-    Teenie wins wherever the rule needs real computation (carries, products, automaton steps, substitution tables),
-    is narrowly ahead on random expressions, and loses on rotations, which it had never trained on; fitted trees read a rotated bit
-    directly. Hashes and many mixing rounds score about zero for everyone, as they must. Not yet compared: TabPFN.
+    Teenie wins wherever the rule needs real computation, like carries, products, automaton steps or a substitution
+    table, and only narrowly on random expressions. It loses on rotations, which it never trained on and which a
+    fitted tree can read straight off the input bits. Hashes and long mixing score about zero for everyone, as they
+    should. We haven't compared against TabPFN yet.
   </p>
 
   <h2>Earlier model: unseen relations against lookup</h2>
   <p class="small muted">
-    The width-free model after its 24- and 32-bit stage. Lookup is the best of five methods (closest example, or matching
-    one or two neighbouring bits), chosen per relation after the fact.
+    The width-free model after its 24- and 32-bit stage, before any product training. Lookup is the best of five
+    methods (the closest example, or matching one or two neighbouring bits), picked per relation after the fact.
   </p>
   <WideTable />
 
   <h2>Multi-step chains</h2>
   <p class="small muted">
-    A start followed by one or two of 21 kinds of step, with fresh random constants; beyond lookup counts only questions
-    every lookup method gets wrong.
+    The current model. A start followed by one or two of 21 kinds of step, with fresh random constants each time;
+    beyond lookup counts only the questions every lookup method gets wrong.
   </p>
   <ChainsTable />
 
   <h2>Learning to compute through a product</h2>
   <p class="small muted">
-    Held-out product chains at 16 bits as training went on. Matching examples cannot get past about bit 5 of a product;
-    scratch registers were the first change that let the model compute through it.
+    Held-out product chains at 16 bits as training went on. Matching examples can't get past about bit 5 of a product,
+    and scratch registers were the first change that let the model compute through one.
   </p>
   <ProductsTable />
-  <p class="small muted">At 32 bits these are still at zero: the product skill reaches about bit 15 of a 32-bit number so far.</p>
+  <p class="small muted">
+    At 32 bits the current model gets a*b right 89% of the time and one-step chains through a product 11%; what it
+    still can't do is multiply a value it computed first, like (a+b)*a.
+  </p>
 
   <h2 id="ladder">Earlier: the difficulty ladder</h2>
   <p>
-    Before the move to wide numbers, every run was scored on a ladder of test tiers — random expressions of 2, 3–4 and
-    5–7 operations with held-out combinations, new operation types and loops — mostly at 8 bits. At 8 bits the examples
-    cover 1.5% of all inputs and lookup methods reach about a third of the sealed set, so these scores overstate what
-    the model inferred; they are kept as the record. Each run is scored at the width in its title (8 bits unless
+    Before the move to wide numbers we scored every run on a ladder of test tiers (random expressions of 2, 3–4 and
+    5–7 operations with held-out combinations, new operation types, loops), mostly at 8 bits. At that width the
+    examples cover 1.5% of all inputs and lookup alone gets about a third of the sealed set, so these scores overstate
+    what the model inferred; we keep them as a record. Each run is scored at the width in its title (8 bits unless
     stated). A tier is <b>won</b> at ≥50% exact with its sure answers right ≥95% of the time.
   </p>
 
@@ -158,9 +163,9 @@ const cell = (e: Experiment | undefined, name: string) => e?.families[name]?.exa
     <p>
       <b>T1–T3</b>: random expressions of 2, 3–4 and 5–7 operations that always contain a combination never shown in
       training (a xor of a product, a product of a difference, a min of a sum, a shift of a xor). <b>T4</b>: operation
-      types never trained — division, modulo, rotations, conditionals. <b>T5a</b>: loop bodies never generated (repeat
-      count from b, up to 15 as in training) and unseen bit loops — recognising a new loop. <b>T5b</b>: loops run 63 or 255
-      times, longer than anything trained — repeating a step further than trained, a research stretch. <b>Product, then a step</b>: a*b+b, a*b+5, a*b−a, (a*b)^a.
+      types it never trained on, such as division, modulo, rotations and conditionals. <b>T5a</b>: loop bodies never
+      generated (repeat count from b, up to 15 as in training) and unseen bit loops. <b>T5b</b>: loops run 63 or 255
+      times, longer than anything trained; we treat this as a stretch goal. <b>Product, then a step</b>: a*b+b, a*b+5, a*b−a, (a*b)^a.
     </p>
   </div>
 
@@ -199,7 +204,7 @@ const cell = (e: Experiment | undefined, name: string) => e?.families[name]?.exa
         <h2>Loops in detail</h2>
         <p>
           Latest run, exact match. Training only ever used repeat counts up to 15; 63 and 255 are longer loops. Some loops
-          have short closed forms (the sum is a·n + n(n−1)/2) — finding either a procedure or a shortcut counts.
+          have short closed forms (the sum is a·n + n(n−1)/2), and finding either a procedure or a shortcut counts.
         </p>
         <div class="card table-scroll">
           <table>

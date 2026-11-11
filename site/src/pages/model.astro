@@ -19,9 +19,10 @@ const share = (n: number) => `${((100 * n) / model.parameters).toFixed(1)}%`;
   <p class="eyebrow">Model</p>
   <h1>The current model</h1>
   <p class="lede">
-    It is never told which relation it faces and its weights never change while answering. It reads the 999 examples,
-    then <strong>guesses every bit of the answer and corrects the guess</strong>, round after round, with the same
-    weights — and nothing in it depends on the width, so one set of weights answers 16- and 32-bit questions.
+    Nobody tells it which rule it faces, and its weights don't change while it answers. It reads the 999 examples,
+    guesses every bit of the answer, then corrects that guess over several rounds using the same weights each time.
+    Nothing in it is sized for a particular width, which is why one set of weights answers both 16- and 32-bit
+    questions.
   </p>
 
   <div class="grid-3 stats">
@@ -50,31 +51,31 @@ const share = (n: number) => `${((100 * n) / model.parameters).toFixed(1)}%`;
     <div>
       <p class="eyebrow">1 · See every bit from where it sits</p>
       <p>
-        Each bit of every example — and of the question — is a token that sees the numbers relative to its own position
-        (31 bits either side) and counted from the lowest bit. No layer is sized for a width, so the same weights read
-        8, 16 or 32 bits.
+        Each bit of every example, and of the question, is a token that sees the numbers relative to its own position
+        (31 bits either side) and also knows how far it sits from the lowest bit. No layer depends on the width, so the
+        same weights read 8, 16 or 32 bits.
       </p>
     </div>
     <div>
       <p class="eyebrow">2 · One token per answer bit</p>
       <p>
-        The question holds one token per answer bit. Each round the answer bits attend to each other — so carries and
-        partial products can move between positions — and each reads the same bit of all 999 examples.
+        The question holds one token per answer bit. Every round the answer bits attend to each other, which lets
+        carries and partial products move between positions, and each one reads the same bit of all 999 examples.
       </p>
     </div>
     <div>
       <p class="eyebrow">3 · Scratch registers and worked examples</p>
       <p>
         {`Besides its guess, every question keeps ${model.registers} scratch numbers it writes and reads back each round, and ${model.worked_examples} examples are worked through the same way, so the answer bits can read what was worked out for real examples next to their true answers.`}
-        This was the first change that let it compute through a product instead of matching examples.
+        It was this change that first let the model compute through a product rather than match examples.
       </p>
     </div>
     <div>
       <p class="eyebrow">4 · Answer, and say how sure</p>
       <p>
-        After the last round each answer bit is read out as a probability. The answer is the most likely bit at each
-        position; its confidence is that of its least certain bit, and only answers with every bit at least 0.99 count
-        as sure.
+        After the last round each answer bit comes out as a probability. The answer takes the likelier value at each
+        position, its confidence is that of its least certain bit, and an answer only counts as sure when every bit is
+        at 0.99 or above.
       </p>
     </div>
   </div>
@@ -113,16 +114,16 @@ const share = (n: number) => `${((100 * n) / model.parameters).toFixed(1)}%`;
     </table>
   </div>
   <p class="small muted">
-    {`Checkpoint ${model.checkpoint}, update ${model.update}; source src/teenie/bits/wide_model.py. How it got here — every design tried, including the ones that did not work — is in the `}<a
+    {`Checkpoint ${model.checkpoint}, update ${model.update}; source src/teenie/bits/wide_model.py. Every design we tried on the way here, including the ones that failed, is in the `}<a
       href={`${base}/changelog/`}>changelog</a
     > and the <a href={`${base}/findings/`}>findings</a>.
   </p>
 
   <h2>Watch an earlier model answer</h2>
   <p>
-    A recording from the earlier 8-bit version of the same design, small enough to step through: the guess starts
-    undecided and sharpens round by round as the answer bits keep looking back at the examples. 8-bit results are not
-    used to judge the model — there, lookup alone does well.
+    A recording from the earlier 8-bit version of the same design, small enough to step through. The guess starts out
+    undecided and sharpens each round as the answer bits look back at the examples. We don't judge the model on 8-bit
+    results, because lookup alone does well at that width.
   </p>
   <RoundsInspector />
 </Layout>

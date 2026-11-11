@@ -75,7 +75,7 @@ Dead ends, kept for the record:
   each round): 0.9 s/update, 28% on trained relations after 1,000 updates; stopped. Too slow for this GPU.
 - **Program inference** (`--architecture program`: examples set the weights of a tiny calculator with
   products and a cosine bit readout): can represent `a*b`, `a+b`, `xor`, `max` exactly (checked on all
-  65,536 pairs) but does not train — the cosine over values up to 65,025 makes gradients effectively
+  65,536 pairs) but does not train: the cosine over values up to 65,025 makes gradients effectively
   random (loss rose 2.9 → 3.7). `experiments/mul/stopped/`.
 
 ## 6. Procedurally generated relations (`--train-set mix`)
@@ -129,14 +129,14 @@ Conclusions:
   The model reasons its way to new combinations of shifts, xor, add and squaring, but **multiplication
   combined with another operation is not solved** (14–15%).
 - **Confidence is now honest on unseen relations**: on hidden compositions it is rarely "sure" (0–10%),
-  and when it is, it is right 96–100% of the time — unlike the E2 multiplication runs. The exception is
+  and when it is, it is right 96–100% of the time, unlike the E2 multiplication runs. The exception is
   `a*(b&63)`, which it confidently mistakes for `a*b` (sure 74%, right 55%).
 
 ## 7. Why "a product, then another step" fails (`experiments/mix2/`)
 
 Diagnosis of the `mix` model: `a*b+a` fails exactly like relatives training may produce (`a*b+b`, `a*b+5`,
 `a*b−a`, `(a*b)^a`: 12–17% exact). The low 4 bits are right (0.3% wrong), the high 4 bits wrong 37% of
-the time — the carries through the product's result. Only ~1% of training episodes contained such a
+the time: the carries through the product's result. Only ~1% of training episodes contained such a
 composition.
 
 **More steps in the data (`--train-set mix2`)**: expressions with 1–5 operations, `*` twice as likely,
@@ -154,7 +154,7 @@ More multi-step data helps multi-step reasoning in general, but not product-then
 round counter change nothing.
 
 **Capacity check (`--train-set near-only`)**: trained on only the four near relations for 3,000 updates,
-the model reaches just 38–40% on them (bits 90.6%), and 6.0% on the unseen `a*b+a` — whereas `a*b` alone
+the model reaches just 38–40% on them (bits 90.6%), and 6.0% on the unseen `a*b+a`, whereas `a*b` alone
 reached 98% in the same budget. **The limit is computation, not data or recognition**: the loop has no
 good way to carry through an intermediate result. Next: give each round per-bit-position state with a
 carry scan across positions, and scratch slots that are not scored as the answer.
@@ -165,8 +165,8 @@ Goal: recognise patterns in increasingly complex functions, including loop-defin
 unseen relations** with honest confidence. A tier is **won** at ≥50% mean exact with sure answers right
 ≥95% of the time (pooled).
 
-New data (`src/teenie/bits/loops.py`): loops whose repeat count is n = b & 15 in training — accumulations
-`acc = init; n×: acc = body(acc, a, i)`, repeated application `x = step(x)`, two-term recurrences — plus
+New data (`src/teenie/bits/loops.py`): loops whose repeat count is n = b & 15 in training: accumulations
+`acc = init; n×: acc = body(acc, a, i)`, repeated application `x = step(x)`, two-term recurrences, plus
 bit loops (popcount, reverse, parity). Loops whose result barely depends on n are redrawn. Expression trees
 now also hold out whole **combinations**: a xor of a product, a product of a difference, a min of a sum,
 a shift of a xor (`HELD_PAIRS`).
@@ -174,11 +174,11 @@ a shift of a xor (`HELD_PAIRS`).
 Ladder (`src/teenie/bits/sets.py`, `TIERS`):
 
 - T1 / T2 / T3: 2 / 3–4 / 5–7 operations, always containing a held-out combination.
-- T4: new operation types never trained — `a//b`, `a%b`, `rotl(a,1)`, `rotl(a,b&7)`, three conditionals.
+- T4: new operation types never trained: `a//b`, `a%b`, `rotl(a,1)`, `rotl(a,b&7)`, three conditionals.
 - T5: hidden loop bodies (sum of a..a+n−1, aⁿ, Fibonacci-like, x→3x+1, acc=(acc<<1)^a) at n ≤ 15, 63, 255;
   trained loop kinds at n ≤ 63 and 255 (longer than trained); hidden bit loops.
 
-**Baseline — the `mix2` model, never trained on loops** (`baseline-mix2-mloop-eval.*`):
+**Baseline: the `mix2` model, never trained on loops** (`baseline-mix2-mloop-eval.*`):
 
 | tier | exact | sure right | |
 |---|---|---|---|
@@ -194,7 +194,7 @@ split: `acc=(acc<<1)^a` (53–94%) and `aⁿ` (53–61%) collapse to simple patt
 sequence (7–20%), Fibonacci-like (4–16%) and x→3x+1 (13–16%) do not. Random loops at longer lengths reach
 52–77% partly because many settle into fixed points (closest example: 28–50%).
 
-**B — the same architecture trained on `mix3`** (multiplicative loop, 8 rounds, adaptive sampling, 10,000 updates;
+**B: the same architecture trained on `mix3`** (multiplicative loop, 8 rounds, adaptive sampling, 10,000 updates;
 `mix3-mloop-*`): trained relations 87.7%, trained loop kinds 78–84%, bit loops 83%.
 
 | tier | `mix2` model | B (`mix3`) |
@@ -206,15 +206,15 @@ sequence (7–20%), Fibonacci-like (4–16%) and x→3x+1 (13–16%) do not. Ran
 | T5 | 40.3% | **46.4%** |
 | hidden | 53.5% | 52.8% |
 
-Loop training lifts hidden loop bodies at the trained length — sum of a..a+n−1 20 → 31%, Fibonacci-like 16 → 33%,
-x→3x+1 16 → 22% — and the unseen bit loop `reverse(a^b)` reaches 93%. It does **not** carry over to longer loops
+Loop training lifts hidden loop bodies at the trained length (sum of a..a+n−1 20 → 31%, Fibonacci-like 16 → 33%,
+x→3x+1 16 → 22%), and the unseen bit loop `reverse(a^b)` reaches 93%. It does **not** carry over to longer loops
 (the sum: 9% at counts ≤ 63, 5% at ≤ 255): the model has neither learned the loop as a procedure nor found the
 closed form. T1–T3 hold steady although the combinations are now truly unseen.
 
 Cost of breadth: with many more relation kinds sharing the same 10,000 updates, `a*b` falls to **53.9%** in B
 (99.6% in the `mix` run). Named relations stay at 99.6–100%.
 
-**S — B plus 4 scratch slots** (`--scratch 4`, 732K parameters; `mix3-mloop-scratch4-*`), same data and budget:
+**S: B plus 4 scratch slots** (`--scratch 4`, 732K parameters; `mix3-mloop-scratch4-*`), same data and budget:
 
 | | B | S |
 |---|---|---|
@@ -226,8 +226,8 @@ Cost of breadth: with many more relation kinds sharing the same 10,000 updates, 
 | hidden | 52.8% | 53.4% |
 | product, then a step | 21.5% | 19.2% |
 
-Slots help where intermediate values matter — multiplication +27 points, Fibonacci-like loop 33 → 48%,
-x→3x+1 22 → 30% — but not "product, then another step", and the tiers won stay at 2 of 5. One seed each:
+Slots help where intermediate values matter (multiplication +27 points, Fibonacci-like loop 33 → 48%,
+x→3x+1 22 → 30%) but not "product, then another step", and the tiers won stay at 2 of 5. One seed each:
 likely, not yet confirmed. S becomes the site's current model.
 
 ## 9. Try it: your own functions (`uv run teenie-serve`)
@@ -242,8 +242,8 @@ min/max/abs, one `sum(... for i in range(n))` loop of ≤ 256 steps, popcount/re
 ## 10. What actually limits "product, then a step" (`experiments/arch/`)
 
 Training data: only ~5% of `mix3` episodes contain a product followed by another operation (2–5 operation
-expressions: 12 / 23 / 33 / 41% of draws). But the capacity check — training on **nothing but** `a*b+b`,
-`a*b+5`, `a*b−a`, `(a*b)^a` for 3,000 updates — separates data from architecture:
+expressions: 12 / 23 / 33 / 41% of draws). But the capacity check, training on **nothing but** `a*b+b`,
+`a*b+5`, `a*b−a`, `(a*b)^a` for 3,000 updates, separates data from architecture:
 
 | architecture | those four | `a*b+a` (never shown) |
 |---|---|---|
@@ -252,8 +252,8 @@ expressions: 12 / 23 / 33 / 41% of draws). But the capacity check — training o
 | **bit tokens** (666K; one token per answer bit) | **99.3–100%** | 12.3% (sure 90%, right 13%) |
 
 Parameters were never the limit: carries have to move between bit positions through an intermediate result,
-and a single question vector has no structure for that. Giving each answer bit its own token — attending to
-the other bits and to the examples every round — solves it. The narrowly trained model forces the unseen
+and a single question vector has no structure for that. Giving each answer bit its own token, attending to
+the other bits and to the examples every round, solves it. The narrowly trained model forces the unseen
 `a*b+a` into a known relation, confidently; generalisation needs broad training (next section).
 
 The bit-token model is ~5× slower per update (8 tokens per question read the examples). Next: bit tokens
@@ -261,7 +261,7 @@ and the loop model both with step-by-step training (`--stepwise`: round t scored
 step t, plus a "done" signal), width 96, 64 questions per context, on `mix4` (adds a product-then-step
 family), tested on the ladder and on loops 4–16× longer than trained.
 
-## 11. Step-by-step training (`--stepwise`, `experiments/steps/`) — not helping as built
+## 11. Step-by-step training (`--stepwise`, `experiments/steps/`): not helping as built
 
 Every training relation carries its intermediate values (each operation of an expression, each iteration of a
 loop); round t is scored against step t, then the final answer, and a "done" output learns when the steps end.
@@ -279,10 +279,10 @@ stopped at 5,000 of 10,000 updates after flattening. Validation (128 questions p
 Step supervision held both architectures back. Likely reason: the 999 examples only ever show the final `c`, so
 in early rounds the model is scored on intermediate values it cannot see and would have to guess the
 decomposition to match; most of the training effort goes there. (Runs differ in width and data too, so this is
-not a clean ablation.) Next: bit tokens **without** step supervision on `mix4`, width 128, 8 rounds — the
-configuration that reached 99–100% in the capacity check — with bf16 training (3.5× faster, same loss).
+not a clean ablation.) Next: bit tokens **without** step supervision on `mix4`, width 128, 8 rounds (the
+configuration that reached 99–100% in the capacity check), with bf16 training (3.5× faster, same loss).
 
-## 12. Bit tokens without step supervision — the new best model (`experiments/steps/bittoken-mix4-*`)
+## 12. Bit tokens without step supervision: the new best model (`experiments/steps/bittoken-mix4-*`)
 
 Bit tokens (width 128, 8 rounds, 666K parameters) trained on final answers only, `mix4`, 64 questions per
 context, 16 probes, adaptive sampling, bf16, 10,000 updates (23 minutes). Full evaluation, 1,024 questions per
@@ -308,17 +308,17 @@ adds the product-step family), so part of the gain may be data. Bit tokens becom
 **Seed 1** (same configuration as section 12): trained 89.2%, hidden 52.6%, product-then-step 23.4%,
 `a*b+a` 20.9%, `a*b` 98.4%, T1–T5 59.2 / 43.8 / 45.1 / 72.3 / 46.1%. Across both seeds, bit tokens are
 **clearly better than S at multiplication (92–98% vs 81%) and at product-then-step (23–31% vs 19%)** with fewer
-parameters; on the ladder tiers they are **level** with S — the differences are within seed-to-seed spread.
+parameters; on the ladder tiers they are **level** with S; the differences are within seed-to-seed spread.
 Seed 0's lead on hidden compositions and `a*b+a` (37%) was partly luck. Validation during training (128
 questions per relation) ran optimistic: seed 1 logged T5 50% at 8,000 updates but scores 46.1% on the full
 evaluation.
 
-**16 rounds at answer time** for the 8-round model: every tier within ±0.8 points — the model settles within its
+**16 rounds at answer time** for the 8-round model: every tier within ±0.8 points; the model settles within its
 trained rounds and does not use extra ones.
 
 ## 14. Answer-time improvements, no training (`teenie.bits.vote`, `experiments/bt/vote-seeds-eval.*`)
 
-**Voting** — averaging the bit probabilities of the two bit-token seeds:
+**Voting**: averaging the bit probabilities of the two bit-token seeds:
 
 | | seed 0 | seed 1 | vote |
 |---|---|---|---|
@@ -329,11 +329,11 @@ trained rounds and does not use extra ones.
 At or above the better seed almost everywhere (+1–2 points), sure answers right 98.6–100%; costs only twice the
 answer time.
 
-**Fit check** — "sure" also requires reproducing ≥75% of the probe examples (each hidden from itself). It nearly
+**Fit check**: "sure" also requires reproducing ≥75% of the probe examples (each hidden from itself). It nearly
 removes the confidently wrong answers on `a*(b&63)`, which the model mistakes for `a*b` (sure 24% at 75% right →
 sure 0.5%), at the cost of being sure less often overall (mean coverage 16.4% → 11.3%).
 
-**Longer training** — seed 0 continued for 10,000 more updates at a lower peak learning rate (3e-4), 20,000 in all
+**Longer training**: seed 0 continued for 10,000 more updates at a lower peak learning rate (3e-4), 20,000 in all
 (`bt-continue`): trained 89.3%, hidden **62.3%** (57.5% at 10,000), product-then-step 34.1%, T1–T5 65.3 / 49.1 /
 47.6 / 74.9 / 47.5%. Every measure rises together; T2 ends 0.9 points short of 50%.
 
@@ -341,11 +341,11 @@ sure 0.5%), at the cost of being sure less often overall (mean coverage 16.4% �
 point of the base model (T5 46.5% vs 46.0%). Loops are not short of rounds; more rounds alone do not teach the
 model to iterate.
 
-## 15. Bit-aligned reading — the best result so far (`experiments/bt/bt-aligned-*`)
+## 15. Bit-aligned reading: the best result so far (`experiments/bt/bt-aligned-*`)
 
 Same bit-token model, 10,000 updates on `mix4`, plus `--aligned`: every example is also split into one token per
 bit position (its vector, the position, and its own bits there and one position below), and answer bit k reads only
-the examples' bit-k tokens — the first model's per-position lookup, combined with bit tokens. +2,176 parameters
+the examples' bit-k tokens, the first model's per-position lookup, combined with bit tokens. +2,176 parameters
 (668,409 in all). The run was interrupted by a restart at ~7,000 updates and resumed exactly from its saved state.
 
 | | current (10k) | seed 1 (10k) | trained 20k | **aligned (10k)** |
@@ -364,26 +364,26 @@ to clear the bar (≥50% with sure answers right ≥95%) on T1, T2, T3 and T4 to
 
 ## 16. Every operation pair equally often (`mix5`, `experiments/bt/bt-pairs-*`)
 
-`mix4` plus a family that picks every allowed (parent, child) operation pair uniformly — general coverage of
+`mix4` plus a family that picks every allowed (parent, child) operation pair uniformly, for general coverage of
 two-step shapes, including "a product, then another step", instead of a family aimed at one test. Bit tokens,
 10,000 updates: hidden 58.7%, product-then-step 32.1%, T1–T5b 59.7 / 47.7 / 45.9 / 73.3 / 39.3 / 49.1%. **No
-change** — every group within ~2 points of the same-budget `mix4` model, well inside seed spread. Two-step shapes
+change**: every group within ~2 points of the same-budget `mix4` model, well inside seed spread. Two-step shapes
 are already common enough in the data; more of them does not help.
 
 ## 17. Training loops up to 31 iterations (`mix6`, `experiments/bt/bt-loops31-*`)
 
 `mix4` with the trained loop kinds run up to 31 times instead of 15 (63 and 255 stay longer than trained). Bit
 tokens, 10,000 updates: hidden 56.1%, T1–T4 61.3 / 46.3 / 46.0 / 71.6%, **T5a 36.0%** (39.7% for `mix4`), **T5b
-49.4%** (49.2%). **No help** for loops — longer training loops do not teach the model to run a step further.
+49.4%** (49.2%). **No help** for loops: longer training loops do not teach the model to run a step further.
 
 **T5b mostly measures loops whose answer stops depending on the count.** Per relation (this run / `mix4`):
-`acc=(acc<<1)^a` 81 / 85% at 63 and 91 / 94% at 255 — after 8 iterations every earlier bit has been shifted out,
-so the answer no longer depends on the count; `a^n` 62–65% — powers of an even number reach 0 mod 256. The loops
+`acc=(acc<<1)^a` 81 / 85% at 63 and 91 / 94% at 255, because after 8 iterations every earlier bit has been shifted out,
+so the answer no longer depends on the count; `a^n` 62–65%, since powers of an even number reach 0 mod 256. The loops
 whose answer keeps changing with the count stay near chance: sum of a..a+n−1 at 255 iterations 5.5%, `fib(a,a)`
 5.6%. T5b's ~49% is therefore not evidence of iteration; the honest loop measures are T5a and these per-relation
 scores.
 
-## 18. 12-bit numbers (`experiments/bt/bt-width12-*`) — width is costly
+## 18. 12-bit numbers (`experiments/bt/bt-width12-*`): width is costly
 
 Same bit-token model and budget as `mix4` (10,000 updates, 8 rounds, no bit alignment), on 12-bit numbers (12
 answer-bit tokens; 999 examples now cover 0.006% of all (a, b) pairs instead of 1.5%):
@@ -409,7 +409,7 @@ Bit tokens on `mix4`, trained to produce one step of the computation per round (
 step-by-step targets fade out linearly over the first 5,000 updates so the rounds are free to organise themselves
 afterwards; answers are read at the first round that says it is done. 10,000 updates: trained 82.1%, hidden
 38.0%, product-then-step 18.1%, T1–T5b 50.2 / 36.2 / 39.0 / 64.3 / 32.4 / 42.1%, a*b 71.4%. **Worse on every
-group** — 7 to 20 points below the same-budget model trained on final answers only — and sure answers on
+group**, 7 to 20 points below the same-budget model trained on final answers only, and sure answers on
 product-then-step are right only 87.5% of the time. Step supervision, whether kept (section 11) or faded, does
 not help: intermediate values never appear in the 999 examples, so the model cannot check them there.
 
@@ -422,10 +422,10 @@ every T4 relation and every sealed function is excluded by behaviour, so `a//b` 
 
 - **The new concepts are learned:** generated expressions using them 95 / 76 / 71 / 66 / 59% exact at 1–5
   operations (the original families: 94% at 1, 82% at 3).
-- **Nothing else is lost:** hidden 56.0%, T1–T5b 60.9 / 47.3 / 47.8 / 74.2 / 40.7 / 48.7% — all within ~2 points of
+- **Nothing else is lost:** hidden 56.0%, T1–T5b 60.9 / 47.3 / 47.8 / 74.2 / 40.7 / 48.7%, all within ~2 points of
   `mix4` (57.5%, 61.3 / 46.9 / 45.6 / 72.7 / 39.7 / 49.2%). Product-then-step 27.9% (30.7%).
 - `a//b` 79.9% (73.2% without the concepts), `a%b` 61.3% (60.1%): knowing the operation helps little with the exact
-  unseen function. `a*b` 78.9% — single-relation scores swing widely between runs (92–98% for `mix4` seeds).
+  unseen function. `a*b` 78.9%; single-relation scores swing widely between runs (92–98% for `mix4` seeds).
 
 The broader vocabulary costs nothing at the same budget, so the final configuration uses it.
 
@@ -465,7 +465,7 @@ Results are quoted next to the best of five lookup baselines at the same width.
 
 **Model** (`wide_model.py`, 939,001 parameters at every width): every answer bit and every example bit sees the
 numbers relative to its own position (±31 bits) and from the lowest bit (bits 0–31), with an "exists" channel,
-through a bilinear layer computed as a 1-D convolution — no layer depends on the width, so the same weights answer
+through a bilinear layer computed as a 1-D convolution: no layer depends on the width, so the same weights answer
 any width up to 32. Bit-aligned reading, 2 layers, 8 rounds. Trained 12,000 updates on `mix7`, cycling 8-, 12- and
 16-bit episodes (0.25 s per update at 8 bits, 0.52 s at 16 on the RTX 3050).
 
@@ -485,7 +485,7 @@ Sure answers stay 98–100% right at every width.
 - **Multiplication on its own reached the top bit at 16 bits** suddenly, between 7,000 and 10,000 updates (a*b
   exact at 16 bits 7% → 73%); before that the low bits were right at every width and accuracy fell off at bits 5–7.
 - **Composition is the block.** Per bit at 16 bits, `a*b` is 96–100% right on every bit, but `a*b+b` and
-  `(a*b)^a` are right only up to bit 4 and coin flips from bit 6 up — the same frontier as before multiplication was
+  `(a*b)^a` are right only up to bit 4 and coin flips from bit 6 up, the same frontier as before multiplication was
   learned. For a relation that is not one it has learned to recognise whole, the model reads the answer from the
   examples bit by bit, which only reaches low bits; it does not use its product as an intermediate value. At 8
   bits that fallback covers most bits, which hid the problem. The target needs exactly this: a product, then more
@@ -506,7 +506,7 @@ All three start from the stage-2 model (24/32-bit episodes added, `wide-32`), wh
 - **Computing is not the problem.** Given only four candidates, the model computes product-then-step at 16 bits
   with its existing 8 rounds within 500 updates (98–100%).
 - **Identifying is.** Drawn from a broad random family, it cannot tell from the 999 examples which
-  product-then-step relation it faces, even when that family is all it trains on — so it is not a training budget
+  product-then-step relation it faces, even when that family is all it trains on, so it is not a training budget
   problem either. `a*b` alone is recognisable because it is one relation seen often; conditionals and rotations
   leave local fingerprints in the examples.
 - **Deep probes do not help** (`--peers`: questions read 16 probes worked through every round, with their true
@@ -529,7 +529,7 @@ relation stayed at 0–1% through 3,000 updates (checked every 500 updates, 16 e
 halfway point.
 
 **Why nothing has helped.** `a*b+b` is itself in the random product-then-step family: 0.35% of its episodes
-(`a*b-a` 0.25%), about 170 episodes over a run — and the model still scores 0% on it. Given four relations at 25%
+(`a*b-a` 0.25%), about 170 episodes over a run, and the model still scores 0% on it. Given four relations at 25%
 of episodes each, it learns all four in 500 updates. The model learns these relations one at a time, each needing
 on the order of a thousand episodes, rather than one way to compose "product, then a step" that transfers to
 relations seen rarely or never. More training, deep probes and deep examples change none of that.
@@ -546,9 +546,9 @@ episodes over 6,000 updates at 16 bits from the stage-2 model; 12 held out so th
 is still trained in other cells, all checked to match no trained cell. (A diagnostic: real relations are not limited
 to a grid like this.)
 
-- **Trained:** 9 of 52 cells reached 50% or more — nearly all on the two products the model already handled, `a*b`
+- **Trained:** 9 of 52 cells reached 50% or more, nearly all of them on the two products the model already handled, `a*b`
   and `(a+1)*b`, with several second steps each (87–97%). The other first steps barely started.
-- **Held out, where both parts are learned:** `(a*b)+a` **7.7%** — while `a*b` with `+b`, `^a`, `^b`, `|b` is
+- **Held out, where both parts are learned:** `(a*b)+a` **7.7%**, while `a*b` with `+b`, `^a`, `^b`, `|b` is
   87–96% and `+a` after `(a+1)*b` is 88%. `((a+1)*b)^b` **10.1%** with its row and column learned. The rest 0–15%.
 - **Reading:** a little transfer, far below the cells themselves. The model memorises combinations rather than
   composing known parts. Next: separate guessing the relation from applying it (section 26).
@@ -569,7 +569,7 @@ the stage-2 model (its weights reused, the code layers new), trained on the same
 | time per update | 0.58 s | **0.30 s** |
 
 The bottleneck learns trained combinations faster, in half the time (answer bits read 8 code tokens instead of
-999 examples). Neither combines known parts yet — but both learned only about a fifth of the grid, so most held-out
+999 examples). Neither combines known parts yet, but both learned only about a fifth of the grid, so most held-out
 cells have parts that are learned in few combinations. A longer run (4,000 more updates) showed why: learning stalled at about 11 cells,
 nearly all of two complete rows:
 
@@ -587,11 +587,11 @@ thoroughly, the model does not put them together: it memorises each combination 
 without the bottleneck. With 52 combinations, memorising each is the cheapest solution. Next: data with far too
 many combinations to memorise while every part stays frequent (section 27).
 
-## 27. Multi-step chains work at 32 bits — except through a product (`chain_split.py`, `experiments/wide/chains-split-wide-32.json`)
+## 27. Multi-step chains work at 32 bits, except through a product (`chain_split.py`, `experiments/wide/chains-split-wide-32.json`)
 
 **Chains**: a start (`a*b`, `a+b`, `a-b`, `a^b`, `a&b`, `a|b`, `a*a`, `b*b`, `min`, `max`) followed by one or two steps, each
 one of 21 kinds (`+ - ^ | & *` with `a`, `b` or a fresh random constant; `>>1`, `<<1`, not). About one in seven
-(start, first step) pairs never appear together in chain training — including `a*b` then `+a` — and are the test.
+(start, first step) pairs never appear together in chain training, including `a*b` then `+a`, and are the test.
 
 **A new measure, beyond lookup** (`teenie-bits-eval`, `beyond_lookup`): the model's exact rate on the questions that
 every lookup baseline gets wrong, so what it gets there cannot come from copying examples. On the never-trained
@@ -611,7 +611,7 @@ operations, shifts and constants are answered almost perfectly at 16 bits, mostl
 A caution on "held out": this model never trained on chains, but it trained on random expressions of up to 5
 operations over the same operations, which can include the same shapes with other constants; the relations here are
 new (fresh random constants), the shapes not necessarily. What is clear: **a product as an intermediate step**
-fails, although products followed by a step were in its training data — everything sections 22–26 called a
+fails, although products followed by a step were in its training data: everything sections 22–26 called a
 composition failure was this one case.
 
 **At 32 bits, with confidence** (`chains-split-wide-32-w32.json`):
@@ -639,8 +639,7 @@ pairs never shown; a third of the starts are products and `*` is one of the step
 | through a product, 2 steps | 11.0% | 15.5% | 11.9% | 0.6% (100%) |
 
 Chains without a product become nearly perfect, and the model is sure of almost all of them. **Chains through a
-product roughly double** — the first movement on composing through a product, on pairs never trained together —
-but stay far below; the model is almost never sure of them, and right when it is. The fixed checks `(a*b)+a` and
+product roughly double**, the first movement on composing through a product, on pairs never trained together, though they stay far below; the model is almost never sure of them, and right when it is. The fixed checks `(a*b)+a` and
 `(a*b)^b` stayed at 0%, so the gain is on other product chains.
 
 ## 29. Checking worked examples, on chains (`experiments/wide/wide-chains-peers-*`)
@@ -656,7 +655,7 @@ product, then a step" can be checked against examples the model has worked throu
 | through a product, 1 step | 21.7% | 22.8% | 5.1% (100%) |
 | through a product, 2 steps | 15.5% | 17.0% | 1.8% (100%) |
 
-One to one and a half points on product chains — within noise. Checking worked examples is not what products are
+One to one and a half points on product chains, within noise. Checking worked examples is not what products are
 missing. It does make the model sure more often on product chains it gets right (5.1% of questions instead of 0.4%),
 and those sure answers stayed right.
 
@@ -664,7 +663,7 @@ and those sure answers stayed right.
 
 Continuing the chain-trained model (section 28) for 8,000 updates at 16 bits on `chains-products`: half general
 chains, half chains from ten product starts (`a*b`, `a*a`, `b*b`, `(a+1)*b`, `a*(b+1)`, `(a^b)*b`, `(a|b)*a`,
-`(a-b)*b`, `(a+b)*(a-b)`, `(a>>1)*b`) — adaptive sampling settled at 62% product chains. Held-out pairs follow one
+`(a-b)*b`, `(a+b)*(a-b)`, `(a>>1)*b`); adaptive sampling settled at 62% product chains. Held-out pairs follow one
 rule across all chain families (`chain_held`), so no pair held out of one family is trained in another.
 
 | held-out | 16 bits | 32 bits |
@@ -678,7 +677,7 @@ rule across all chain families (`chain_held`), so no pair held out of one family
 
 - Product chains moved only a little at 16 bits (21.7 → 25.4% for one step, 15.5 → 17.6% for two) and stay at zero
   at 32 bits; held-out chains from the new product starts are 3–8%. **The product chains it trains on most stayed
-  at 11–14% for all 8,000 updates** — data alone teaches products far too slowly.
+  at 11–14% for all 8,000 updates**: data alone teaches products far too slowly.
 - Why it stops where it does: on `(a*b)+a` the model gets bits 0–4 right and is at chance from bit 6. Without a
   recognised rule it matches examples on the input bits that matter; a product's bit k depends on 2(k+1) input bits,
   i.e. 4^(k+1) patterns, and 999 examples (about 2^10) run out of matches around bit 4–5 at any width. `a*b` alone
@@ -686,7 +685,7 @@ rule across all chain families (`chain_held`), so no pair held out of one family
   another step follows.
 - Chains without a product kept improving: 95.2% / 84.5% at 32 bits, sure on 77% / 61% of them and right 99.6%.
 
-Next: room for intermediate values that examples and questions can match on — if the model keeps `a*b` in a
+Next: room for intermediate values that examples and questions can match on: if the model keeps `a*b` in a
 scratch register, `(a*b)+a` becomes as local as addition at every bit.
 
 ## 31. Scratch registers: computing through a product (`experiments/wide/wide-chains-registers-*`)
@@ -704,7 +703,7 @@ writes and reads back every round) and 64 worked examples the questions read (`-
 | product start 1 step | 2.9% | 5.2% (sure 0%) | 0.0% (sure 0%) |
 | product start 2 steps | 7.8% | 9.0% (sure 0%, right 100%) | 2.2% (sure 2%, right 100%) |
 
-- **Product chains improved across the board at 16 bits** — 25.4 → 31.6% for one step, 17.6 → 22.0% for two — and the
+- **Product chains improved across the board at 16 bits**, 25.4 → 31.6% for one step, 17.6 → 22.0% for two, and the
   model is now sure of 15% of the one-step answers, all of them right.
 - **It computes through the product, not just matches:** on the never-trained `(a*b)+a`, bits 7–15 rose from 61–73% to
   74–84% (50% is guessing; matching examples cannot get past bit 5), and its exact rate climbed through the run
@@ -764,7 +763,7 @@ choices to those tests even though no run trains on them. From here on:
 
 - **Sealed set** (`src/teenie/bits/sealed.py`, `--tests sealed`): 24 everyday functions written independently —
   e.g. `(a+b)*(a-b)`, `(a*b)>>4`, `gcd(a,b)`, a sum of squares, `popcount(a)+popcount(b)`, division by repeated
-  subtraction — several with operations the generator never produces. It is evaluated only at the end of a round of
+  subtraction, several with operations the generator never produces. It is evaluated only at the end of a round of
   experiments and never used to make a decision.
 - **Decide on broad averages**, not single relations; differences under ~5 points are within seed-to-seed spread.
 - **No data families aimed at one failing test.** General coverage instead (`mix5`: every allowed operation pair

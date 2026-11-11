@@ -29,7 +29,7 @@ const trustRows = order.map((name) => ({
   <p class="eyebrow">Changelog · first model</p>
   <h1>The first model: bit by bit</h1>
   <p class="lede">
-    Kept for the record. This model read every example one bit position at a time — lowest bit first in one pass,
+    Kept for the record. This model read every example one bit position at a time, lowest bit first in one pass and
     highest first in another. It was exact on the named relations it trained on, but could not handle multiplication or decide
     which direction to read for <code>min</code>; the <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/model/`}>current
     model</a> replaced it. Its training and benchmark pages:
@@ -53,7 +53,7 @@ const trustRows = order.map((name) => ({
     <div class="card">
       <p class="eyebrow">2 · Remember what matters</p>
       <p>
-        Its memory has to hold just enough about the bits already read — a carry for <code>add</code>, a borrow for
+        Its memory has to hold just enough about the bits already read: a carry for <code>add</code>, a borrow for
         <code>sub</code>, “a is already bigger” for <code>max</code>. Nobody tells it which; training does.
       </p>
     </div>
@@ -86,8 +86,8 @@ const trustRows = order.map((name) => ({
   <h2>Inside real predictions</h2>
   <p>
     These are recordings from the trained model on fresh episodes. Pick a relation and step through the bits. On
-    <code>add</code>, low-bit-first, the attention gathers in the shaded intersection — examples whose bit
-    <code>k</code> of <em>a</em> and <em>b</em> match the question — and, within it, only those with the same carry.
+    <code>add</code>, low-bit-first, the attention gathers in the shaded intersection (examples whose bit
+    <code>k</code> of <em>a</em> and <em>b</em> match the question) and, within it, on those with the same carry.
     Try <code>min</code> or <code>a*b</code> to see it fail.
   </p>
   <Inspector />
@@ -96,7 +96,7 @@ const trustRows = order.map((name) => ({
   <p>
     Average weight given to the high-bit-first pass over 16 episodes per relation. It picks low-first for carries,
     high-first for <code>max</code>, and doesn't care for bitwise relations. On the held-out <code>min</code> it
-    hesitates — which is exactly where it fails. <span class="muted">* never seen in training.</span>
+    hesitates, and that's exactly where it fails. <span class="muted">* never seen in training.</span>
   </p>
   <div class="card">
     <TrustStrip rows={trustRows} />

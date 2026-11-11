@@ -21,7 +21,8 @@ const question = product.examples[0]!;
 const guesses = question.rounds.map((r) => r.p);
 const wide = progress.wide;
 const w32 = wide.widths['32']!;
-const conditional = w32.families['a>b?a-b:a+b'];
+const conditionalRow = progress.groups?.find((g) => g.key === 'T4')?.relations.find((r) => r.name === 'a>b?a-b:a+b');
+const conditional = conditionalRow?.exact ?? w32.families['a>b?a-b:a+b'];
 const size = progress.current?.parameters ?? wide.parameters;
 const release = progress.release?.results ?? {};
 ---
@@ -36,11 +37,12 @@ const release = progress.release?.results ?? {};
     <p class="eyebrow">Teenie · a research experiment</p>
     <h1>Can a small model infer a hidden rule from 999 examples?</h1>
     <p class="lede">
-      Each episode is 999 examples <code>(a, b, c)</code> of a hidden relation on 16- or 32-bit integers — a random
-      expression, a conditional, a loop — and one new <code>(a, b)</code>. The model is never told the relation and its
-      weights never change while answering: in one forward pass it has to guess the rule from the examples and give
-      <strong>every bit</strong> of <code>c</code>. At 32 bits a lucky guess is one in four billion, so every right
-      answer has to come from the examples. It works on some kinds of relations and fails on others; both are below.
+      Each episode shows the model 999 examples <code>(a, b, c)</code> of a hidden rule on 16- or 32-bit integers (a
+      random expression, a conditional, a loop) and then asks for <code>c</code> at a new <code>(a, b)</code>. Nobody
+      tells it the rule and its weights stay fixed while it answers, so it gets one forward pass to work out what the
+      examples have in common and write down every bit of <code>c</code>. At 32 bits a lucky guess comes up once in four
+      billion tries, which is why a right answer has to come from the examples. Some kinds of rule it handles well and
+      some it can't do at all; the tables below show both.
     </p>
   </section>
 
@@ -53,22 +55,22 @@ const release = progress.release?.results ?? {};
     <div class="card stat">
       <span class="label">An unseen conditional at 32 bits</span>
       <span class="value">{pct(conditional)}</span>
-      <span class="note">{`exact on a>b ? a−b : a+b, never trained; lookup gets ${pct(w32.lookup['a>b?a-b:a+b'])}`}</span>
+      <span class="note">{`exactly right on a>b ? a−b : a+b, which it never trained on, with ${conditionalRow?.recovered?.toFixed(1) ?? '—'} of 32 bits recovered against lookup's ${conditionalRow?.lookup?.toFixed(1) ?? '—'}`}</span>
     </div>
     <div class="card stat">
       <span class="label">Multiplying 32-bit numbers it infers</span>
       <span class="value">{pct(release['a*b']?.exact)}</span>
-      <span class="note">{`exact on a*b, and ${pct(release['(a*b)+a']?.exact)} on the never-trained (a*b)+a; but not yet on products of values it computes first, like (a+b)*a`}</span>
+      <span class="note">{`exactly right on a*b, and ${pct(release['(a*b)+a']?.exact)} on (a*b)+a, which it never trained on. It can't yet multiply values it computes first, like (a+b)*a.`}</span>
     </div>
   </section>
 
   <h2>Where it stands</h2>
   <p>
-    The current model on every test group at 32 bits, where a blind guess is right once in four billion tries. None of
-    these rules were trained on. <b>Bits recovered</b> is how far its guess beats chance (0 = a blind guess, 32 =
-    certain and right); <b>lookup</b> is the same score for the best of five methods that understand nothing, chosen
-    after the fact. <b>Sure → right</b> is how often its answers were right when it was sure of every bit. Click a
-    group to see its rules.
+    The current model on every test group at 32 bits. It never trained on any of these rules. <b>Bits recovered</b>
+    measures how far its guess beats chance, from 0 for a blind guess to 32 for certain and right, and <b>lookup</b>
+    gets the same score for the best of five methods that understand nothing (picked after the fact, which flatters
+    them). <b>Sure → right</b> says how often it was right when it was sure of every bit. Click a group to see the
+    rules in it.
   </p>
   <GroupTable />
   <p class="small muted">
@@ -81,20 +83,19 @@ const release = progress.release?.results ?? {};
   <p>
     Chains are a start such as <code>a+b</code> or <code>a*b</code> followed by one or two steps, each one of 21 kinds
     (<code>+ − ^ | &amp; *</code> with <code>a</code>, <code>b</code> or a random constant, shifts, not), with a fresh
-    random constant each time. The current model trained on chains too; these are start and first-step pairs held out of
-    all chain training, so each one is a combination it has never seen. <b>Beyond lookup</b> counts
-    only the questions every lookup method gets wrong; <b>sure</b> is how often its least certain bit is ≥ 0.99, and how
-    often those sure answers were right.
+    random constant each time. The current model trained on chains too, but every start and first step in this table
+    is a pairing it never saw. <b>Beyond lookup</b> counts only the questions that every lookup method gets wrong, and
+    <b>sure</b> means its least certain bit is at 0.99 or above.
   </p>
   <ChainsTable />
   <p class="small muted">48 episodes × 16 questions per kind; <code>uv run python -m teenie.bits.chain_split</code>.</p>
 
   <h2>Learning to compute through a product</h2>
   <p>
-    Chains through a product at 16 bits, on start–step pairs held out of all chain training, as training went on. Without a
-    rule to compute, the model matches examples on the input bits that matter; a product's high bits depend on so many
-    input bits that 999 examples run out of matches around bit 5. Getting further needs the model to compute through
-    the product — scratch registers, numbers it writes and reads back every round, were the first change that did.
+    Chains through a product at 16 bits, on held-out start and step pairs, as training went on. A model that can't
+    compute the product falls back on matching examples by the input bits that matter, and since the high bits of a
+    product depend on almost all of them, 999 examples stop matching anything around bit 5. Scratch registers (numbers
+    it writes and reads back every round) were the first change that got it past that.
   </p>
   <ProductsTable />
   <p class="small muted">
@@ -106,8 +107,8 @@ const release = progress.release?.results ?? {};
     <div class="card">
       <h3>Works: combining steps it knows</h3>
       <p class="small">
-        Chains of additions, subtractions, bitwise operations, shifts and constants, and conditionals it never trained
-        on — at 32 bits, mostly on questions lookup cannot answer, and its sure answers are right.
+        Chains of additions, subtractions, bitwise operations, shifts and constants, plus conditionals it never trained
+        on. At 32 bits most of these are questions lookup can't answer, and when it's sure, it's right.
       </p>
     </div>
     <div class="card">
@@ -115,23 +116,23 @@ const release = progress.release?.results ?? {};
       <p class="small">
         It multiplies its inputs and uses the product in later steps (<code>a*b</code>, <code>(a*b)+a</code>, chains
         that start from a product, at 32 bits), but cannot yet multiply values it computes first:
-        <code>(a+b)*a</code> or <code>a*a − b*b</code> get only their lowest few bits. Training on such products alone
-        did not move this, so the next attempt has to change the model, not the data.
+        <code>(a+b)*a</code> or <code>a*a − b*b</code> get only their lowest few bits. A day of training on exactly
+        those products barely moved them, so the fix has to come from the model's structure rather than more data.
       </p>
     </div>
     <div class="card">
-      <h3>Honest about it</h3>
+      <h3>Knows when it's guessing</h3>
       <p class="small">
-        Its confidence is the certainty of its least certain bit. On relations it cannot work out it is rarely sure,
-        so its sure answers stay right almost every time even where its overall score is low.
+        Its confidence is the certainty of its least certain bit. On rules it can't work out it's rarely sure, so the
+        answers it is sure of stay right even where its overall score is low.
       </p>
     </div>
   </div>
 
   <h2 id="examples">What it trains on</h2>
   <p>
-    The kinds of rules it practised, as actual equations, and the held-out middle band. Open a group to see what its
-    rules look like; the test groups above open the same way.
+    The kinds of rule it practised, written out, and the held-out middle band it's tested on. Open a group to see a
+    few of its rules.
   </p>
   <Examples />
 
@@ -178,7 +179,7 @@ const release = progress.release?.results ?? {};
   </section>
 
   <h2>Read more</h2>
-  <div class="grid-3 links">
+  <div class="grid-2 links">
     <a class="card link" href={`${base}/model/`}>
       <p class="eyebrow">Model</p>
       <h3>The bit-token design</h3>
@@ -186,13 +187,18 @@ const release = progress.release?.results ?? {};
     </a>
     <a class="card link" href={`${base}/results/`}>
       <p class="eyebrow">Results</p>
-      <h3>Every run on the test tiers</h3>
-      <p>Unseen expressions, new operation types and loops, run by run.</p>
+      <h3>How it compares</h3>
+      <p>Rules with no textbook solution, scored against lookups and against models fitted to each task.</p>
+    </a>
+    <a class="card link" href={`${base}/writeup/`}>
+      <p class="eyebrow">Write-up</p>
+      <h3>The short version</h3>
+      <p>What it does, how it's scored, where it stops, and what we'd try next.</p>
     </a>
     <a class="card link" href={`${base}/changelog/`}>
       <p class="eyebrow">Changelog</p>
       <h3>How it got here</h3>
-      <p>Every experiment, including the ones that did not work.</p>
+      <p>Every experiment in order, failures included.</p>
     </a>
   </div>
 </Layout>

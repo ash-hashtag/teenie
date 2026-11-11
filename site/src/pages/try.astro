@@ -32,9 +32,10 @@ const parameters = info.parameters.toLocaleString('en-US');
   <p class="eyebrow">Try it</p>
   <h1>Give it a rule it has never seen</h1>
   <p class="lede">
-    Write any function of <code>a</code> and <code>b</code>. Your browser draws 999 examples of it and 16 new
-    questions; the model, never told the rule, reads the examples and answers every bit of every question in one
-    pass, with how sure it is of each bit. It all runs on your device: the {parameters}-parameter model is a few MB.
+    Type a function of <code>a</code> and <code>b</code>. Your browser draws 999 examples of it plus 16 new questions,
+    and the model, which never sees your formula, reads the examples and answers every bit of every question in one
+    pass. It also says how sure it is of each bit. Everything runs on your device; the {parameters}-parameter model
+    is a download of about 8 MB.
   </p>
 
   <p class="status small" data-role="status">Loading the model…</p>
@@ -53,8 +54,8 @@ const parameters = info.parameters.toLocaleString('en-US');
       {weak.map((p) => <button class="chip" type="button" data-formula={p.formula} title={p.formula}>{p.label}</button>)}
     </div>
     <p class="small muted weak-note">
-      It multiplies <code>a</code> by <code>b</code>, but not yet values it has to compute first, such as
-      <code>(a + b) * a</code>: it gets their lowest few bits and guesses the rest. Rotations are new to it too.
+      It can multiply <code>a</code> by <code>b</code>, but not values it has to compute first, such as
+      <code>(a + b) * a</code>, where it gets the lowest few bits and guesses the rest. Rotations are new to it as well.
     </p>
     <div class="options">
       <label class="small">Numbers of
@@ -68,8 +69,8 @@ const parameters = info.parameters.toLocaleString('en-US');
     <details class="own" data-role="own-box">
       <summary class="small">Ask your own questions too</summary>
       <label for="own" class="small muted">
-        One <code>a, b</code> per line (decimal or <code>0x…</code>), up to 16. They are answered along with random
-        ones to make 16, and are never among the 999 examples.
+        One <code>a, b</code> per line, decimal or <code>0x…</code>, up to 16. Random questions fill up the rest of the
+        16, and yours never appear among the 999 examples.
       </label>
       <textarea id="own" rows="3" spellcheck="false" placeholder="12, 34&#10;1000000, 0xdeadbeef"></textarea>
     </details>
@@ -82,9 +83,9 @@ const parameters = info.parameters.toLocaleString('en-US');
       <p>
         Python-style: <code>+ - * // % **</code>, <code>&amp; | ^ ~ &lt;&lt; &gt;&gt;</code>, comparisons (1 or 0),
         <code>not and or</code>, <code>x if cond else y</code> or <code>cond ? x : y</code>, and
-        <code>min max popcount reverse rotl rotr</code>. Numbers are unsigned and wrap at the width, like the rules the
-        model trained on; division by zero gives all ones. Rules that scramble the bits on purpose (hashes, ciphers)
-        are beyond it, and it is still weak at rotations.
+        <code>min max popcount reverse rotl rotr</code>. Numbers are unsigned and wrap at the width after every step,
+        as in training, and division by zero gives all ones. Don't expect much on rules built to scramble bits, like
+        hashes or ciphers.
       </p>
     </details>
     <p class="error small" data-role="error" hidden></p>
@@ -124,9 +125,9 @@ const parameters = info.parameters.toLocaleString('en-US');
       <div data-role="examples"></div>
     </details>
     <p class="small muted">
-      <strong>Bits recovered</strong> is {'{'}width{'}'} + log<sub>2</sub> of the probability the model gave the true
-      answer: 0 means a blind guess, the full width means certain and right, and confident mistakes count against it.
-      A rule like addition scores the full width; a hash scores about 0.
+      <strong>Bits recovered</strong> is the width plus log<sub>2</sub> of the probability the model gave the true
+      answer. A blind guess scores 0 and certain-and-right scores the full width, while a confident mistake drags the
+      score down. Addition gets the full width; a hash gets about 0.
     </p>
   </section>
 </Layout>
@@ -358,7 +359,7 @@ const parameters = info.parameters.toLocaleString('en-US');
     $('w').textContent = String(width);
     $('times').textContent = mean > 1 ? `≈ ${formatPower(mean)}× better than a blind guess` : 'about a blind guess';
     $('sure').textContent = `${sure} / ${QUESTIONS} · ${sure ? `${sureRight} / ${sure}` : '—'}`;
-    $('note').textContent = `c = ${input.value} at ${width} bits — 999 examples (${distinct.toLocaleString('en-US')} different answers), ${QUESTIONS} new questions${mine ? ` (${mine} of yours)` : ''}, answered in ${seconds.toFixed(1)} s on your device.`;
+    $('note').textContent = `c = ${input.value} at ${width} bits: 999 examples (${distinct.toLocaleString('en-US')} different answers), ${QUESTIONS} new questions${mine ? ` (${mine} of yours)` : ''}, answered on your device in ${seconds.toFixed(1)} s.`;
     $('rows').innerHTML = rows.join('');
     $('examples').innerHTML = `<table><thead><tr><th class="num">a</th><th class="num">b</th><th class="num">c</th></tr></thead><tbody>${pairs
       .slice(0, 8)
@@ -390,7 +391,7 @@ const parameters = info.parameters.toLocaleString('en-US');
   load(Number(widthSelect.value))
     .then(() => {
       showProgress(null, '');
-      $('status').innerHTML = '<span class="dot"></span> Model loaded — it runs on your device, in a background thread.';
+      $('status').innerHTML = '<span class="dot"></span> Model loaded. It runs on your device, in a background thread.';
       runButton.disabled = false;
       void run();
     })

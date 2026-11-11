@@ -43,7 +43,7 @@ const phases = [
   {
     tag: 'Attempt 3',
     title: 'A built-in curve fitter (residual loop)',
-    body: 'Replaced the network with a fixed curve-fitting loop (conjugate gradient) over a hand-chosen set of features, with 61 trainable parameters. It passed 90% on all four operations — but an untrained copy scored the same. The fitter did the work, not learning. And “within 1%” is still a guess, not an answer.',
+    body: 'Replaced the network with a fixed curve-fitting loop (conjugate gradient) over a hand-chosen set of features, with 61 trainable parameters. It passed 90% on all four operations, but so did an untrained copy. The fitter did the work, not learning. And “within 1%” is still a guess, not an answer.',
     rows: [
       ['add', '99.7% (untrained 99.7%)'],
       ['sub', '99.2% (99.4%)'],
@@ -66,8 +66,8 @@ const phases = [
   <h1>From fuzzy decimals to exact bits</h1>
   <p class="lede">
     The goal never changed: given exactly 999 examples of an unknown relation <code>c = f(a, b)</code> and one new
-    <code>(a, b)</code>, produce <code>c</code> — with no operation name, no menu of formulas, and no retraining at
-    answer time. What changed was how numbers are shown to the model, and what counts as right.
+    <code>(a, b)</code>, produce <code>c</code> without being told the operation and without any retraining at answer
+    time. What kept changing was how the numbers are shown to the model and what we count as right.
   </p>
 
   <ol class="timeline">
@@ -139,7 +139,7 @@ const phases = [
         Three lessons: <strong>copying the closest example is useless with bits</strong> (2–5% for add/sub); <strong
           >going bit by bit, remembering just the previous position, is exact</strong
         > for carry-style relations; and <strong>looking further back fails</strong> because 999 examples don't cover all
-        the combinations. So the model has to learn a short summary of the bits so far — like a carry — and that is
+        the combinations. So the model has to learn a short summary of the bits so far (a carry, say), and that is
         what its loop does.
       </p>
     </li>
@@ -150,7 +150,7 @@ const phases = [
       <p>
         One shared recurrent network reads every example one bit at a time; at each bit the question looks up the
         examples in the same situation; one pass runs from the lowest bit, one from the highest. 100% exact on all 12
-        named relations it trained on — but only {pct(fam('serial', 'min'))} on <code>min</code>, the mirror of a trained
+        named relations it trained on, but only {pct(fam('serial', 'min'))} on <code>min</code>, the mirror of a trained
         idea, because it could not decide which direction to read. <a href={`${base}/first-model/`}>Inside this model →</a>
       </p>
     </li>
@@ -188,16 +188,16 @@ const phases = [
         Drawing relations in proportion to how often they are still wrong fixed the starvation: <code>a*b</code>
         {pct(fam('mix', 'a*b'))} inside mixed training, every earlier relation 98–100% (<code>min</code>
         {pct(fam('mix', 'min'))}). Random 1–3 operation expressions joined training, with eight compositions never
-        generated — checked by behaviour, so rewrites cannot leak. Those hidden compositions reached
+        generated (checked by behaviour, so a rewrite can't sneak through). Those hidden compositions reached
         <strong>{pct(grp('mix', 'hidden'))}</strong> on average (copying the closest example: about 9%).
       </p>
     </li>
 
     <li class="card">
       <p class="eyebrow">Product, then another step · a computation limit</p>
-      <h3>It multiplies, it adds — but not one after the other</h3>
+      <h3>It multiplies and it adds, but not one after the other</h3>
       <p>
-        <code>a*b+a</code> stayed near {pct(fam('mix2', 'a*b+a'))}: the low four bits right, the high bits wrong —
+        <code>a*b+a</code> stayed near {pct(fam('mix2', 'a*b+a'))}: the low four bits right and the high bits wrong;
         carries through an intermediate result. More multi-step training data lifted hidden compositions to
         {pct(grp('mix2', 'hidden'))} but not this; a round counter did not help either. Trained on nothing but four such
         relations, the model still reached only {pct(fam('nearonly', 'a*b+b'))}: the loop has no place to hold an
@@ -211,7 +211,7 @@ const phases = [
       <p>
         Training now includes loops whose repeat count comes from <code>b</code> (sums of sequences, repeated
         application, Fibonacci-like recurrences, bit counting), and the tests are a ladder from 2-operation expressions to
-        hidden loop bodies run longer than ever trained. The model may either execute the loop or find a shortcut —
+        hidden loop bodies run longer than ever trained. The model may either run the loop or find a shortcut;
         both count. <a href={`${base}/results/`}>See the results →</a>
       </p>
     </li>
@@ -221,7 +221,7 @@ const phases = [
       <p>
         Four memory vectors per question, carried between rounds, lifted multiplication inside mixed training from
         {pct(fam('mix3', 'a*b'))} to {pct(fam('mix3-scratch4', 'a*b'))} and the Fibonacci-like loop from
-        {pct(fam('mix3', 'fib(a,a) n15'))} to {pct(fam('mix3-scratch4', 'fib(a,a) n15'))} — but a product followed by
+        {pct(fam('mix3', 'fib(a,a) n15'))} to {pct(fam('mix3-scratch4', 'fib(a,a) n15'))}, but a product followed by
         another step stayed near {pct(fam('mix3-scratch4', 'a*b+b'))}, even when trained on nothing else
         ({pct(fam('nearonly-scratch4', 'a*b+b'))}).
       </p>
@@ -232,8 +232,8 @@ const phases = [
       <h3>One token per answer bit</h3>
       <p>
         The limit was never parameters: carries have to move between bit positions through an intermediate result, and
-        one question vector has no structure for that. Giving every answer bit its own token — attending to the other
-        bits and to the examples each round — took that capacity check from {pct(fam('nearonly', 'a*b+b'))} to
+        one question vector has no structure for that. Giving every answer bit its own token, which attends to the other
+        bits and to the examples each round, took that capacity check from {pct(fam('nearonly', 'a*b+b'))} to
         <strong>{pct(fam('nearonly-bittoken', 'a*b+b'))}</strong>. Training each round against one intermediate step
         (an operation, or a loop iteration) did not help, kept or faded out: the intermediate values never appear in
         the examples. Bit tokens trained on final answers only became the model. <a href={`${base}/model/`}>The design →</a>
@@ -246,7 +246,7 @@ const phases = [
       <p>
         Every test had been used to choose architectures and data. A sealed set of 24 everyday functions, written
         separately, is evaluated only at the end of a round and never used to decide anything. Every 8-bit candidate
-        cleared it with honest confidence — but at 8 bits the 999 examples cover 1.5% of all inputs, and lookup methods
+        cleared it with honest confidence. At 8 bits, though, the 999 examples cover 1.5% of all inputs, and lookup methods
         that understand nothing answer about a third of it. That, and the next chapter, moved the measure to 16 and 32 bits.
       </p>
     </li>
@@ -255,7 +255,7 @@ const phases = [
       <p class="eyebrow">Bit-aligned reading</p>
       <h3>Each answer bit reads the same bit of the examples</h3>
       <p>
-        {`On our generator's held-out combinations (T1–T3) it scored ${pct(grp('bt-aligned', 'T1'))} / ${pct(grp('bt-aligned', 'T2'))} / ${pct(grp('bt-aligned', 'T3'))}, 8–16 points above the plain bit tokens — but nothing extra on the sealed set. The gain was specific to relations shaped like our generator's.`}
+        {`On our generator's held-out combinations (T1–T3) it scored ${pct(grp('bt-aligned', 'T1'))} / ${pct(grp('bt-aligned', 'T2'))} / ${pct(grp('bt-aligned', 'T3'))}, 8–16 points above the plain bit tokens, yet nothing extra on the sealed set. The gain was specific to relations shaped like our generator's.`}
       </p>
     </li>
 
@@ -263,7 +263,7 @@ const phases = [
       <p class="eyebrow">Wider numbers</p>
       <h3>One model for any width up to 32 bits</h3>
       <p>
-        {`The 8-bit design trained on 12-bit numbers collapsed (hidden compositions ${pct(grp('bt-width12', 'hidden'))}). A width-free version sees every bit relative to its own position and from the lowest bit, so the same weights answer any width up to 32 bits. At 32 bits it gets some unseen relations far above lookup — a conditional it never trained on ${pct(progress.wide.widths['32']?.families['a>b?a-b:a+b'])} against ${pct(progress.wide.widths['32']?.lookup['a>b?a-b:a+b'])} — and fails others completely.`}
+        {`The 8-bit design trained on 12-bit numbers collapsed (hidden compositions ${pct(grp('bt-width12', 'hidden'))}). A width-free version sees every bit relative to its own position and from the lowest bit, so the same weights answer any width up to 32 bits. At 32 bits it gets some unseen relations far above lookup: a conditional it never trained on ${pct(progress.wide.widths['32']?.families['a>b?a-b:a+b'])} against ${pct(progress.wide.widths['32']?.lookup['a>b?a-b:a+b'])}, and fails others completely.`}
         <a href={`${base}/`}>Where it stands →</a>
       </p>
     </li>
@@ -299,13 +299,13 @@ const phases = [
 
     <li class="card result">
       <p class="eyebrow">Chains · a new measure</p>
-      <h3>Multi-step chains work — except through a product</h3>
+      <h3>Multi-step chains work, except through a product</h3>
       <p>
         Chains are a start such as <code>a+b</code> or <code>a*b</code> followed by one or two of 21 kinds of step, with
         a fresh random constant each time. A new measure counts only the questions every lookup method gets wrong. At
         32 bits the model answers chains of additions, bitwise operations and shifts mostly where lookup fails, and its
-        sure answers are always right; chains through a product it hardly ever gets, and it is never sure of them —
-        although products followed by a step were in its training. The composition failure of the last chapters was a
+        sure answers are always right. Chains through a product it hardly ever gets, and it's never sure of them, even
+        though products followed by a step were in its training. The composition failure of the last chapters was a
         product failure.
         <a href={`${base}/findings/`}>Numbers in the findings →</a>
       </p>
@@ -329,7 +329,7 @@ const phases = [
       <p>
         On a product chain such as <code>(a*b)+a</code> the model got bits 0–4 right and was guessing from bit 6. Without a
         rule to compute, it matches examples on the input bits that matter. An addition's bit depends on three things,
-        so there are always matches; a product's bit k depends on every lower bit of both numbers — 4^(k+1) patterns —
+        so there are always matches; a product's bit k depends on every lower bit of both numbers (4^(k+1) patterns),
         and 999 examples run out of matches around bit 4–5, at any width. Product-heavy training data and checking worked
         examples each moved this only a little.
       </p>
@@ -339,11 +339,11 @@ const phases = [
       <p class="eyebrow">Scratch registers</p>
       <h3>Computing through the product</h3>
       <p>
-        Two scratch numbers per question and per worked example, written and read back every round — room for an
+        Two scratch numbers per question and per worked example, written and read back every round, which gives it room for an
         intermediate value, with nothing about products built in. On the never-trained <code>(a*b)+a</code> the bits
         matching cannot reach rose from about 65% to about 77% right, and held-out product chains at 16 bits reached
         {` ${pct(registersRun?.summary['product 1 step']?.exact)} for one step`}, with sure answers
-        right. At 32 bits they are still at zero. <a href={`${base}/`}>The progression on the overview →</a>
+        right. At 32 bits they were still at zero then. <a href={`${base}/`}>The progression on the overview →</a>
       </p>
     </li>
 
@@ -356,43 +356,80 @@ const phases = [
         checkpoint checks, and <code>(a*b)^b</code> from 0% to about half. On the full held-out split, product chains
         reached{` ${pct(longerRun?.summary['product 1 step']?.exact)} for one step and ${pct(longerRun?.summary['product 2 steps']?.exact)} for two`},
         with sure answers right 97–100% of the time; chains that start from a product form never seen in training stay low, at
-        {` ${pct(longerRun?.summary['product start 1 step']?.exact)}`}. At 32 bits products are still at zero: the skill
-        reaches only about bit 15, the width it was trained at.
+        {` ${pct(longerRun?.summary['product start 1 step']?.exact)}`}. At 32 bits products were still at zero, because
+        the skill only reached about bit 15, the width it had trained at.
+      </p>
+    </li>
+
+    <li class="card result">
+      <p class="eyebrow">32 bits, then more rounds</p>
+      <h3>Multiplying 32-bit numbers</h3>
+      <p>
+        Training on 16- and 32-bit episodes in turn taught it the low 22 bits of a 32-bit product, and then it stalled.
+        Giving each answer 12 rounds of refinement instead of 8 pushed it to bit 29, and a further run brought
+        <code>a*b</code> to 89% exact at 32 bits, with the never-trained <code>(a*b)+a</code> at 85%. The extra depth
+        mattered more than the extra data.
+      </p>
+    </li>
+
+    <li class="card result">
+      <p class="eyebrow">A cost we didn't see coming</p>
+      <h3>Training only on chains wore down the rest</h3>
+      <p>
+        The general benchmark showed what chain-only training had cost: short loops fell from 13% to 2% and the target
+        tier from 9.9% to 6.3%. Mixing the general set back in alongside the chains brought the loops back to 60% or
+        more while products kept improving. That mixed model is the one we release.
+      </p>
+    </li>
+
+    <li class="card result">
+      <p class="eyebrow">A better measure</p>
+      <h3>Bits recovered, and rules with no textbook solution</h3>
+      <p>
+        Exact match was hiding progress, so we now score how many bits of the answer the model's guess recovers,
+        against lookups and against trees and a small network fitted to each task's own examples. On a held-out set of
+        37 rules with no textbook solution it beats the fitted models on cellular automata, S-boxes, deep expressions,
+        products, data-dependent steps and loops, ties on random expressions and loses on rotations.
+        <a href={`${base}/results/`}>The comparison →</a>
+      </p>
+    </li>
+
+    <li class="card result">
+      <p class="eyebrow">Didn't work</p>
+      <h3>Multiplying values it computed</h3>
+      <p>
+        It multiplies <code>a</code> by <code>b</code>, but <code>(a+b)*a</code> or <code>a*a − b*b</code> stay at their
+        lowest six bits. Training on products of freshly computed operands (final answers only) didn't move them, even
+        at 30% of episodes or on their own with twice the registers, and at 30% it began to erode <code>a*b</code>. The
+        limit is in the model, so that's where the next attempt goes.
       </p>
     </li>
 
     <li class="card">
       <p class="eyebrow">Now</p>
-      <h3>Products at 32 bits</h3>
+      <h3>In the browser</h3>
       <p>
-        The same model now trains on 16- and 32-bit episodes in turn, with each checkpoint scored at 32 bits on
-        <code>a*b</code>, <code>(a*b)+a</code> and <code>(a*b)^b</code>.
+        The release model runs in your browser: type a rule, and it reads 999 examples and answers 16 questions on your
+        device. <a href={`${base}/try/`}>Try it →</a>
       </p>
     </li>
   </ol>
 
   <h2>Where it goes next</h2>
-  <div class="grid-3">
+  <div class="grid-2">
     <div class="card">
-      <h3>Products at 32 bits</h3>
+      <h3>Multiplying what it computed</h3>
       <p class="small">
-        Everything about products so far is at 16 bits; at 32 bits even <code>a*b</code> alone is not learned yet. Then the
-        target: unseen multi-step expressions such as <code>((a*b)^(a&gt;&gt;3))|(b+9)</code> at 32 bits, where even 25%
-        exact with honest confidence would be useful.
-      </p>
-    </div>
-    <div class="card">
-      <h3>Every step after a product</h3>
-      <p class="small">
-        Registers helped an addition after a product but not yet an xor. Product chains from new kinds of products are
-        still weak.
+        More training didn't teach it to use its own intermediate values as operands, so the next step changes how the
+        model handles them, without ever handing it the intermediates. We also owe a comparison with TabPFN and a
+        proper look at rotations.
       </p>
     </div>
     <div class="card">
       <h3>Then: noisy data</h3>
       <p class="small">
-        The aim is not a calculator. Once fixed rules can be inferred, the same approach goes to examples that are
-        partly corrupted or random, to see which patterns still emerge.
+        The point was never a calculator. Once fixed rules work, the same approach goes to examples that are partly
+        corrupted or random, to see which patterns still come through.
       </p>
     </div>
   </div>

@@ -1,0 +1,105 @@
+{
+  "checkpoint": "experiments/wide/snapshots-diag-computed-products/update-86500.pt",
+  "train_set": "computed-products",
+  "tests": null,
+  "width": 16,
+  "episodes": 8,
+  "queries": 16,
+  "seed": 81000,
+  "sure_threshold": 0.99,
+  "steps": null,
+  "summary": {
+    "selected": {
+      "exact": 0.228125,
+      "sure_accuracy": 1.0,
+      "recovered": 9.087645053863525,
+      "lookup_recovered": null,
+      "advantage": null,
+      "won": false
+    }
+  },
+  "results": {
+    "selected": {
+      "(a+b)*a": {
+        "exact": 0.015625,
+        "bit": 0.7138671875,
+        "recovered": 6.324840545654297,
+        "recovered_median": 6.2623515129089355,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*a-b*b": {
+        "exact": 0.0,
+        "bit": 0.708984375,
+        "recovered": 6.634123802185059,
+        "recovered_median": 6.6543498039245605,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a^b)*(a+1)": {
+        "exact": 0.0,
+        "bit": 0.685546875,
+        "recovered": 6.040355682373047,
+        "recovered_median": 5.90111780166626,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a|b)*(b>>1)": {
+        "exact": 0.0078125,
+        "bit": 0.7158203125,
+        "recovered": 6.074972152709961,
+        "recovered_median": 5.998613357543945,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a-b)*(a-b)": {
+        "exact": 0.0,
+        "bit": 0.712890625,
+        "recovered": 6.584447860717773,
+        "recovered_median": 6.550587177276611,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a+b)*(a+b)+a": {
+        "exact": 0.0,
+        "bit": 0.67724609375,
+        "recovered": 5.773643493652344,
+        "recovered_median": 5.841760158538818,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*a": {
+        "exact": 0.1015625,
+        "bit": 0.86962890625,
+        "recovered": 11.237178802490234,
+        "recovered_median": 11.264071464538574,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "(a+1)*(b+1)": {
+        "exact": 0.8125,
+        "bit": 0.98046875,
+        "recovered": 14.637716293334961,
+        "recovered_median": 15.57315444946289,
+        "sure_coverage": 0.03125,
+        "sure_accuracy": 1.0
+      },
+      "(a^b)*3": {
+        "exact": 0.34375,
+        "bit": 0.9228515625,
+        "recovered": 11.578558921813965,
+        "recovered_median": 11.644624710083008,
+        "sure_coverage": 0.0,
+        "sure_accuracy": null
+      },
+      "a*b": {
+        "exact": 1.0,
+        "bit": 1.0,
+        "recovered": 15.990612983703613,
+        "recovered_median": 15.996747970581055,
+        "sure_coverage": 0.921875,
+        "sure_accuracy": 1.0
+      }
+    }
+  }
+}

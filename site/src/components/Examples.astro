@@ -1,0 +1,103 @@
+---
+import { progress } from '../lib/data';
+// What the model trained on and what it is tested on, as equations (a few random draws for generated families).
+const kinds = [
+  { kind: 'trained', title: 'What it trained on', note: 'Fresh random relations every episode; the rules below are a few draws.' },
+  { kind: 'tested', title: 'What it is tested on (never trained)', note: 'Held out of training by behaviour, not just by name: no training relation computes the same function.' },
+  { kind: 'middle band', title: 'The middle band: rules with no textbook solution', note: 'Also never trained. Scored by bits recovered against lookups and models fitted per task (Results page).' },
+];
+const sections = progress.examples ?? [];
+---
+
+<div class="explorer">
+  {kinds.map((k) => (
+    <div class="kind">
+      <h3>{k.title}</h3>
+      <p class="small muted">{k.note}</p>
+      {sections.filter((s) => s.kind === k.kind).map((s) => (
+        <details>
+          <summary><span class="name">{s.title.replace(/^Middle band: /, '')}</span> <span class="small muted">{s.what}</span></summary>
+          {s.families.every((f) => f.examples.length === 1 && f.examples[0] === f.name) ? (
+            <p class="inline">{s.families.map((f) => <code>{f.name}</code>)}</p>
+          ) : (
+          <ul>
+            {s.families.map((f) => {
+              const same = f.examples.length === 1 && f.examples[0] === f.name;
+              return (
+                <li>
+                  {!same && <span class="family small muted">{f.name}</span>}
+                  {f.examples.map((e) => <code>{e}</code>)}
+                </li>
+              );
+            })}
+          </ul>
+          )}
+        </details>
+      ))}
+    </div>
+  ))}
+  <p class="small muted">
+    In loops, <code>n</code> is read from <code>b</code> (<code>n = b &amp; 15</code> in training); <code>K</code> and hex
+    numbers are constants drawn fresh each episode; <code>(x)²</code> is a square and <code>&gt;&gt;1</code> a shift. Every
+    number wraps at the width (16 or 32 bits) after every step.
+  </p>
+</div>
+
+<style>
+  .explorer {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .kind h3 {
+    margin-bottom: 0.2rem;
+  }
+
+  .kind > p {
+    margin-top: 0;
+  }
+
+  details {
+    border-top: 1px solid var(--axis);
+    padding: 0.45rem 0;
+  }
+
+  summary {
+    cursor: pointer;
+  }
+
+  summary .name {
+    font-weight: 600;
+  }
+
+  ul {
+    list-style: none;
+    padding: 0.3rem 0 0 1rem;
+    margin: 0;
+    display: grid;
+    gap: 0.3rem;
+  }
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: baseline;
+  }
+
+  .inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.4rem 0 0 1rem;
+  }
+
+  .family {
+    min-width: 9rem;
+  }
+
+  code {
+    font-size: 0.82rem;
+    overflow-wrap: anywhere;
+  }
+</style>

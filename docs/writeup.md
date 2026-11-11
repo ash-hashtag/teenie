@@ -72,7 +72,11 @@ operations without products 99% and 96%, and when the model is sure, it is right
 **Multiply values it computed.** It multiplies its inputs, but `(a+b)*a`, `a*a-b*b` or `(a-b)^2` get only their lowest
 six or so bits right, at 16 and 32 bits. Bit k of a product depends on every lower bit of both operands; the
 multiplication the model learned reads the input tokens and does not take its own intermediate values as operands.
-This is the frontier we are working on, without handing the model intermediate values.
+Training on such products, with only final answers, did not fix it: mixed into the general set (6% and then 30% of
+episodes) the held-out ones stayed at about 6 bits and `a*b` began to erode, and on their own, with twice the scratch
+registers, they crept up by about 0.3 bits per 1,000 updates. The limit is in how the model learns to use its own
+intermediate values, so the next attempt has to change the model, not the data. We will not hand it the
+intermediates.
 
 **Rotations and real mixing.** Rotations are new to it; even one add-rotate-xor round is beyond it.
 

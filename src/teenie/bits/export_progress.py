@@ -115,11 +115,106 @@ CURRENT_WIDE = 'checkpoints/wide/wide-mix7-chains.pt'
 
 # The middle band (opaque.py) at 32 bits, scored by bits recovered on the same episodes (seed 80000, first 8): the
 # release model, the older general model, the best lookup and models fitted to each task's 999 examples.
+RELEASE_CHECK = 'experiments/wide/checks-wide-mix7-chains/check-85000.json'  # products and targets at 32 bits
+
 MIDDLE = {
     'model': 'experiments/wide/checks-wide-mix7-chains/opaque-85000.json',
     'older': 'experiments/wide/opaque-wide-32-w32.json',
     'learners': 'experiments/baselines/learners-opaque-w32.json',
 }
+
+
+BASICS = {'add': 'a + b', 'sub': 'a - b', 'b-a': 'b - a', 'xor': 'a ^ b', 'and': 'a & b', 'or': 'a | b',
+          'a+2b': 'a + 2b', '2a+b': '2a + b', 'max': 'max(a, b)', 'a<<1': 'a << 1', 'a+const': 'a + K (a random K)',
+          'b^const': 'b ^ K (a random K)', 'transducer': 'a random carry machine (like a + b with a twist)',
+          'a*(b&63)': 'a * (b & 63)', 'a*b': 'a * b', 'a+b+1': 'a + b + 1', 'a-2b': 'a - 2b', 'min': 'min(a, b)',
+          'nand': '~(a & b)', '3a': '3a', 'mul': 'a * b'}
+
+
+def _pretty(name: str) -> str:
+    """Big constants in hex (0x94AD9A8E reads better than 2494371982)."""
+    import re
+    return BASICS.get(name, re.sub(r'\b\d{5,}\b', lambda m: f'0x{int(m.group()):X}', name))
+
+
+def examples() -> list[dict[str, object]]:
+    """What each training and test group contains, as equations: fixed relations by name, generated families by a few
+    draws (fixed seeds, 32 bits). For the site's 'what it is tested on' explorer."""
+    import torch
+    from .expressions import HIDDEN_FAMILIES, NEAR_FAMILIES
+    from .opaque import OPAQUE
+    from .relations import HELDOUT_FAMILIES, MULTIPLY, TRAIN_FAMILIES
+    from .sets import (CHAINS, CHAINS_UNSEEN, CHAINS_UNSEEN2, CONCEPT_STEPS, LOOPS, PRODUCT_CHAINS,
+                       PRODUCT_CHAINS_UNSEEN, PRODUCT_STEP, STEPS3, TARGET, TIERS)
+
+    def draws(family, count: int) -> list[str]:
+        found: list[str] = []
+        for seed in range(40):
+            if len(found) == count:
+                break
+            name = _pretty(family.make(torch.Generator().manual_seed(1000 + seed), 32).name)
+            if name not in found:
+                found.append(name)
+        return found
+
+    def section(key: str, title: str, kind: str, what: str, families, count: int = 3) -> dict[str, object]:
+        return {'id': key, 'title': title, 'kind': kind, 'what': what,
+                'families': [{'name': _pretty(f.name), 'examples': draws(f, count)} for f in families]}
+
+    loops_note = 'n is read from b: n = b & 15 for loops it trained on'
+    sections = [
+        section('basics', 'Single operations', 'trained', 'One operation of a and b, the building blocks.',
+                TRAIN_FAMILIES + (MULTIPLY,), 1),
+        section('steps', 'Random expressions, 1-5 operations', 'trained',
+                'A fresh random expression every episode over + - * ^ & | min max << >> ~ and constants.', STEPS3),
+        section('concepts', 'Expressions with more concepts', 'trained',
+                'The same, adding division, remainder, comparisons, shifts by a variable, squares and bit counts.',
+                CONCEPT_STEPS),
+        section('chains', 'Chains', 'trained', 'A start (a two-number operation) followed by one or two steps, with fresh '
+                'random constants; product chains start from a product.', (CHAINS, PRODUCT_CHAINS, PRODUCT_STEP)),
+        section('loops', 'Loops', 'trained', f'A small step repeated n times; {loops_note}.', LOOPS),
+        section('heldout', 'Held-out single operations', 'tested', 'Simple relations it never trained on.',
+                HELDOUT_FAMILIES, 1),
+        section('T1', 'T1-T3: unseen expressions', 'tested', 'Random expressions of 2 (T1), 3-4 (T2) and 5-7 (T3) '
+                'operations, each containing a pair of operations never seen together in training.',
+                TIERS['T1'] + TIERS['T2'] + TIERS['T3']),
+        section('T4', 'T4: new operation types', 'tested', 'Operations absent from training.', TIERS['T4'], 1),
+        section('T5', 'T5: unseen loops', 'tested', 'Loop bodies never trained (T5a, n = b & 15) and longer loops than '
+                'trained (T5b, n = b & 63 or all of b).', TIERS['T5a'] + TIERS['T5b'], 1),
+        section('hidden', 'Hidden compositions', 'tested', 'Combinations of trained operations that training never '
+                'produces, such as a product followed by a step.', HIDDEN_FAMILIES + NEAR_FAMILIES, 1),
+        section('unseen-chains', 'Chains with an unseen first step', 'tested', 'A start and a first step never paired '
+                'in training.', (CHAINS_UNSEEN, CHAINS_UNSEEN2, PRODUCT_CHAINS_UNSEEN)),
+        section('target', 'The target', 'tested', 'The expression the project aims at, and random 4-6 operation '
+                'expressions over every concept.', TARGET),
+    ]
+    descriptions = {
+        'arx ladder': 'Add-rotate-xor rounds with random round keys each episode: x = rotl(x ^ k, 7) + y; y = rotl(y, 3) ^ x.',
+        'random': 'A fresh random expression of 6-10 operations each episode, longer than anything trained.',
+        'sbox': 'A random 4-bit substitution table applied to every nibble of a ^ b, then added to a.',
+        'data-dependent': 'Steps chosen by the data: Collatz-like loops and branches on a bit of a.',
+        'automaton': 'Cellular automaton rules 30 and 110 run for 2 or 4 steps on the bits of a, then xor b.',
+        'mixes': 'Rotations (never a training operation), xor and multiplication by odd constants.',
+        'deep': 'Expressions of 4-8 operations with fixed constants.',
+        'floor: products': 'Squares and products of derived values (scored, but not the headline).',
+        'loops': 'Loops it never trained on.',
+        'computed products': 'Products of values computed from a and b: its known weak spot.',
+        'control: hash': 'Hash functions and many mixing rounds: nothing should beat chance here.',
+    }
+    for group, families in OPAQUE.items():
+        sections.append(section(f'middle-{group}', f'Middle band: {group}', 'middle band', descriptions.get(group, ''),
+                                families, 2 if group in ('random',) else 1))
+    return sections
+
+
+def release(root: Path) -> dict[str, object] | None:
+    path = root / RELEASE_CHECK
+    if not path.exists():
+        return None
+    data = json.loads(path.read_text())
+    return {'width': data['width'], 'episodes': data['episodes'],
+            'results': {name: {'exact': r.get('exact'), 'recovered': r.get('recovered')}
+                        for name, r in data['results']['selected'].items()}}
 
 
 def middle(root: Path) -> dict[str, object] | None:
@@ -311,7 +406,8 @@ def main() -> None:
                 for stage, path in PRODUCT_STAGES if (root / path).exists()]
     Path(args.out).write_text(json.dumps({'ladder': list(LADDER), 'tiers': tiers, 'experiments': found,
                                           'architectures': architectures, 'wide': wide(root),
-                                          'products': products, 'current': current, 'middle': middle(root)}))
+                                          'products': products, 'current': current, 'middle': middle(root),
+                                          'examples': examples(), 'release': release(root)}))
     print(f'exported {len(found)} experiments to {args.out}')
 
 

@@ -169,6 +169,8 @@ export type Progress = {
     checkpoint: string;
     groups: ({ group: string; rows: MiddleRow[] } & MiddleScores)[];
   } | null;
+  examples: { id: string; title: string; kind: string; what: string; families: { name: string; examples: string[] }[] }[];
+  release: { width: number; episodes: number; results: Record<string, { exact: number | null; recovered: number | null }> } | null;
 };
 type MiddleScores = { model: number | null; older: number | null; lookup: number | null; trees: number | null; mlp: number | null };
 export type MiddleRow = { name: string; exact: number | null } & MiddleScores;

@@ -104,3 +104,7 @@ rules with no textbook solution. We haven't compared against TabPFN yet, and unt
 
 [teenie.lupyd.com/try](https://teenie.lupyd.com/try/) runs the model in your browser. Type a rule of `a` and `b` and it
 reads 999 generated examples, then answers 16 new questions, a few of them yours if you like.
+
+The weights (PyTorch, and ONNX for 16 and 32 bits) are on Hugging Face at
+[TheLupyd/teenie](https://huggingface.co/TheLupyd/teenie), with an example that runs them with only numpy and
+onnxruntime.

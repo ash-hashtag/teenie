@@ -391,9 +391,8 @@ const parameters = info.parameters.toLocaleString('en-US');
   load(Number(widthSelect.value))
     .then(() => {
       showProgress(null, '');
-      $('status').innerHTML = '<span class="dot"></span> Model loaded. It runs on your device, in a background thread.';
+      $('status').innerHTML = '<span class="dot"></span> Model loaded. Pick a rule or type your own, then press <b>Ask 16 questions</b>; it runs on your device, in a background thread.';
       runButton.disabled = false;
-      void run();
     })
     .catch((error: Error) => {
       showProgress(null, '');

@@ -1,0 +1,42 @@
+---
+// The write-up, rendered from docs/writeup.md so the site and the repository never disagree.
+import Layout from '../layouts/Layout.astro';
+import { Content } from '../../../docs/writeup.md';
+---
+
+<Layout
+  title="Write-up: inferring hidden integer rules in one pass"
+  description="How a 1.1M-parameter model infers hidden 32-bit integer rules from 999 examples in one forward pass, scored by bits recovered against lookups and models fitted per task, and where it stops."
+  keywords={['write-up', 'in-context learning', 'bits recovered', 'prior-fitted networks', 'learning multiplication']}
+  kind="article"
+>
+  <p class="eyebrow">Write-up</p>
+  <article class="writeup">
+    <Content />
+  </article>
+  <p class="small muted">
+    This page is <code>docs/writeup.md</code> from the
+    <a href="https://github.com/ash-hashtag/teenie/blob/main/docs/writeup.md">repository</a>. Every experiment behind it
+    is in the <a href="/findings/">findings</a>.
+  </p>
+</Layout>
+
+<style>
+  .writeup :global(table) {
+    display: block;
+    overflow-x: auto;
+  }
+
+  .writeup :global(h1) {
+    font-size: clamp(1.9rem, 4.5vw, 2.8rem);
+    line-height: 1.1;
+    margin-top: 0.2rem;
+  }
+
+  .writeup :global(blockquote) {
+    margin: 1rem 0;
+    padding: 0.6rem 1rem;
+    border-left: 3px solid var(--series-1);
+    background: var(--card, transparent);
+  }
+</style>

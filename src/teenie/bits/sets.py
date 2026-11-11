@@ -252,6 +252,11 @@ TRAIN_SETS: dict[str, tuple[Family, ...]] = {
     # the general set plus chains through products, so training on products does not erode loops and concepts
     'broad-products': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + (PRODUCT_STEP,) + CONCEPT_STEPS
                       + (CHAINS, PRODUCT_CHAINS) + BROAD_STEPS + (COMPUTED_PRODUCTS,),
+    # the same, with products of computed operands drawn about 30% of the time (the family listed six times)
+    'broad-products-heavy': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + (PRODUCT_STEP,) + CONCEPT_STEPS
+                            + (CHAINS, PRODUCT_CHAINS) + BROAD_STEPS + (COMPUTED_PRODUCTS,) * 6,
+    # diagnostic: products of computed operands and a*b alone — can the model learn them without competition?
+    'computed-products': (COMPUTED_PRODUCTS, MULTIPLY),
     'broad': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + (PRODUCT_STEP,) + CONCEPT_STEPS
              + (CHAINS, PRODUCT_CHAINS) + BROAD_STEPS,
     'mix7-chains': TRAIN_FAMILIES + (MULTIPLY,) + STEPS3 + LOOPS + (PRODUCT_STEP,) + CONCEPT_STEPS
@@ -286,7 +291,7 @@ def test_groups(train_set: str) -> dict[str, tuple[Family, ...]]:
         groups |= {'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER}
     if train_set == 'mix2':
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES, 'deeper': DEEPER2}
-    if train_set in ('chains', 'chains-products', 'mix7-chains', 'broad', 'broad-products'):
+    if train_set in ('chains', 'chains-products', 'mix7-chains', 'broad', 'broad-products', 'broad-products-heavy'):
         groups |= {'unseen': (CHAINS_UNSEEN, CHAINS_UNSEEN2, PRODUCT_CHAINS_UNSEEN, PRODUCT_CHAINS_UNSEEN2),
                    'hidden': HIDDEN_FAMILIES}
     if train_set == 'grid':
@@ -296,7 +301,7 @@ def test_groups(train_set: str) -> dict[str, tuple[Family, ...]]:
         groups |= {'family': (PRODUCT_STEP,), 'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES}
     if train_set == 'product-step-only':
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES}
-    if train_set in ('mix3', 'mix4', 'mix5', 'mix6', 'mix7', 'mix7-chains', 'broad', 'broad-products', 'compose'):
+    if train_set in ('mix3', 'mix4', 'mix5', 'mix6', 'mix7', 'mix7-chains', 'broad', 'broad-products', 'broad-products-heavy', 'compose'):
         groups |= {'near': NEAR_FAMILIES, 'hidden': HIDDEN_FAMILIES} | TIERS | {'target': TARGET}
     if train_set == 'compose':
         groups['primitives'] = PRIMITIVES  # watched only

@@ -115,6 +115,56 @@ CURRENT_WIDE = 'checkpoints/wide/wide-mix7-chains.pt'
 
 # The middle band (opaque.py) at 32 bits, scored by bits recovered on the same episodes (seed 80000, first 8): the
 # release model, the older general model, the best lookup and models fitted to each task's 999 examples.
+# Every test group at 32 bits: the release model (with bits recovered) and the older general model (exact only).
+GROUPS_EVAL = {'current': 'experiments/wide/wide-mix7-chains-w32-eval.json', 'older': 'experiments/wide/wide-32-w32-eval.json'}
+GROUP_ORDER = [
+    ('heldout', 'Held-out single operations', 'Simple relations it never trained on.'),
+    ('near', 'A product, then a step', 'A product of a and b followed by one more operation, never trained.'),
+    ('hidden', 'Hidden compositions', 'Combinations of trained operations that training never produces.'),
+    ('T4', 'T4 · new operation types', 'Operations absent from training: division, remainder, rotations, and more.'),
+    ('T1', 'T1 · 2 operations', 'Random 2-operation expressions containing a pair of operations never seen together.'),
+    ('T2', 'T2 · 3-4 operations', 'The same with 3 or 4 operations.'),
+    ('T3', 'T3 · 5-7 operations', 'The same with 5 to 7 operations.'),
+    ('T5a', 'T5a · unseen loop bodies', 'Loops whose step it never trained on; n = b & 15.'),
+    ('T5b', 'T5b · longer loops', 'Loops longer than any it trained on: n = b & 63 or all of b.'),
+    ('target', 'Target · unseen multi-step expressions', 'The expression the project aims at, and random 4-6 '
+                                                         'operation expressions over every concept.'),
+]
+
+
+def groups(root: Path) -> list[dict[str, object]] | None:
+    """Each test group with its scores and, per relation, a few example equations: the front page's expandable table."""
+    import torch
+    from .sets import test_groups
+    if not all((root / path).exists() for path in GROUPS_EVAL.values()):
+        return None
+    current = json.loads((root / GROUPS_EVAL['current']).read_text())
+    older = json.loads((root / GROUPS_EVAL['older']).read_text())
+    families = test_groups('mix7')
+    rows = []
+    for key, title, what in GROUP_ORDER:
+        summary = current['summary'].get(key)
+        if summary is None:
+            continue
+        relations = []
+        for family in families.get(key, ()):
+            report = current['results'][key].get(family.name, {})
+            drawn: list[str] = []
+            for seed in range(30):
+                if len(drawn) == 5:
+                    break
+                name = _pretty(family.make(torch.Generator().manual_seed(2000 + seed), 32).name)
+                if name not in drawn:
+                    drawn.append(name)
+            relations.append({'name': _pretty(family.name), 'examples': drawn, 'exact': report.get('exact'),
+                              'recovered': report.get('recovered'), 'lookup': report.get('lookup_recovered')})
+        rows.append({'key': key, 'title': title, 'what': what, 'exact': summary.get('exact'),
+                     'recovered': summary.get('recovered'), 'lookup': summary.get('lookup_recovered'),
+                     'sure_accuracy': summary.get('sure_accuracy'),
+                     'older': older['summary'].get(key, {}).get('exact'), 'relations': relations})
+    return rows
+
+
 RELEASE_CHECK = 'experiments/wide/checks-wide-mix7-chains/check-85000.json'  # products and targets at 32 bits
 
 MIDDLE = {
@@ -131,10 +181,26 @@ BASICS = {'add': 'a + b', 'sub': 'a - b', 'b-a': 'b - a', 'xor': 'a ^ b', 'and':
           'nand': '~(a & b)', '3a': '3a', 'mul': 'a * b'}
 
 
+LOOPS_READ = {'sum a..a+n-1': 'a + (a+1) + … + (a+n-1)', 'a^n': 'a to the power n', 'fib(a,a)':
+              'Fibonacci-like from a, a: x, y = x + y, x, n times', 'x->3x+1': 'x = 3x + 1, n times, from x = a',
+              'acc=(acc<<1)^a': 'acc = (acc << 1) ^ a, n times', 'popcount(a|b)': 'number of 1 bits in a | b',
+              'reverse(a^b)': 'the bits of a ^ b in reverse order', 'popcount(a)*b': '(number of 1 bits in a) * b',
+              'accumulate': 'acc = step(acc, a, i), n times', 'repeat': 'x = step(x), n times, from x = a',
+              'recurrence': 'x, y = step(x, y), x, n times'}
+COUNTS = {'n15': 'n = b & 15', 'n31': 'n = b & 31', 'n63': 'n = b & 63', 'n255': 'n = b'}
+
+
 def _pretty(name: str) -> str:
-    """Big constants in hex (0x94AD9A8E reads better than 2494371982)."""
+    """Big constants in hex (0x94AD9A8E reads better than 2494371982); named loops read out."""
     import re
-    return BASICS.get(name, re.sub(r'\b\d{5,}\b', lambda m: f'0x{int(m.group()):X}', name))
+    if name in BASICS:
+        return BASICS[name]
+    words = name.rsplit(' ', 1)
+    if len(words) == 2 and words[1] in COUNTS and words[0] in LOOPS_READ:
+        return f'{LOOPS_READ[words[0]]}  ({COUNTS[words[1]]})'
+    if name in LOOPS_READ:
+        return f'{name}: {LOOPS_READ[name]}'
+    return re.sub(r'\b\d{5,}\b', lambda m: f'0x{int(m.group()):X}', name)
 
 
 def examples() -> list[dict[str, object]]:
@@ -311,7 +377,7 @@ def wide(root: Path) -> dict[str, object]:
             'groups': {group: summarise(reports) for group, reports in results.items()},
             'families': {name: r.get('exact') for reports in results.values() for name, r in reports.items()},
             'lookup': lookup}
-        chains = root / f'experiments/wide/chains-split-wide-32{"" if width == 16 else f"-w{width}"}.json'
+        chains = root / f'experiments/wide/chains-split-wide-mix7-chains-w{width}.json'  # the release model
         if chains.exists():
             entry['chains'] = json.loads(chains.read_text())['summary']
         if (root / sealed).exists():
@@ -407,7 +473,8 @@ def main() -> None:
     Path(args.out).write_text(json.dumps({'ladder': list(LADDER), 'tiers': tiers, 'experiments': found,
                                           'architectures': architectures, 'wide': wide(root),
                                           'products': products, 'current': current, 'middle': middle(root),
-                                          'examples': examples(), 'release': release(root)}))
+                                          'examples': examples(), 'release': release(root),
+                                          'groups': groups(root)}))
     print(f'exported {len(found)} experiments to {args.out}')
 
 

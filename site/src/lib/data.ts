@@ -170,6 +170,11 @@ export type Progress = {
     groups: ({ group: string; rows: MiddleRow[] } & MiddleScores)[];
   } | null;
   examples: { id: string; title: string; kind: string; what: string; families: { name: string; examples: string[] }[] }[];
+  groups: {
+    key: string; title: string; what: string; exact: number | null; recovered: number | null; lookup: number | null;
+    sure_accuracy: number | null; older: number | null;
+    relations: { name: string; examples: string[]; exact: number | null; recovered: number | null; lookup: number | null }[];
+  }[] | null;
   release: { width: number; episodes: number; results: Record<string, { exact: number | null; recovered: number | null }> } | null;
 };
 type MiddleScores = { model: number | null; older: number | null; lookup: number | null; trees: number | null; mlp: number | null };

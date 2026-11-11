@@ -3,8 +3,8 @@ import Layout from '../layouts/Layout.astro';
 import BitStrip from '../components/BitStrip.astro';
 import ChainsTable from '../components/ChainsTable.astro';
 import ProductsTable from '../components/ProductsTable.astro';
-import WideTable from '../components/WideTable.astro';
 import Examples from '../components/Examples.astro';
+import GroupTable from '../components/GroupTable.astro';
 import rounds from '../../public/data/rounds.json';
 import { progress } from '../lib/data';
 import { pct, thousands } from '../lib/format';
@@ -20,7 +20,6 @@ const rows = product.context.slice(0, 4) as [number, number, number][];
 const question = product.examples[0]!;
 const guesses = question.rounds.map((r) => r.p);
 const wide = progress.wide;
-const w16 = wide.widths['16']!;
 const w32 = wide.widths['32']!;
 const conditional = w32.families['a>b?a-b:a+b'];
 const size = progress.current?.parameters ?? wide.parameters;
@@ -65,23 +64,25 @@ const release = progress.release?.results ?? {};
 
   <h2>Where it stands</h2>
   <p>
-    The width-free model at 16 and 32 bits. Every method answers the same questions (64 episodes × 16 questions per
-    relation, never used in training). <b>Lookup</b> is the best of five methods that understand nothing: copy the
-    answer of the closest example, or match one or two neighbouring bits across the examples — chosen per relation
-    after the fact, so it is a generous reference. A score only means something where it clearly beats lookup.
+    The current model on every test group at 32 bits, where a blind guess is right once in four billion tries. None of
+    these rules were trained on. <b>Bits recovered</b> is how far its guess beats chance (0 = a blind guess, 32 =
+    certain and right); <b>lookup</b> is the same score for the best of five methods that understand nothing, chosen
+    after the fact. <b>Sure → right</b> is how often its answers were right when it was sure of every bit. Click a
+    group to see its rules.
   </p>
-  <WideTable />
+  <GroupTable />
   <p class="small muted">
-    {`Sure answers (least certain bit ≥ 0.99) were right ${pct(w32.sealed?.sure_accuracy)} of the time on the sealed set at 32 bits. One training seed; differences of a few points are within seed-to-seed spread.`}
+    32 episodes × 16 questions per relation; <code>uv run teenie-bits-eval --tests mix7 --width 32</code>. The
+    middle band (rules with no textbook solution) is compared against models fitted per task on the
+    <a href="/results/">Results</a> page.
   </p>
 
   <h2>Multi-step chains</h2>
   <p>
     Chains are a start such as <code>a+b</code> or <code>a*b</code> followed by one or two steps, each one of 21 kinds
     (<code>+ − ^ | &amp; *</code> with <code>a</code>, <code>b</code> or a random constant, shifts, not), with a fresh
-    random constant each time. This model was trained on random expressions over the same operations, which can
-    include the same shapes with other constants, so these are new relations but not necessarily new shapes; products
-    followed by a step were in its training too. <b>Beyond lookup</b> counts
+    random constant each time. The current model trained on chains too; these are start and first-step pairs held out of
+    all chain training, so each one is a combination it has never seen. <b>Beyond lookup</b> counts
     only the questions every lookup method gets wrong; <b>sure</b> is how often its least certain bit is ≥ 0.99, and how
     often those sure answers were right.
   </p>
@@ -127,10 +128,10 @@ const release = progress.release?.results ?? {};
     </div>
   </div>
 
-  <h2 id="examples">What it trains on and is tested on</h2>
+  <h2 id="examples">What it trains on</h2>
   <p>
-    The groups named on this site (T1-T5, chains, steps, the middle band, …) as actual equations. Open a group to see
-    what its rules look like.
+    The kinds of rules it practised, as actual equations, and the held-out middle band. Open a group to see what its
+    rules look like; the test groups above open the same way.
   </p>
   <Examples />
 

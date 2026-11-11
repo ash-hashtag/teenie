@@ -1,0 +1,120 @@
+---
+import { progress } from '../lib/data';
+import { pct } from '../lib/format';
+// Every test group at 32 bits for the release model; each row opens to the group's relations, as equations, with
+// their own scores.
+const rows = progress.groups ?? [];
+const fixed = (x: { name: string; examples: string[] }) => x.examples.length === 1 && x.examples[0] === x.name;
+const bits = (x: number | null | undefined) => (x == null ? '—' : (Math.abs(x) < 0.05 ? 0 : x).toFixed(1));
+---
+
+<div class="groups" role="table" aria-label="Test groups at 32 bits">
+  <div class="row head" role="row">
+    <span role="columnheader">test group (click to see the rules)</span>
+    <span class="num" role="columnheader">exact</span>
+    <span class="num" role="columnheader">bits recovered</span>
+    <span class="num" role="columnheader">best lookup</span>
+    <span class="num" role="columnheader">sure → right</span>
+    <span class="num muted" role="columnheader">older model, exact</span>
+  </div>
+  {rows.map((r) => (
+    <details>
+      <summary class="row" role="row">
+        <span class="title"><span class="chev" aria-hidden="true">▸</span>{r.title}</span>
+        <span class="num"><b>{pct(r.exact)}</b></span>
+        <span class="num">{bits(r.recovered)}</span>
+        <span class="num">{bits(r.lookup)}</span>
+        <span class="num">{pct(r.sure_accuracy)}</span>
+        <span class="num muted">{pct(r.older)}</span>
+      </summary>
+      <div class="inside">
+        <p class="small muted">{r.what}</p>
+        <table>
+          <thead><tr><th>{r.relations.every(fixed) ? 'rule' : 'relation'}</th>{!r.relations.every(fixed) && <th>example rules (a fresh one each episode)</th>}<th class="num">exact</th><th class="num">bits</th><th class="num">lookup</th></tr></thead>
+          <tbody>
+            {r.relations.map((x) => {
+              const generated = !r.relations.every(fixed);
+              return (
+                <tr>
+                  <td class="small">{fixed(x) ? <code>{x.name}</code> : x.name}</td>
+                  {generated && <td>{fixed(x) ? <span class="muted small">fixed rule</span> : x.examples.map((e) => <code>{e}</code>)}</td>}
+                  <td class="num">{pct(x.exact)}</td>
+                  <td class="num">{bits(x.recovered)}</td>
+                  <td class="num">{bits(x.lookup)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  ))}
+</div>
+
+<style>
+  .groups {
+    display: grid;
+    overflow-x: auto;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: minmax(14rem, 2.4fr) repeat(5, minmax(5.5rem, 1fr));
+    gap: 0.5rem;
+    align-items: baseline;
+    padding: 0.55rem 0.4rem;
+    border-bottom: 1px solid var(--axis);
+    min-width: 46rem;
+  }
+
+  .head {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--ink-2);
+  }
+
+  summary.row {
+    cursor: pointer;
+    list-style: none;
+  }
+
+  summary.row::-webkit-details-marker {
+    display: none;
+  }
+
+  summary.row:hover {
+    background: color-mix(in oklab, var(--series-1) 6%, transparent);
+  }
+
+  .chev {
+    display: inline-block;
+    width: 1rem;
+    color: var(--muted);
+    transition: transform 0.15s;
+  }
+
+  details[open] .chev {
+    transform: rotate(90deg);
+  }
+
+  .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .inside {
+    padding: 0.3rem 0.4rem 0.9rem 1.4rem;
+    border-bottom: 1px solid var(--axis);
+    min-width: 44rem;
+  }
+
+  .inside table {
+    font-size: 0.85rem;
+  }
+
+  .inside code {
+    display: inline-block;
+    margin: 0 0.35rem 0.2rem 0;
+    font-size: 0.8rem;
+  }
+</style>

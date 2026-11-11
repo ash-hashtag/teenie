@@ -3,7 +3,6 @@ import { progress } from '../lib/data';
 // What the model trained on and what it is tested on, as equations (a few random draws for generated families).
 const kinds = [
   { kind: 'trained', title: 'What it trained on', note: 'Fresh random relations every episode; the rules below are a few draws.' },
-  { kind: 'tested', title: 'What it is tested on (never trained)', note: 'Held out of training by behaviour, not just by name: no training relation computes the same function.' },
   { kind: 'middle band', title: 'The middle band: rules with no textbook solution', note: 'Also never trained. Scored by bits recovered against lookups and models fitted per task (Results page).' },
 ];
 const sections = progress.examples ?? [];

@@ -378,14 +378,11 @@ const parameters = info.parameters.toLocaleString('en-US');
 
   document.querySelectorAll<HTMLButtonElement>('[data-formula]').forEach((button) =>
     button.addEventListener('click', () => {
-      input.value = button.dataset.formula ?? '';
-      void run();
+      input.value = button.dataset.formula ?? '';  // fills the rule only; the visitor asks when ready
+      input.focus();
     }),
   );
   runButton.addEventListener('click', () => void run());
-  input.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') void run();
-  });
   widthSelect.addEventListener('change', () => void load(Number(widthSelect.value)).catch(() => undefined));
 
   load(Number(widthSelect.value))

@@ -9,19 +9,20 @@
 //   --small           a and b under 256
 //   --questions N     question rows after the 999 examples (default 200)
 //   --blank           leave c empty on the question rows (otherwise filled in, so the page can check its answers)
-//   --seed N          repeatable output (default: random)
 //   -o, --output F    write to F instead of stdout
 //
 // The formula language is the page's own (src/lib/expression.ts): + - * // % **, & | ^ ~ << >>, comparisons,
 // x if cond else y, min max popcount reverse rotl rotr, sum/loop/rec. Every (a, b) pair in the file is distinct.
-import { writeFileSync } from 'node:fs';
-import { evaluate, parse } from '../src/lib/expression';
+import { writeFileSync } from "node:fs";
+import { evaluate, parse } from "../src/lib/expression";
 
 const CONTEXT = 999;
 
 function usage(message?: string): never {
   if (message) console.error(`error: ${message}`);
-  console.error("usage: bun scripts/generate-csv.ts '<formula>' [--width 16|32] [--small] [--questions N] [--blank] [--seed N] [-o file]");
+  console.error(
+    "usage: bun scripts/generate-csv.ts '<formula>' [--width 16|32] [--small] [--questions N] [--blank] [-o file]",
+  );
   process.exit(message ? 1 : 0);
 }
 
@@ -31,24 +32,23 @@ let width = 32;
 let small = false;
 let questions = 200;
 let blank = false;
-let seed: number | undefined;
 let output: string | undefined;
 for (let i = 0; i < args.length; i++) {
   const arg = args[i]!;
   const value = () => args[++i] ?? usage(`${arg} needs a value`);
-  if (arg === '-h' || arg === '--help') usage();
-  else if (arg === '--width') width = Number(value());
-  else if (arg === '--small') small = true;
-  else if (arg === '--questions') questions = Number(value());
-  else if (arg === '--blank') blank = true;
-  else if (arg === '--seed') seed = Number(value());
-  else if (arg === '-o' || arg === '--output') output = value();
+  if (arg === "-h" || arg === "--help") usage();
+  else if (arg === "--width") width = Number(value());
+  else if (arg === "--small") small = true;
+  else if (arg === "--questions") questions = Number(value());
+  else if (arg === "--blank") blank = true;
+  else if (arg === "-o" || arg === "--output") output = value();
   else if (formula === undefined) formula = arg;
   else usage(`unexpected argument ${arg}`);
 }
-if (formula === undefined) usage('give a formula, e.g. \'a * b + a\'');
-if (width !== 16 && width !== 32) usage('--width must be 16 or 32');
-if (!Number.isInteger(questions) || questions < 1) usage('--questions must be a whole number of 1 or more');
+if (formula === undefined) usage("give a formula, e.g. 'a * b + a'");
+if (width !== 16 && width !== 32) usage("--width must be 16 or 32");
+if (!Number.isInteger(questions) || questions < 1)
+  usage("--questions must be a whole number of 1 or more");
 
 let tree;
 try {
@@ -57,26 +57,23 @@ try {
   usage(`the formula has a mistake: ${(error as Error).message}`);
 }
 
-// Random 32-bit words: crypto by default, or a seeded xorshift for repeatable files.
-let state = (seed ?? 0) >>> 0 || 0x9e3779b9;
-const word = (): number => {
-  if (seed === undefined) return crypto.getRandomValues(new Uint32Array(1))[0]!;
-  state ^= state << 13;
-  state ^= state >>> 17;
-  state ^= state << 5;
-  return (state >>>= 0);
-};
 const inputBits = small ? 8 : width;
-const draw = () => BigInt(word()) & ((1n << BigInt(inputBits)) - 1n);
+// Two random 32-bit words, cut down to their top inputBits bits (>>> keeps them unsigned).
+const pair = (): [bigint, bigint] => {
+  const [a, b] = crypto.getRandomValues(new Uint32Array(2));
+  return [BigInt(a! >>> (32 - inputBits)), BigInt(b! >>> (32 - inputBits))];
+};
 
 const total = CONTEXT + questions;
-if (total > 2 ** (2 * inputBits)) usage(`only ${2 ** (2 * inputBits)} distinct (a, b) pairs exist; ask fewer questions`);
+if (total > 2 ** (2 * inputBits))
+  usage(
+    `only ${2 ** (2 * inputBits)} distinct (a, b) pairs exist; ask fewer questions`,
+  );
 const seen = new Set<string>();
-const lines = ['a,b,c'];
+const lines = ["a,b,c"];
 const answers = new Set<string>();
 while (lines.length <= total) {
-  const a = draw();
-  const b = draw();
+  const [a, b] = pair();
   const key = `${a},${b}`;
   if (seen.has(key)) continue;
   seen.add(key);
@@ -85,9 +82,14 @@ while (lines.length <= total) {
   if (example) answers.add(String(c));
   lines.push(example || !blank ? `${a},${b},${c}` : `${a},${b},`);
 }
-const text = `${lines.join('\n')}\n`;
+const text = `${lines.join("\n")}\n`;
 if (output) writeFileSync(output, text);
 else process.stdout.write(text);
-console.error(`c = ${formula} at ${width} bits${small ? ', a and b under 256' : ''}: ${CONTEXT} examples (${answers.size} different c), ` +
-  `${questions} questions${blank ? ' with c left empty' : ' with c filled in'}${output ? ` → ${output}` : ''}`);
-if (answers.size < 24) console.error('note: few different answers among the examples; the rule may ignore most of its input');
+console.error(
+  `c = ${formula} at ${width} bits${small ? ", a and b under 256" : ""}: ${CONTEXT} examples (${answers.size} different c), ` +
+    `${questions} questions${blank ? " with c left empty" : " with c filled in"}${output ? ` → ${output}` : ""}`,
+);
+if (answers.size < 24)
+  console.error(
+    "note: few different answers among the examples; the rule may ignore most of its input",
+  );

@@ -57,6 +57,14 @@ const cell = (e: Experiment | undefined, name: string) => e?.families[name]?.exa
     should. We haven't compared against TabPFN yet.
   </p>
 
+  <h2>Against a program synthesizer</h2>
+  <p>
+    On the SyGuS-Comp Hacker's Delight bit-vector benchmarks, the cvc5 synthesizer finds a provably correct program for
+    most functions in milliseconds, while Teenie answers 98 to 100% of new questions exactly but rarely all of them; on a
+    set of deep-carry rules we built, cvc5 times out on every one and Teenie gets them wrong too. The scoring differs,
+    so read <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/sygus/`}>the comparison</a> for how.
+  </p>
+
   <h2>Earlier model: unseen relations against lookup</h2>
   <p class="small muted">
     The width-free model after its 24- and 32-bit stage, before any product training. Lookup is the best of five

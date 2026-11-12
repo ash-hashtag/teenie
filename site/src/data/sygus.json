@@ -1,0 +1,1497 @@
+{
+ "source": {
+  "repository": "https://github.com/SyGuS-Org/benchmarks",
+  "commit": "13c8deb",
+  "path": "lib/General_Track/from_2018/hd-NN-dK-prog.sl"
+ },
+ "solver": {
+  "name": "cvc5 1.4.2",
+  "options": "default (--lang=sygus2)",
+  "timeout": 300
+ },
+ "teenie": {
+  "checkpoint": "checkpoints/wide/wide-mix7-chains.pt",
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "tabpfn": null,
+ "questions": 1000,
+ "hd": {
+  "files": [
+   {
+    "file": "hd-01-d1-prog.sl",
+    "function": "hd01",
+    "grammar": "d1",
+    "status": "solved",
+    "seconds": 0.013,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-01-d5-prog.sl",
+    "function": "hd01",
+    "grammar": "d5",
+    "status": "solved",
+    "seconds": 34.509,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-02-d0-prog.sl",
+    "function": "hd02",
+    "grammar": "d0",
+    "status": "solved",
+    "seconds": 0.009,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-02-d1-prog.sl",
+    "function": "hd02",
+    "grammar": "d1",
+    "status": "solved",
+    "seconds": 0.013,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-02-d5-prog.sl",
+    "function": "hd02",
+    "grammar": "d5",
+    "status": "solved",
+    "seconds": 17.567,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-03-d0-prog.sl",
+    "function": "hd03",
+    "grammar": "d0",
+    "status": "solved",
+    "seconds": 0.009,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-03-d1-prog.sl",
+    "function": "hd03",
+    "grammar": "d1",
+    "status": "solved",
+    "seconds": 0.014,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-03-d5-prog.sl",
+    "function": "hd03",
+    "grammar": "d5",
+    "status": "solved",
+    "seconds": 2.875,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-04-d0-prog.sl",
+    "function": "hd04",
+    "grammar": "d0",
+    "status": "solved",
+    "seconds": 0.013,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-04-d1-prog.sl",
+    "function": "hd04",
+    "grammar": "d1",
+    "status": "solved",
+    "seconds": 0.02,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-04-d5-prog.sl",
+    "function": "hd04",
+    "grammar": "d5",
+    "status": "solved",
+    "seconds": 11.318,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-05-d0-prog.sl",
+    "function": "hd05",
+    "grammar": "d0",
+    "status": "solved",
+    "seconds": 0.017,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-05-d1-prog.sl",
+    "function": "hd05",
+    "grammar": "d1",
+    "status": "solved",
+    "seconds": 0.023,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-05-d5-prog.sl",
+    "function": "hd05",
+    "grammar": "d5",
+    "status": "solved",
+    "seconds": 7.26,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-06-d0-prog.sl",
+    "function": "hd06",
+    "grammar": "d0",
+    "status": "solved",
+    "seconds": 0.013,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-06-d1-prog.sl",
+    "function": "hd06",
+    "grammar": "d1",
+    "status": "solved",
+    "seconds": 0.016,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-06-d5-prog.sl",
+    "function": "hd06",
+    "grammar": "d5",
+    "status": "solved",
+    "seconds": 29.522,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-07-d0-prog.sl",
+    "function": "hd07",
+    "grammar": "d0",
+    "status": "solved",
+    "seconds": 0.017,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-07-d1-prog.sl",
+    "function": "hd07",
+    "grammar": "d1",
+    "status": "solved",
+    "seconds": 0.079,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-07-d5-prog.sl",
+    "function": "hd07",
+    "grammar": "d5",
+    "status": "timeout",
+    "seconds": 300.038
+   },
+   {
+    "file": "hd-08-d0-prog.sl",
+    "function": "hd08",
+    "grammar": "d0",
+    "status": "solved",
+    "seconds": 0.02,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-08-d1-prog.sl",
+    "function": "hd08",
+    "grammar": "d1",
+    "status": "solved",
+    "seconds": 0.03,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-08-d5-prog.sl",
+    "function": "hd08",
+    "grammar": "d5",
+    "status": "timeout",
+    "seconds": 300.033
+   },
+   {
+    "file": "hd-09-d0-prog.sl",
+    "function": "hd09",
+    "grammar": "d0",
+    "status": "solved",
+    "seconds": 0.222,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-09-d1-prog.sl",
+    "function": "hd09",
+    "grammar": "d1",
+    "status": "solved",
+    "seconds": 47.524,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-09-d5-prog.sl",
+    "function": "hd09",
+    "grammar": "d5",
+    "status": "timeout",
+    "seconds": 300.028
+   },
+   {
+    "file": "hd-13-d0-prog.sl",
+    "function": "hd13",
+    "grammar": "d0",
+    "status": "solved",
+    "seconds": 0.411,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-13-d1-prog.sl",
+    "function": "hd13",
+    "grammar": "d1",
+    "status": "solved",
+    "seconds": 60.661,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-13-d5-prog.sl",
+    "function": "hd13",
+    "grammar": "d5",
+    "status": "timeout",
+    "seconds": 300.058
+   },
+   {
+    "file": "hd-14-d0-prog.sl",
+    "function": "hd14",
+    "grammar": "d0",
+    "status": "solved",
+    "seconds": 4.581,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-14-d1-prog.sl",
+    "function": "hd14",
+    "grammar": "d1",
+    "status": "solved",
+    "seconds": 119.495,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-14-d5-prog.sl",
+    "function": "hd14",
+    "grammar": "d5",
+    "status": "timeout",
+    "seconds": 300.028
+   },
+   {
+    "file": "hd-15-d0-prog.sl",
+    "function": "hd15",
+    "grammar": "d0",
+    "status": "solved",
+    "seconds": 6.075,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-15-d1-prog.sl",
+    "function": "hd15",
+    "grammar": "d1",
+    "status": "solved",
+    "seconds": 110.854,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-15-d5-prog.sl",
+    "function": "hd15",
+    "grammar": "d5",
+    "status": "timeout",
+    "seconds": 300.042
+   },
+   {
+    "file": "hd-17-d0-prog.sl",
+    "function": "hd17",
+    "grammar": "d0",
+    "status": "solved",
+    "seconds": 0.081,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-17-d1-prog.sl",
+    "function": "hd17",
+    "grammar": "d1",
+    "status": "solved",
+    "seconds": 0.327,
+    "wrong_of_10000": 0
+   },
+   {
+    "file": "hd-17-d5-prog.sl",
+    "function": "hd17",
+    "grammar": "d5",
+    "status": "timeout",
+    "seconds": 300.03
+   },
+   {
+    "file": "hd-19-d0-prog.sl",
+    "function": "hd19",
+    "grammar": "d0",
+    "status": "failed",
+    "seconds": 159.977
+   },
+   {
+    "file": "hd-19-d1-prog.sl",
+    "function": "hd19",
+    "grammar": "d1",
+    "status": "failed",
+    "seconds": 147.58
+   },
+   {
+    "file": "hd-19-d5-prog.sl",
+    "function": "hd19",
+    "grammar": "d5",
+    "status": "timeout",
+    "seconds": 300.036
+   },
+   {
+    "file": "hd-20-d0-prog.sl",
+    "function": "hd20",
+    "grammar": "d0",
+    "status": "failed",
+    "seconds": 169.182
+   },
+   {
+    "file": "hd-20-d1-prog.sl",
+    "function": "hd20",
+    "grammar": "d1",
+    "status": "timeout",
+    "seconds": 300.028
+   },
+   {
+    "file": "hd-20-d5-prog.sl",
+    "function": "hd20",
+    "grammar": "d5",
+    "status": "timeout",
+    "seconds": 300.027
+   }
+  ],
+  "functions": [
+   {
+    "name": "hd01",
+    "inputs": 1,
+    "term": "(bvand x (bvsub x #x00000001))",
+    "formula": "(a & (a - 1))",
+    "teenie": {
+     "episodes": 5,
+     "all_exact": 0,
+     "exact": [
+      0.993,
+      0.989,
+      0.99,
+      0.988,
+      0.982
+     ],
+     "bits_right": 0.9996,
+     "seconds": [
+      1.076,
+      1.054,
+      1.051,
+      1.055,
+      1.053
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "hd02",
+    "inputs": 1,
+    "term": "(bvand x (bvadd x #x00000001))",
+    "formula": "(a & (a + 1))",
+    "teenie": {
+     "episodes": 5,
+     "all_exact": 5,
+     "exact": [
+      1,
+      1,
+      1,
+      1,
+      1
+     ],
+     "bits_right": 1,
+     "seconds": [
+      1.056,
+      1.054,
+      1.057,
+      1.057,
+      1.056
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "hd03",
+    "inputs": 1,
+    "term": "(bvand x (bvneg x))",
+    "formula": "(a & (0 - a))",
+    "teenie": {
+     "episodes": 5,
+     "all_exact": 0,
+     "exact": [
+      0.99,
+      0.993,
+      0.983,
+      0.996,
+      0.994
+     ],
+     "bits_right": 0.9997,
+     "seconds": [
+      1.062,
+      1.059,
+      1.059,
+      1.057,
+      1.061
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "hd04",
+    "inputs": 1,
+    "term": "(bvxor x (bvsub x #x00000001))",
+    "formula": "(a ^ (a - 1))",
+    "teenie": {
+     "episodes": 5,
+     "all_exact": 0,
+     "exact": [
+      0.991,
+      0.998,
+      0.989,
+      0.998,
+      0.997
+     ],
+     "bits_right": 0.9998,
+     "seconds": [
+      1.062,
+      1.063,
+      1.063,
+      1.067,
+      1.065
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "hd05",
+    "inputs": 1,
+    "term": "(bvor x (bvsub x #x00000001))",
+    "formula": "(a | (a - 1))",
+    "teenie": {
+     "episodes": 5,
+     "all_exact": 1,
+     "exact": [
+      1,
+      0.998,
+      0.999,
+      0.992,
+      0.998
+     ],
+     "bits_right": 0.9999,
+     "seconds": [
+      1.068,
+      1.067,
+      1.067,
+      1.069,
+      1.072
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "hd06",
+    "inputs": 1,
+    "term": "(bvor x (bvadd x #x00000001))",
+    "formula": "(a | (a + 1))",
+    "teenie": {
+     "episodes": 5,
+     "all_exact": 0,
+     "exact": [
+      0.984,
+      0.99,
+      0.99,
+      0.987,
+      0.991
+     ],
+     "bits_right": 0.9996,
+     "seconds": [
+      1.071,
+      1.071,
+      1.073,
+      1.074,
+      1.068
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "hd07",
+    "inputs": 1,
+    "term": "(bvand (bvnot x) (bvadd x #x00000001))",
+    "formula": "((~a) & (a + 1))",
+    "teenie": {
+     "episodes": 5,
+     "all_exact": 0,
+     "exact": [
+      0.998,
+      0.991,
+      0.995,
+      0.992,
+      0.994
+     ],
+     "bits_right": 0.9998,
+     "seconds": [
+      1.071,
+      1.077,
+      1.09,
+      1.09,
+      1.091
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "hd08",
+    "inputs": 1,
+    "term": "(bvand (bvnot x) (bvsub x #x00000001))",
+    "formula": "((~a) & (a - 1))",
+    "teenie": {
+     "episodes": 5,
+     "all_exact": 1,
+     "exact": [
+      0.997,
+      0.998,
+      0.992,
+      0.998,
+      1
+     ],
+     "bits_right": 0.9998,
+     "seconds": [
+      1.097,
+      1.099,
+      1.103,
+      1.107,
+      1.113
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "hd09",
+    "inputs": 1,
+    "term": "(bvsub (bvxor x (bvashr x #x0000001F)) (bvashr x #x0000001F))",
+    "formula": "((a ^ (4294967295 if a >> 31 else 0)) - (4294967295 if a >> 31 else 0))",
+    "teenie": {
+     "episodes": 5,
+     "all_exact": 0,
+     "exact": [
+      0.988,
+      0.986,
+      0.989,
+      0.988,
+      0.991
+     ],
+     "bits_right": 0.9989,
+     "seconds": [
+      1.111,
+      1.118,
+      1.117,
+      1.123,
+      1.134
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "hd13",
+    "inputs": 1,
+    "term": "(bvor (bvashr x #x0000001F) (bvlshr (bvneg x) #x0000001F))",
+    "formula": "((4294967295 if a >> 31 else 0) | ((0 - a) >> 31))",
+    "teenie": {
+     "episodes": 5,
+     "all_exact": 5,
+     "exact": [
+      1,
+      1,
+      1,
+      1,
+      1
+     ],
+     "bits_right": 1,
+     "seconds": [
+      1.132,
+      1.134,
+      1.139,
+      1.144,
+      1.145
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "hd14",
+    "inputs": 2,
+    "term": "(bvadd (bvand x y) (bvlshr (bvxor x y) #x00000001))",
+    "formula": "((a & b) + ((a ^ b) >> 1))",
+    "teenie": {
+     "episodes": 5,
+     "all_exact": 2,
+     "exact": [
+      1,
+      0.999,
+      1,
+      0.998,
+      0.999
+     ],
+     "bits_right": 1.0,
+     "seconds": [
+      1.148,
+      1.152,
+      1.148,
+      1.155,
+      1.157
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "hd15",
+    "inputs": 2,
+    "term": "(bvsub (bvor x y) (bvlshr (bvxor x y) #x00000001))",
+    "formula": "((a | b) - ((a ^ b) >> 1))",
+    "teenie": {
+     "episodes": 5,
+     "all_exact": 1,
+     "exact": [
+      0.997,
+      0.999,
+      0.999,
+      1,
+      0.998
+     ],
+     "bits_right": 1.0,
+     "seconds": [
+      1.16,
+      1.161,
+      1.163,
+      1.176,
+      1.17
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "hd17",
+    "inputs": 1,
+    "term": "(bvand (bvadd (bvor x (bvsub x #x00000001)) #x00000001) x)",
+    "formula": "(((a | (a - 1)) + 1) & a)",
+    "teenie": {
+     "episodes": 5,
+     "all_exact": 0,
+     "exact": [
+      0.991,
+      0.99,
+      0.988,
+      0.986,
+      0.99
+     ],
+     "bits_right": 0.9994,
+     "seconds": [
+      1.181,
+      1.176,
+      1.169,
+      1.176,
+      1.194
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "hd19",
+    "inputs": 3,
+    "term": "(bvxor x (bvxor (bvshl (bvand (bvxor (bvlshr x k) x) m) k) (bvand (bvxor (bvlshr x k) x) m)))",
+    "formula": null,
+    "teenie": null,
+    "tabpfn": null
+   },
+   {
+    "name": "hd20",
+    "inputs": 1,
+    "term": "(bvor (bvadd x (bvand (bvneg x) x)) (bvudiv (bvlshr (bvxor x (bvand (bvneg x) x)) #x00000002) (bvand (bvneg x) x)))",
+    "formula": "((a + ((0 - a) & a)) | (((a ^ ((0 - a) & a)) >> 2) // ((0 - a) & a)))",
+    "teenie": {
+     "episodes": 5,
+     "all_exact": 0,
+     "exact": [
+      0.152,
+      0.181,
+      0.18,
+      0.19,
+      0.178
+     ],
+     "bits_right": 0.8662,
+     "seconds": [
+      1.186,
+      1.181,
+      1.147,
+      1.178,
+      1.176
+     ]
+    },
+    "tabpfn": null
+   }
+  ]
+ },
+ "deep": {
+  "problems": [
+   {
+    "name": "deep-00",
+    "formula": "((((((b - b) | (a | 4240245955)) ^ ((a + a) | (a + b))) + ((3944776678 ^ (b + a)) >> 10)) - ((~a) - (((a | a) + (a >> 9)) + ((4139655026 << 9) + (b - 1361705852))))) | (((~a) + (b - ((3598603773 >> 5) << 9))) + ((~((b ^ a) ^ a)) | ((~a) - a))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.065,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.792,
+     "seconds": [
+      1.024
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-01",
+    "formula": "((~(b + 2464735849)) - ((809689893 + (a + b)) ^ (((a + b) - (~b)) << 2)))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.065,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.6171,
+     "seconds": [
+      0.999
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-02",
+    "formula": "((((b + b) ^ (~((b << 14) + a))) + ((b << 15) + (((~b) + (a + a)) ^ ((a - a) + (a << 7))))) - ((~((b & (b >> 14)) + ((a + b) - (a << 8)))) & ((~b) - ((b ^ (b - a)) + a))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.065,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.5754,
+     "seconds": [
+      1.005
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-03",
+    "formula": "((((b & (b + a)) + ((a ^ b) + (b + a))) ^ (((b >> 11) << 7) ^ (a ^ a))) + ((((b + 4217288806) - (b - a)) | (771319623 + (a + b))) - (((a | b) - b) + b)))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.065,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.6342,
+     "seconds": [
+      1.003
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-04",
+    "formula": "(((b << 12) - (((b + 3385674489) + (a + a)) + (a + (~118622481)))) ^ ((a ^ b) - (b ^ (~b))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.187,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.7007,
+     "seconds": [
+      1.003
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-05",
+    "formula": "(((((~b) ^ (~2331347203)) - ((a & 152335021) + 1103299417)) ^ (((a | a) ^ a) | ((~b) | (1594815264 - 1641676345)))) ^ ((((b >> 5) | (b ^ b)) ^ ((a + b) + (a ^ a))) ^ (((b + a) - (a - b)) >> 3)))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.076,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.5471,
+     "seconds": [
+      1.005
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-06",
+    "formula": "((((b >> 8) + ((b + (a + b)) + (258388781 | (a ^ a)))) ^ ((b | ((a | b) << 8)) >> 6)) << 13)",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.198,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.7057,
+     "seconds": [
+      1.006
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-07",
+    "formula": "(((a + (3334366258 << 12)) | (((a ^ a) << 7) ^ b)) - (((a ^ (a + a)) + ((a + b) + a)) & (((b + a) & (b & b)) & ((790469615 >> 2) - a))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.199,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0.502
+     ],
+     "bits_right": 0.9771,
+     "seconds": [
+      1.007
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-08",
+    "formula": "(((b + a) + ((~(a - b)) - ((a ^ b) - (4075631585 - b)))) - (((b - a) - ((b | b) ^ (a + 4024833819))) - (((b + b) ^ a) + ((b + b) ^ (b + a)))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.125,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0.087
+     ],
+     "bits_right": 0.886,
+     "seconds": [
+      1.006
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-09",
+    "formula": "(((((a & b) >> 10) + a) ^ ((b ^ a) + ((b + 4104506422) + (a | b)))) + ((a ^ (a ^ (b - b))) - ((b ^ (b + a)) & ((b << 1) << 6))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.11,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.5509,
+     "seconds": [
+      1.007
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-10",
+    "formula": "(((((a + a) + (b & b)) + (b ^ (b + a))) + (((b + b) | (a + a)) | ((1001003001 ^ 1277869482) - 3731654498))) + (((2992754898 - (b ^ b)) | (a & a)) | (((4169020768 ^ 1703016756) + (1458157453 - 439542088)) + ((a - 123820123) | a))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.122,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0.077
+     ],
+     "bits_right": 0.8781,
+     "seconds": [
+      1.012
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-11",
+    "formula": "(~((~((a ^ a) & (1313464150 + a))) - (((a >> 2) + b) - ((~b) >> 1))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.124,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0.001
+     ],
+     "bits_right": 0.7875,
+     "seconds": [
+      1.009
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-12",
+    "formula": "(((~((a + 2620282210) - (b & 2207765522))) + ((a + b) - a)) + ((((3166607938 + b) + (a & b)) ^ a) & ((a + (a - b)) + (a + b))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.054,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0.201
+     ],
+     "bits_right": 0.9215,
+     "seconds": [
+      1.008
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-13",
+    "formula": "((((a ^ (a + b)) + ((b - a) << 12)) + (~((~a) ^ (a + b)))) + ((((a ^ 1530545557) ^ (a & b)) - (a + a)) - (b >> 8)))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.047,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.4961,
+     "seconds": [
+      1.011
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-14",
+    "formula": "(((((a - (b | a)) & ((b + 2670799563) + (a & b))) ^ (b + (~(1834712400 & 445209698)))) + ((((a & a) + (b - b)) & ((b - b) + a)) ^ (((a + b) | (a - a)) ^ ((a ^ b) + (a ^ a))))) + (((((b - a) & (a + a)) << 11) - (((b + a) - (b - a)) + ((b - b) + b))) ^ ((((a - a) + (a ^ b)) >> 13) ^ (b + ((a - b) & (b | a))))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.053,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.5052,
+     "seconds": [
+      1.011
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-15",
+    "formula": "(((((b & (334683270 >> 8)) ^ b) ^ (~(b | (b + a)))) << 5) ^ (((((b | b) + (a ^ b)) - ((a + b) ^ (349962684 + a))) | (a - ((~a) - (b >> 10)))) - ((~((3134505608 << 1) + (b & b))) + (((~a) + (a & b)) - ((165790640 ^ 760063215) + a)))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.048,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.5667,
+     "seconds": [
+      1.013
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-16",
+    "formula": "(((((2046489857 << 1) ^ (~a)) ^ ((a - b) + (a << 15))) | (((a + a) + (a << 7)) + 1524628740)) + ((((a + b) | a) ^ b) >> 7))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.028,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.5203,
+     "seconds": [
+      1.011
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-17",
+    "formula": "(((((a ^ 119385574) - a) & ((a + a) >> 1)) | (b - b)) - ((((b - b) ^ a) + a) ^ (((a + 696389644) - b) + ((a ^ a) + (b + a)))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.036,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0.437
+     ],
+     "bits_right": 0.9613,
+     "seconds": [
+      1.013
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-18",
+    "formula": "(((((1751309348 ^ (b >> 4)) >> 8) & (((a << 5) + (93317333 - b)) - ((~a) + (~b)))) >> 1) - (((((b + b) & (3272038820 >> 2)) >> 15) & (b - (a | a))) | ((((b + b) - a) ^ 1849316055) + (a - ((b + a) ^ (~1533192137))))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.057,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.5961,
+     "seconds": [
+      1.023
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-19",
+    "formula": "(((((2697137385 + (b ^ 4228584729)) >> 5) + (((b - b) - (b ^ 21119561)) + ((b ^ 2558880895) & (2957270715 + b)))) - ((b + ((b & b) ^ (a ^ 3352307810))) + (b << 15))) & ((((b - 1893920353) + a) ^ (((a + 1154022656) + (a ^ b)) ^ ((~b) + b))) >> 7))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.053,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.7999,
+     "seconds": [
+      1.012
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-20",
+    "formula": "((((a + a) + (~b)) + ((~((b & a) | (a - b))) + ((1524134189 + (1308958442 + b)) - (b << 12)))) ^ (((((1524966704 + b) ^ a) | ((a >> 8) - (a + b))) ^ ((b - (1983311833 - 3558377029)) & 1714929823)) | ((((b - b) + (b ^ a)) + b) + ((a - (500326964 + b)) + b))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.036,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.6369,
+     "seconds": [
+      1.042
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-21",
+    "formula": "(((((a - b) << 7) - ((a + a) + (2559381066 ^ a))) ^ (((b ^ a) & 2181895622) << 2)) ^ ((((a + b) ^ (a + b)) & ((a - b) - (b | a))) ^ (a - ((3571608155 + a) - 4006214247))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.046,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.6233,
+     "seconds": [
+      1.024
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-22",
+    "formula": "(((((b - b) + a) - ((786853409 & 3964617872) ^ (b ^ 2721040408))) - ((2094904524 >> 14) - (b & 3754473594))) << 4)",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.048,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.6431,
+     "seconds": [
+      1.013
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-23",
+    "formula": "(~((((1600468992 + a) >> 12) - ((~a) - a)) | (((a ^ a) - a) | ((a - b) ^ (1632729214 >> 9)))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.048,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0.063
+     ],
+     "bits_right": 0.9146,
+     "seconds": [
+      1.04
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-24",
+    "formula": "(((a | ((a + 2524991927) & (473243081 - a))) >> 15) + (~(((~a) ^ 1355217548) + ((b - a) + b))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.028,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0.001
+     ],
+     "bits_right": 0.7656,
+     "seconds": [
+      1.05
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-25",
+    "formula": "((((a + (3199985165 ^ a)) + (a ^ (a + a))) & ((a | (~b)) ^ ((b - b) ^ (865028815 >> 12)))) << 12)",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.041,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0.009
+     ],
+     "bits_right": 0.8768,
+     "seconds": [
+      1.055
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-26",
+    "formula": "((((a << 3) >> 5) + ((a | ((a + a) & b)) ^ (((a ^ 345197093) - (b << 11)) ^ (a & (a + 1361179423))))) - (((3815307218 | a) + (((3472782316 - b) ^ (728150464 - b)) | (a - b))) ^ (((a + (a - 705372224)) >> 6) << 4)))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.044,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.5636,
+     "seconds": [
+      1.064
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-27",
+    "formula": "(((a | ((b & 1045173090) + 3578863124)) | (((a | b) ^ (~b)) ^ b)) + (((a + b) ^ ((b - a) - (b + a))) + (a | ((2576216587 << 5) + a))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.046,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0.164
+     ],
+     "bits_right": 0.9133,
+     "seconds": [
+      1.065
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-28",
+    "formula": "(((((~a) - ((a + 1498946708) - (2987317017 ^ 1279489115))) + (~a)) >> 9) - (((((~b) ^ (b + 3892775213)) ^ b) + (((~a) + (b + b)) >> 15)) + ((((b + a) ^ (b + a)) ^ ((b + 61303210) + (b - a))) >> 3)))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.051,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.5512,
+     "seconds": [
+      1.069
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-29",
+    "formula": "(((((a + 1873182736) ^ b) ^ ((a << 6) - (a - b))) + (((a | a) << 9) ^ ((b + b) ^ (~a)))) - ((b + ((a - a) & (a ^ 175655199))) ^ ((b + (b - b)) + (b & (b << 3)))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.044,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.592,
+     "seconds": [
+      1.078
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-30",
+    "formula": "((((((b ^ a) ^ (b + a)) - (~(a | a))) & (3271505019 + a)) << 6) - ((~(~(a | (2020873835 ^ a)))) + ((((b ^ b) ^ (a ^ b)) - 2768262530) + (1149384425 + ((~3195163720) >> 8)))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.047,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.6974,
+     "seconds": [
+      1.07
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-31",
+    "formula": "(((((a | (3292457932 - 1047518898)) | a) & (b >> 6)) ^ ((((b | a) << 11) - (~(b >> 14))) + ((b >> 10) - ((b - b) << 9)))) + (((b - (~(a << 10))) + (((2304348824 ^ b) + (a & b)) ^ ((a + b) + (a - b)))) - ((~((a - b) + a)) << 15)))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.046,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.5017,
+     "seconds": [
+      1.093
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-32",
+    "formula": "(((((b - b) - (a + a)) + ((a & 3870319676) ^ a)) + (~((551443940 - 4047122419) + (~a)))) - ((b << 5) + (((b + b) & a) - ((a | 350311370) ^ (~3400681994)))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.036,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.6012,
+     "seconds": [
+      1.086
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-33",
+    "formula": "((((2082916130 + b) + ((a - b) - a)) + (((b - 488746620) + (b + b)) - 1123553574)) + ((((a - b) + (540592374 - b)) | ((b | b) + a)) + (((b ^ b) ^ b) + 3558654652)))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.047,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0.087
+     ],
+     "bits_right": 0.8931,
+     "seconds": [
+      1.097
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-34",
+    "formula": "((((838843033 + (1853864658 ^ a)) + ((a | b) - (b + 924459920))) + (((a + a) + (a >> 10)) ^ a)) ^ ((b ^ (b + (b ^ 497164728))) ^ (((~a) + (b - a)) - a)))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.052,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.5658,
+     "seconds": [
+      1.094
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-35",
+    "formula": "((((((b ^ b) ^ 616507282) ^ (~(a << 5))) + (((a - b) ^ a) + (b - 382880359))) | ((((b + 2483525072) - (1425448560 + 2816562984)) + (a >> 4)) & ((b | b) | a))) & ((((a & (~a)) - b) | (((~a) ^ a) + ((a & b) - (b + b)))) ^ ((((a >> 1) - (b ^ b)) - a) ^ ((1196409335 + a) - a))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.053,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.8113,
+     "seconds": [
+      1.099
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-36",
+    "formula": "(((~3786144395) - ((a >> 6) - (a + (a + a)))) - ((~(b - (~117051828))) + ((b + b) - 2770822470)))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.083,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.5897,
+     "seconds": [
+      1.105
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-37",
+    "formula": "((((((b - a) + (b | b)) - ((a | b) + b)) + (((b >> 1) + (a >> 4)) & ((3088465690 ^ 2978504776) + (b + 98015591)))) ^ ((((~b) + (a ^ a)) & b) - (((b + a) | (b ^ b)) - ((4183255748 & 3100014398) - (b ^ 3512809599))))) + ((((a - 103238395) + ((760939163 << 1) + b)) + (((b + 1337939034) >> 1) + a)) ^ ((((a - b) & a) - b) ^ (((a - a) + (142145243 + b)) ^ (~(a + 4069578801))))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.045,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.5307,
+     "seconds": [
+      1.107
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-38",
+    "formula": "(((((a >> 8) + (b - a)) + b) + (a ^ (b ^ (1392201684 ^ 3001098377)))) | ((((~a) + (a >> 1)) << 3) ^ (((b + b) + (b + a)) + a)))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.049,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.7748,
+     "seconds": [
+      1.112
+     ]
+    },
+    "tabpfn": null
+   },
+   {
+    "name": "deep-39",
+    "formula": "((((((b ^ b) - (a >> 1)) - (b + (a | a))) ^ ((a ^ b) & (855760564 << 10))) ^ ((((b + b) ^ (b + a)) - ((b - 2547566973) | (a >> 13))) ^ (((b + 3282193461) + b) | ((b + b) - (b & a))))) + ((((a << 3) ^ ((b - b) ^ a)) + (((2775206517 - 4068598348) - b) + ((a >> 1) >> 8))) & ((((b ^ b) ^ (a | a)) - (b + (b >> 14))) ^ (a & ((1549495625 << 5) & (3847281898 ^ a))))))",
+    "cvc5": "timeout",
+    "cvc5_seconds": 300.049,
+    "teenie": {
+     "episodes": 1,
+     "all_exact": 0,
+     "exact": [
+      0
+     ],
+     "bits_right": 0.5044,
+     "seconds": [
+      1.125
+     ]
+    },
+    "tabpfn": null
+   }
+  ],
+  "bit_profile": [
+   0.8241,
+   0.8087,
+   0.8058,
+   0.7912,
+   0.7687,
+   0.7475,
+   0.7296,
+   0.702,
+   0.6894,
+   0.6729,
+   0.6751,
+   0.6669,
+   0.6542,
+   0.6401,
+   0.637,
+   0.6278,
+   0.6328,
+   0.6353,
+   0.6348,
+   0.6373,
+   0.6374,
+   0.6322,
+   0.6436,
+   0.6538,
+   0.6583,
+   0.6707,
+   0.6681,
+   0.6762,
+   0.6926,
+   0.7086,
+   0.7101,
+   0.7233
+  ]
+ },
+ "pbe_bv": {
+  "problems": 753,
+  "reason": "every problem is 64-bit; the model takes at most 32 bits"
+ }
+}

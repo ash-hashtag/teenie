@@ -14,6 +14,7 @@
 //   -o, --output F    write to F instead of stdout
 //   --check F         read F, the answers downloaded from the page, and report how many are right. The width comes from
 //                     its p_bit columns (or --width). With -o, also writes each question with the true c and its verdict.
+//   --json            with --check: print the summary as one JSON object instead of the report
 //
 // The formula language is the page's own (src/lib/expression.ts): + - * // % **, & | ^ ~ << >>, comparisons,
 // x if cond else y, min max popcount reverse rotl rotr, sum/loop/rec. Every (a, b) pair in the file is distinct.
@@ -26,7 +27,7 @@ function usage(message?: string): never {
   if (message) console.error(`error: ${message}`);
   console.error(
     "usage: bun scripts/generate-csv.ts '<formula>' [--width 16|32] [--small] [--questions N] [--seed N] [-o file]\n" +
-      "       bun scripts/generate-csv.ts '<formula>' --check answers.csv [--width 16|32] [-o checked.csv]",
+      "       bun scripts/generate-csv.ts '<formula>' --check answers.csv [--width 16|32] [-o checked.csv] [--json]",
   );
   process.exit(message ? 1 : 0);
 }
@@ -40,6 +41,7 @@ let seed: number | undefined;
 let output: string | undefined;
 let check: string | undefined;
 let widthGiven = false;
+let json = false;
 for (let i = 0; i < args.length; i++) {
   const arg = args[i]!;
   const value = () => args[++i] ?? usage(`${arg} needs a value`);
@@ -48,6 +50,7 @@ for (let i = 0; i < args.length; i++) {
     width = Number(value());
     widthGiven = true;
   } else if (arg === "--check") check = value();
+  else if (arg === "--json") json = true;
   else if (arg === "--small") small = true;
   else if (arg === "--questions") questions = Number(value());
   else if (arg === "--seed") seed = Number(value());
@@ -126,18 +129,25 @@ if (answers.size < 24)
 
 // ---- --check: the page's downloaded answers (line, a, b, [c], answer, confidence, sure, ..., p_bitN) against the rule.
 function verify(path: string): void {
-  const rows = readFileSync(path, "utf8").split(/\r?\n/).filter((line) => line.trim());
-  const head = rows[0]?.split(",").map((cell) => cell.trim().toLowerCase()) ?? [];
+  const rows = readFileSync(path, "utf8")
+    .split(/\r?\n/)
+    .filter((line) => line.trim());
+  const head =
+    rows[0]?.split(",").map((cell) => cell.trim().toLowerCase()) ?? [];
   const col = (name: string) => head.indexOf(name);
   const [ia, ib, ianswer] = [col("a"), col("b"), col("answer")];
   if (ia < 0 || ib < 0 || ianswer < 0)
-    usage(`${path} needs columns a, b and answer (the page's "Download the answers" file)`);
+    usage(
+      `${path} needs columns a, b and answer (the page's "Download the answers" file)`,
+    );
   const bitColumns = new Map<number, number>(); // bit -> column
   head.forEach((name, i) => {
     if (/^p_bit\d+$/.test(name)) bitColumns.set(Number(name.slice(5)), i);
   });
   if (bitColumns.size && widthGiven && bitColumns.size !== width)
-    usage(`${path} has ${bitColumns.size} p_bit columns, so it is ${bitColumns.size}-bit, not ${width}-bit`);
+    usage(
+      `${path} has ${bitColumns.size} p_bit columns, so it is ${bitColumns.size}-bit, not ${width}-bit`,
+    );
   const w = bitColumns.size || width;
   const mask = (1n << BigInt(w)) - 1n;
   const [iline, iconfidence, ic] = [col("line"), col("confidence"), col("c")];
@@ -153,18 +163,35 @@ function verify(path: string): void {
   let bitsRight = 0;
   let recovered = 0;
   let disagreeC = 0;
-  const misses: { line: string; a: bigint; b: bigint; truth: bigint; answer: bigint; off: number }[] = [];
+  const misses: {
+    line: string;
+    a: bigint;
+    b: bigint;
+    truth: bigint;
+    answer: bigint;
+    off: number;
+  }[] = [];
   const out = ["line,a,b,c,answer,correct,bits_off"];
   for (let r = 1; r < rows.length; r++) {
     const cells = rows[r]!.split(",").map((cell) => cell.trim());
     const number = (i: number, name: string) => {
-      if (!/^\d+$/.test(cells[i] ?? "")) usage(`${path} line ${r + 1}: ${name} = "${cells[i] ?? ""}" is not a whole number`);
+      if (!/^\d+$/.test(cells[i] ?? ""))
+        usage(
+          `${path} line ${r + 1}: ${name} = "${cells[i] ?? ""}" is not a whole number`,
+        );
       return BigInt(cells[i]!);
     };
-    const [a, b, answer] = [number(ia, "a"), number(ib, "b"), number(ianswer, "answer")];
+    const [a, b, answer] = [
+      number(ia, "a"),
+      number(ib, "b"),
+      number(ianswer, "answer"),
+    ];
     const truth = evaluate(tree, a, b, w);
     if (ic >= 0 && cells[ic] && BigInt(cells[ic]!) !== truth) disagreeC++;
-    const off = ((truth ^ answer) & mask).toString(2).split("").filter((d) => d === "1").length;
+    const off = ((truth ^ answer) & mask)
+      .toString(2)
+      .split("")
+      .filter((d) => d === "1").length;
     const right = off === 0;
     n++;
     if (right) exact++;
@@ -173,7 +200,12 @@ function verify(path: string): void {
       let score = w;
       for (const [k, i] of bitColumns) {
         const one = Number(cells[i]);
-        score += Math.log2(Math.min(Math.max((truth >> BigInt(k)) & 1n ? one : 1 - one, 2 ** -20), 1 - 2 ** -20));
+        score += Math.log2(
+          Math.min(
+            Math.max((truth >> BigInt(k)) & 1n ? one : 1 - one, 2 ** -20),
+            1 - 2 ** -20,
+          ),
+        );
       }
       recovered += score;
     }
@@ -188,26 +220,48 @@ function verify(path: string): void {
   }
   if (!n) usage(`${path} has no answers`);
 
+  if (output) writeFileSync(output, `${out.join("\n")}\n`);
+  if (json) {
+    console.log(JSON.stringify({
+      formula, width: w, file: path, answers: n, exact, exact_share: exact / n, bits_right: bitsRight / (n * w),
+      bits_recovered: bitColumns.size ? recovered / n : null, c_disagrees: disagreeC,
+      by_confidence: bands.map((x) => ({ band: x.name, answers: x.n, right: x.right })),
+      worst: misses.sort((x, y) => y.off - x.off).slice(0, 5).map((m) => ({ ...m, a: String(m.a), b: String(m.b), truth: String(m.truth), answer: String(m.answer) })),
+    }));
+    return;
+  }
   const pct = (x: number, of: number) => `${((100 * x) / of).toFixed(1)}%`;
-  console.log(`c = ${formula} at ${w} bits: ${n.toLocaleString("en-US")} answers in ${path}`);
-  console.log(`  exactly right   ${exact.toLocaleString("en-US")} of ${n.toLocaleString("en-US")} (${pct(exact, n)})`);
+  console.log(
+    `c = ${formula} at ${w} bits: ${n.toLocaleString("en-US")} answers in ${path}`,
+  );
+  console.log(
+    `  exactly right   ${exact.toLocaleString("en-US")} of ${n.toLocaleString("en-US")} (${pct(exact, n)})`,
+  );
   console.log(`  bits right      ${pct(bitsRight, n * w)}`);
   if (bitColumns.size)
-    console.log(`  bits recovered  ${(recovered / n).toFixed(1)} of ${w} on average (${w} = certain and right, 0 = a blind guess)`);
+    console.log(
+      `  bits recovered  ${(recovered / n).toFixed(1)} of ${w} on average (${w} = certain and right, 0 = a blind guess)`,
+    );
   if (bands.some((x) => x.n)) {
     console.log("  by confidence (its least certain bit):");
     for (const x of bands)
-      if (x.n) console.log(`    ${x.name.padEnd(22)} ${String(x.n).padStart(7)} answers, ${pct(x.right, x.n).padStart(6)} right`);
+      if (x.n)
+        console.log(
+          `    ${x.name.padEnd(22)} ${String(x.n).padStart(7)} answers, ${pct(x.right, x.n).padStart(6)} right`,
+        );
   }
   if (disagreeC)
-    console.log(`  note: ${disagreeC} rows have a c column that differs from this formula; is it the same rule and width?`);
+    console.log(
+      `  note: ${disagreeC} rows have a c column that differs from this formula; is it the same rule and width?`,
+    );
   if (misses.length) {
-    console.log(`  most bits off (of ${misses.length.toLocaleString("en-US")} wrong):`);
+    console.log(
+      `  most bits off (of ${misses.length.toLocaleString("en-US")} wrong):`,
+    );
     for (const m of misses.sort((x, y) => y.off - x.off).slice(0, 5))
-      console.log(`    line ${m.line}: a = ${m.a}, b = ${m.b}, true ${m.truth}, answered ${m.answer} (${m.off} bits off)`);
+      console.log(
+        `    line ${m.line}: a = ${m.a}, b = ${m.b}, true ${m.truth}, answered ${m.answer} (${m.off} bits off)`,
+      );
   }
-  if (output) {
-    writeFileSync(output, `${out.join("\n")}\n`);
-    console.log(`  each question with its true c → ${output}`);
-  }
+  if (output) console.log(`  each question with its true c → ${output}`);
 }

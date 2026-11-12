@@ -1,0 +1,202 @@
+{
+ "deep-00-s0": {
+  "seconds": 1.024,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-01-s0": {
+  "seconds": 0.999,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-02-s0": {
+  "seconds": 1.005,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-03-s0": {
+  "seconds": 1.003,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-04-s0": {
+  "seconds": 1.003,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-05-s0": {
+  "seconds": 1.005,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-06-s0": {
+  "seconds": 1.006,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-07-s0": {
+  "seconds": 1.007,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-08-s0": {
+  "seconds": 1.006,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-09-s0": {
+  "seconds": 1.007,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-10-s0": {
+  "seconds": 1.012,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-11-s0": {
+  "seconds": 1.009,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-12-s0": {
+  "seconds": 1.008,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-13-s0": {
+  "seconds": 1.011,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-14-s0": {
+  "seconds": 1.011,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-15-s0": {
+  "seconds": 1.013,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-16-s0": {
+  "seconds": 1.011,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-17-s0": {
+  "seconds": 1.013,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-18-s0": {
+  "seconds": 1.023,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-19-s0": {
+  "seconds": 1.012,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-20-s0": {
+  "seconds": 1.042,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-21-s0": {
+  "seconds": 1.024,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-22-s0": {
+  "seconds": 1.013,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-23-s0": {
+  "seconds": 1.04,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-24-s0": {
+  "seconds": 1.05,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-25-s0": {
+  "seconds": 1.055,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-26-s0": {
+  "seconds": 1.064,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-27-s0": {
+  "seconds": 1.065,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-28-s0": {
+  "seconds": 1.069,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-29-s0": {
+  "seconds": 1.078,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-30-s0": {
+  "seconds": 1.07,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-31-s0": {
+  "seconds": 1.093,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-32-s0": {
+  "seconds": 1.086,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-33-s0": {
+  "seconds": 1.097,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-34-s0": {
+  "seconds": 1.094,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-35-s0": {
+  "seconds": 1.099,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-36-s0": {
+  "seconds": 1.105,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-37-s0": {
+  "seconds": 1.107,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-38-s0": {
+  "seconds": 1.112,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ },
+ "deep-39-s0": {
+  "seconds": 1.125,
+  "questions": 1000,
+  "device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+ }
+}

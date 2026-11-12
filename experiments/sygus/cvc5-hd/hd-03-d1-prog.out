@@ -1,0 +1,3 @@
+(
+(define-fun f ((x (_ BitVec 32))) (_ BitVec 32) (bvand x (bvneg x)))
+)

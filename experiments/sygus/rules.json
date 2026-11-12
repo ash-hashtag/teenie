@@ -1,0 +1,595 @@
+[
+ {
+  "set": "hd",
+  "name": "hd01",
+  "inputs": 1,
+  "params": [
+   "x"
+  ],
+  "term": "(bvand x (bvsub x #x00000001))",
+  "formula": "(a & (a - 1))"
+ },
+ {
+  "set": "hd",
+  "name": "hd02",
+  "inputs": 1,
+  "params": [
+   "x"
+  ],
+  "term": "(bvand x (bvadd x #x00000001))",
+  "formula": "(a & (a + 1))"
+ },
+ {
+  "set": "hd",
+  "name": "hd03",
+  "inputs": 1,
+  "params": [
+   "x"
+  ],
+  "term": "(bvand x (bvneg x))",
+  "formula": "(a & (0 - a))"
+ },
+ {
+  "set": "hd",
+  "name": "hd04",
+  "inputs": 1,
+  "params": [
+   "x"
+  ],
+  "term": "(bvxor x (bvsub x #x00000001))",
+  "formula": "(a ^ (a - 1))"
+ },
+ {
+  "set": "hd",
+  "name": "hd05",
+  "inputs": 1,
+  "params": [
+   "x"
+  ],
+  "term": "(bvor x (bvsub x #x00000001))",
+  "formula": "(a | (a - 1))"
+ },
+ {
+  "set": "hd",
+  "name": "hd06",
+  "inputs": 1,
+  "params": [
+   "x"
+  ],
+  "term": "(bvor x (bvadd x #x00000001))",
+  "formula": "(a | (a + 1))"
+ },
+ {
+  "set": "hd",
+  "name": "hd07",
+  "inputs": 1,
+  "params": [
+   "x"
+  ],
+  "term": "(bvand (bvnot x) (bvadd x #x00000001))",
+  "formula": "((~a) & (a + 1))"
+ },
+ {
+  "set": "hd",
+  "name": "hd08",
+  "inputs": 1,
+  "params": [
+   "x"
+  ],
+  "term": "(bvand (bvnot x) (bvsub x #x00000001))",
+  "formula": "((~a) & (a - 1))"
+ },
+ {
+  "set": "hd",
+  "name": "hd09",
+  "inputs": 1,
+  "params": [
+   "x"
+  ],
+  "term": "(bvsub (bvxor x (bvashr x #x0000001F)) (bvashr x #x0000001F))",
+  "formula": "((a ^ (4294967295 if a >> 31 else 0)) - (4294967295 if a >> 31 else 0))"
+ },
+ {
+  "set": "hd",
+  "name": "hd13",
+  "inputs": 1,
+  "params": [
+   "x"
+  ],
+  "term": "(bvor (bvashr x #x0000001F) (bvlshr (bvneg x) #x0000001F))",
+  "formula": "((4294967295 if a >> 31 else 0) | ((0 - a) >> 31))"
+ },
+ {
+  "set": "hd",
+  "name": "hd14",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvadd (bvand x y) (bvlshr (bvxor x y) #x00000001))",
+  "formula": "((a & b) + ((a ^ b) >> 1))"
+ },
+ {
+  "set": "hd",
+  "name": "hd15",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvsub (bvor x y) (bvlshr (bvxor x y) #x00000001))",
+  "formula": "((a | b) - ((a ^ b) >> 1))"
+ },
+ {
+  "set": "hd",
+  "name": "hd17",
+  "inputs": 1,
+  "params": [
+   "x"
+  ],
+  "term": "(bvand (bvadd (bvor x (bvsub x #x00000001)) #x00000001) x)",
+  "formula": "(((a | (a - 1)) + 1) & a)"
+ },
+ {
+  "set": "hd",
+  "name": "hd19",
+  "inputs": 3,
+  "params": [
+   "x",
+   "m",
+   "k"
+  ],
+  "term": "(bvxor x (bvxor (bvshl (bvand (bvxor (bvlshr x k) x) m) k) (bvand (bvxor (bvlshr x k) x) m)))"
+ },
+ {
+  "set": "hd",
+  "name": "hd20",
+  "inputs": 1,
+  "params": [
+   "x"
+  ],
+  "term": "(bvor (bvadd x (bvand (bvneg x) x)) (bvudiv (bvlshr (bvxor x (bvand (bvneg x) x)) #x00000002) (bvand (bvneg x) x)))",
+  "formula": "((a + ((0 - a) & a)) | (((a ^ ((0 - a) & a)) >> 2) // ((0 - a) & a)))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-00",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvor (bvsub (bvadd (bvxor (bvor (bvsub y y) (bvor x #xfcbd04c3)) (bvor (bvadd x x) (bvadd x y))) (bvlshr (bvxor #xeb2083e6 (bvadd y x)) #x0000000a)) (bvsub (bvnot x) (bvadd (bvadd (bvor x x) (bvlshr x #x00000009)) (bvadd (bvshl #xf6be1f72 #x00000009) (bvsub y #x5129fb7c))))) (bvadd (bvadd (bvnot x) (bvsub y (bvshl (bvlshr #xd67e55fd #x00000005) #x00000009))) (bvor (bvnot (bvxor (bvxor y x) x)) (bvsub (bvnot x) x))))",
+  "formula": "((((((b - b) | (a | 4240245955)) ^ ((a + a) | (a + b))) + ((3944776678 ^ (b + a)) >> 10)) - ((~a) - (((a | a) + (a >> 9)) + ((4139655026 << 9) + (b - 1361705852))))) | (((~a) + (b - ((3598603773 >> 5) << 9))) + ((~((b ^ a) ^ a)) | ((~a) - a))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-01",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvsub (bvnot (bvadd y #x92e8e269)) (bvxor (bvadd #x3042e325 (bvadd x y)) (bvshl (bvsub (bvadd x y) (bvnot y)) #x00000002)))",
+  "formula": "((~(b + 2464735849)) - ((809689893 + (a + b)) ^ (((a + b) - (~b)) << 2)))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-02",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvsub (bvadd (bvxor (bvadd y y) (bvnot (bvadd (bvshl y #x0000000e) x))) (bvadd (bvshl y #x0000000f) (bvxor (bvadd (bvnot y) (bvadd x x)) (bvadd (bvsub x x) (bvshl x #x00000007))))) (bvand (bvnot (bvadd (bvand y (bvlshr y #x0000000e)) (bvsub (bvadd x y) (bvshl x #x00000008)))) (bvsub (bvnot y) (bvadd (bvxor y (bvsub y x)) x))))",
+  "formula": "((((b + b) ^ (~((b << 14) + a))) + ((b << 15) + (((~b) + (a + a)) ^ ((a - a) + (a << 7))))) - ((~((b & (b >> 14)) + ((a + b) - (a << 8)))) & ((~b) - ((b ^ (b - a)) + a))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-03",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvadd (bvxor (bvadd (bvand y (bvadd y x)) (bvadd (bvxor x y) (bvadd y x))) (bvxor (bvshl (bvlshr y #x0000000b) #x00000007) (bvxor x x))) (bvsub (bvor (bvsub (bvadd y #xfb5eb866) (bvsub y x)) (bvadd #x2df96747 (bvadd x y))) (bvadd (bvsub (bvor x y) y) y)))",
+  "formula": "((((b & (b + a)) + ((a ^ b) + (b + a))) ^ (((b >> 11) << 7) ^ (a ^ a))) + ((((b + 4217288806) - (b - a)) | (771319623 + (a + b))) - (((a | b) - b) + b)))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-04",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvxor (bvsub (bvshl y #x0000000c) (bvadd (bvadd (bvadd y #xc9cd4af9) (bvadd x x)) (bvadd x (bvnot #x07120911)))) (bvsub (bvxor x y) (bvxor y (bvnot y))))",
+  "formula": "(((b << 12) - (((b + 3385674489) + (a + a)) + (a + (~118622481)))) ^ ((a ^ b) - (b ^ (~b))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-05",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvxor (bvxor (bvsub (bvxor (bvnot y) (bvnot #x8af58903)) (bvadd (bvand x #x091472ad) #x41c30359)) (bvor (bvxor (bvor x x) x) (bvor (bvnot y) (bvsub #x5f0ef320 #x61d9fe39)))) (bvxor (bvxor (bvor (bvlshr y #x00000005) (bvxor y y)) (bvadd (bvadd x y) (bvxor x x))) (bvlshr (bvsub (bvadd y x) (bvsub x y)) #x00000003)))",
+  "formula": "(((((~b) ^ (~2331347203)) - ((a & 152335021) + 1103299417)) ^ (((a | a) ^ a) | ((~b) | (1594815264 - 1641676345)))) ^ ((((b >> 5) | (b ^ b)) ^ ((a + b) + (a ^ a))) ^ (((b + a) - (a - b)) >> 3)))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-06",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvshl (bvxor (bvadd (bvlshr y #x00000008) (bvadd (bvadd y (bvadd x y)) (bvor #x0f66b32d (bvxor x x)))) (bvlshr (bvor y (bvshl (bvor x y) #x00000008)) #x00000006)) #x0000000d)",
+  "formula": "((((b >> 8) + ((b + (a + b)) + (258388781 | (a ^ a)))) ^ ((b | ((a | b) << 8)) >> 6)) << 13)"
+ },
+ {
+  "set": "deep",
+  "name": "deep-07",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvsub (bvor (bvadd x (bvshl #xc6be6432 #x0000000c)) (bvxor (bvshl (bvxor x x) #x00000007) y)) (bvand (bvadd (bvxor x (bvadd x x)) (bvadd (bvadd x y) x)) (bvand (bvand (bvadd y x) (bvand y y)) (bvsub (bvlshr #x2f1d9bef #x00000002) x))))",
+  "formula": "(((a + (3334366258 << 12)) | (((a ^ a) << 7) ^ b)) - (((a ^ (a + a)) + ((a + b) + a)) & (((b + a) & (b & b)) & ((790469615 >> 2) - a))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-08",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvsub (bvadd (bvadd y x) (bvsub (bvnot (bvsub x y)) (bvsub (bvxor x y) (bvsub #xf2ed33e1 y)))) (bvsub (bvsub (bvsub y x) (bvxor (bvor y y) (bvadd x #xefe6171b))) (bvadd (bvxor (bvadd y y) x) (bvxor (bvadd y y) (bvadd y x)))))",
+  "formula": "(((b + a) + ((~(a - b)) - ((a ^ b) - (4075631585 - b)))) - (((b - a) - ((b | b) ^ (a + 4024833819))) - (((b + b) ^ a) + ((b + b) ^ (b + a)))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-09",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvadd (bvxor (bvadd (bvlshr (bvand x y) #x0000000a) x) (bvadd (bvxor y x) (bvadd (bvadd y #xf4a5cc36) (bvor x y)))) (bvsub (bvxor x (bvxor x (bvsub y y))) (bvand (bvxor y (bvadd y x)) (bvshl (bvshl y #x00000001) #x00000006))))",
+  "formula": "(((((a & b) >> 10) + a) ^ ((b ^ a) + ((b + 4104506422) + (a | b)))) + ((a ^ (a ^ (b - b))) - ((b ^ (b + a)) & ((b << 1) << 6))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-10",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvadd (bvadd (bvadd (bvadd (bvadd x x) (bvand y y)) (bvxor y (bvadd y x))) (bvor (bvor (bvadd y y) (bvadd x x)) (bvsub (bvxor #x3baa17f9 #x4c2abdaa) #xde6c8762))) (bvor (bvor (bvsub #xb261d0d2 (bvxor y y)) (bvand x x)) (bvadd (bvadd (bvxor #xf87e3560 #x6581f934) (bvsub #x56e9b78d #x1a32e148)) (bvor (bvsub x #x0761585b) x))))",
+  "formula": "(((((a + a) + (b & b)) + (b ^ (b + a))) + (((b + b) | (a + a)) | ((1001003001 ^ 1277869482) - 3731654498))) + (((2992754898 - (b ^ b)) | (a & a)) | (((4169020768 ^ 1703016756) + (1458157453 - 439542088)) + ((a - 123820123) | a))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-11",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvnot (bvsub (bvnot (bvand (bvxor x x) (bvadd #x4e49df56 x))) (bvsub (bvadd (bvlshr x #x00000002) y) (bvlshr (bvnot y) #x00000001))))",
+  "formula": "(~((~((a ^ a) & (1313464150 + a))) - (((a >> 2) + b) - ((~b) >> 1))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-12",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvadd (bvadd (bvnot (bvsub (bvadd x #x9c2e5562) (bvand y #x8397d412))) (bvsub (bvadd x y) x)) (bvand (bvxor (bvadd (bvadd #xbcbe9a42 y) (bvand x y)) x) (bvadd (bvadd x (bvsub x y)) (bvadd x y))))",
+  "formula": "(((~((a + 2620282210) - (b & 2207765522))) + ((a + b) - a)) + ((((3166607938 + b) + (a & b)) ^ a) & ((a + (a - b)) + (a + b))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-13",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvadd (bvadd (bvadd (bvxor x (bvadd x y)) (bvshl (bvsub y x) #x0000000c)) (bvnot (bvxor (bvnot x) (bvadd x y)))) (bvsub (bvsub (bvxor (bvxor x #x5b3a4595) (bvand x y)) (bvadd x x)) (bvlshr y #x00000008)))",
+  "formula": "((((a ^ (a + b)) + ((b - a) << 12)) + (~((~a) ^ (a + b)))) + ((((a ^ 1530545557) ^ (a & b)) - (a + a)) - (b >> 8)))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-14",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvadd (bvadd (bvxor (bvand (bvsub x (bvor y x)) (bvadd (bvadd y #x9f312acb) (bvand x y))) (bvadd y (bvnot (bvand #x6d5b7d50 #x1a895c62)))) (bvxor (bvand (bvadd (bvand x x) (bvsub y y)) (bvadd (bvsub y y) x)) (bvxor (bvor (bvadd x y) (bvsub x x)) (bvadd (bvxor x y) (bvxor x x))))) (bvxor (bvsub (bvshl (bvand (bvsub y x) (bvadd x x)) #x0000000b) (bvadd (bvsub (bvadd y x) (bvsub y x)) (bvadd (bvsub y y) y))) (bvxor (bvlshr (bvadd (bvsub x x) (bvxor x y)) #x0000000d) (bvadd y (bvand (bvsub x y) (bvor y x))))))",
+  "formula": "(((((a - (b | a)) & ((b + 2670799563) + (a & b))) ^ (b + (~(1834712400 & 445209698)))) + ((((a & a) + (b - b)) & ((b - b) + a)) ^ (((a + b) | (a - a)) ^ ((a ^ b) + (a ^ a))))) + (((((b - a) & (a + a)) << 11) - (((b + a) - (b - a)) + ((b - b) + b))) ^ ((((a - a) + (a ^ b)) >> 13) ^ (b + ((a - b) & (b | a))))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-15",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvxor (bvshl (bvxor (bvxor (bvand y (bvlshr #x13f2dc86 #x00000008)) y) (bvnot (bvor y (bvadd y x)))) #x00000005) (bvsub (bvor (bvsub (bvadd (bvor y y) (bvxor x y)) (bvxor (bvadd x y) (bvadd #x14dc01bc x))) (bvsub x (bvsub (bvnot x) (bvlshr y #x0000000a)))) (bvadd (bvnot (bvadd (bvshl #xbad4c288 #x00000001) (bvand y y))) (bvsub (bvadd (bvnot x) (bvand x y)) (bvadd (bvxor #x09e1c3b0 #x2d4da4ef) x)))))",
+  "formula": "(((((b & (334683270 >> 8)) ^ b) ^ (~(b | (b + a)))) << 5) ^ (((((b | b) + (a ^ b)) - ((a + b) ^ (349962684 + a))) | (a - ((~a) - (b >> 10)))) - ((~((3134505608 << 1) + (b & b))) + (((~a) + (a & b)) - ((165790640 ^ 760063215) + a)))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-16",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvadd (bvor (bvxor (bvxor (bvshl #x79faf501 #x00000001) (bvnot x)) (bvadd (bvsub x y) (bvshl x #x0000000f))) (bvadd (bvadd (bvadd x x) (bvshl x #x00000007)) #x5adffd04)) (bvlshr (bvxor (bvor (bvadd x y) x) y) #x00000007))",
+  "formula": "(((((2046489857 << 1) ^ (~a)) ^ ((a - b) + (a << 15))) | (((a + a) + (a << 7)) + 1524628740)) + ((((a + b) | a) ^ b) >> 7))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-17",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvsub (bvor (bvand (bvsub (bvxor x #x071dade6) x) (bvlshr (bvadd x x) #x00000001)) (bvsub y y)) (bvxor (bvadd (bvxor (bvsub y y) x) x) (bvadd (bvsub (bvadd x #x2982100c) y) (bvadd (bvxor x x) (bvadd y x)))))",
+  "formula": "(((((a ^ 119385574) - a) & ((a + a) >> 1)) | (b - b)) - ((((b - b) ^ a) + a) ^ (((a + 696389644) - b) + ((a ^ a) + (b + a)))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-18",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvsub (bvlshr (bvand (bvlshr (bvxor #x6862dc24 (bvlshr y #x00000004)) #x00000008) (bvsub (bvadd (bvshl x #x00000005) (bvsub #x058fe8d5 y)) (bvadd (bvnot x) (bvnot y)))) #x00000001) (bvor (bvand (bvlshr (bvand (bvadd y y) (bvlshr #xc30759a4 #x00000002)) #x0000000f) (bvsub y (bvor x x))) (bvadd (bvxor (bvsub (bvadd y y) x) #x6e3a52d7) (bvsub x (bvxor (bvadd y x) (bvnot #x5b62a7c9))))))",
+  "formula": "(((((1751309348 ^ (b >> 4)) >> 8) & (((a << 5) + (93317333 - b)) - ((~a) + (~b)))) >> 1) - (((((b + b) & (3272038820 >> 2)) >> 15) & (b - (a | a))) | ((((b + b) - a) ^ 1849316055) + (a - ((b + a) ^ (~1533192137))))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-19",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvand (bvsub (bvadd (bvlshr (bvadd #xa0c30ce9 (bvxor y #xfc0b1519)) #x00000005) (bvadd (bvsub (bvsub y y) (bvxor y #x01424249)) (bvand (bvxor y #x98856c7f) (bvadd #xb0445ebb y)))) (bvadd (bvadd y (bvxor (bvand y y) (bvxor x #xc7d02862))) (bvshl y #x0000000f))) (bvlshr (bvxor (bvadd (bvsub y #x70e2ee61) x) (bvxor (bvadd (bvadd x #x44c8fd00) (bvxor x y)) (bvadd (bvnot y) y))) #x00000007))",
+  "formula": "(((((2697137385 + (b ^ 4228584729)) >> 5) + (((b - b) - (b ^ 21119561)) + ((b ^ 2558880895) & (2957270715 + b)))) - ((b + ((b & b) ^ (a ^ 3352307810))) + (b << 15))) & ((((b - 1893920353) + a) ^ (((a + 1154022656) + (a ^ b)) ^ ((~b) + b))) >> 7))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-20",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvxor (bvadd (bvadd (bvadd x x) (bvnot y)) (bvadd (bvnot (bvor (bvand y x) (bvsub x y))) (bvsub (bvadd #x5ad8712d (bvadd #x4e051eea y)) (bvshl y #x0000000c)))) (bvor (bvxor (bvor (bvxor (bvadd #x5ae52530 y) x) (bvsub (bvlshr x #x00000008) (bvadd x y))) (bvand (bvsub y (bvsub #x7636efd9 #xd4188645)) #x6637c09f)) (bvadd (bvadd (bvadd (bvsub y y) (bvxor y x)) y) (bvadd (bvsub x (bvadd #x1dd26234 y)) y))))",
+  "formula": "((((a + a) + (~b)) + ((~((b & a) | (a - b))) + ((1524134189 + (1308958442 + b)) - (b << 12)))) ^ (((((1524966704 + b) ^ a) | ((a >> 8) - (a + b))) ^ ((b - (1983311833 - 3558377029)) & 1714929823)) | ((((b - b) + (b ^ a)) + b) + ((a - (500326964 + b)) + b))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-21",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvxor (bvxor (bvsub (bvshl (bvsub x y) #x00000007) (bvadd (bvadd x x) (bvxor #x988d0e4a x))) (bvshl (bvand (bvxor y x) #x820d15c6) #x00000002)) (bvxor (bvand (bvxor (bvadd x y) (bvadd x y)) (bvsub (bvsub x y) (bvor y x))) (bvsub x (bvsub (bvadd #xd4e26a5b x) #xeec9fa67))))",
+  "formula": "(((((a - b) << 7) - ((a + a) + (2559381066 ^ a))) ^ (((b ^ a) & 2181895622) << 2)) ^ ((((a + b) ^ (a + b)) & ((a - b) - (b | a))) ^ (a - ((3571608155 + a) - 4006214247))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-22",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvshl (bvsub (bvsub (bvadd (bvsub y y) x) (bvxor (bvand #x2ee66e21 #xec4f4490) (bvxor y #xa22fc818))) (bvsub (bvlshr #x7cddb4cc #x0000000e) (bvand y #xdfc8b87a))) #x00000004)",
+  "formula": "(((((b - b) + a) - ((786853409 & 3964617872) ^ (b ^ 2721040408))) - ((2094904524 >> 14) - (b & 3754473594))) << 4)"
+ },
+ {
+  "set": "deep",
+  "name": "deep-23",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvnot (bvor (bvsub (bvlshr (bvadd #x5f653800 x) #x0000000c) (bvsub (bvnot x) x)) (bvor (bvsub (bvxor x x) x) (bvxor (bvsub x y) (bvlshr #x6151787e #x00000009)))))",
+  "formula": "(~((((1600468992 + a) >> 12) - ((~a) - a)) | (((a ^ a) - a) | ((a - b) ^ (1632729214 >> 9)))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-24",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvadd (bvlshr (bvor x (bvand (bvadd x #x968051b7) (bvsub #x1c351dc9 x))) #x0000000f) (bvnot (bvadd (bvxor (bvnot x) #x50c6fa8c) (bvadd (bvsub y x) y))))",
+  "formula": "(((a | ((a + 2524991927) & (473243081 - a))) >> 15) + (~(((~a) ^ 1355217548) + ((b - a) + b))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-25",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvshl (bvand (bvadd (bvadd x (bvxor #xbebbe60d x)) (bvxor x (bvadd x x))) (bvxor (bvor x (bvnot y)) (bvxor (bvsub y y) (bvlshr #x338f4acf #x0000000c)))) #x0000000c)",
+  "formula": "((((a + (3199985165 ^ a)) + (a ^ (a + a))) & ((a | (~b)) ^ ((b - b) ^ (865028815 >> 12)))) << 12)"
+ },
+ {
+  "set": "deep",
+  "name": "deep-26",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvsub (bvadd (bvlshr (bvshl x #x00000003) #x00000005) (bvxor (bvor x (bvand (bvadd x x) y)) (bvxor (bvsub (bvxor x #x14934a25) (bvshl y #x0000000b)) (bvand x (bvadd x #x5121f31f))))) (bvxor (bvadd (bvor #xe368f7d2 x) (bvor (bvxor (bvsub #xcefe73ec y) (bvsub #x2b66b1c0 y)) (bvsub x y))) (bvshl (bvlshr (bvadd x (bvsub x #x2a0b2040)) #x00000006) #x00000004)))",
+  "formula": "((((a << 3) >> 5) + ((a | ((a + a) & b)) ^ (((a ^ 345197093) - (b << 11)) ^ (a & (a + 1361179423))))) - (((3815307218 | a) + (((3472782316 - b) ^ (728150464 - b)) | (a - b))) ^ (((a + (a - 705372224)) >> 6) << 4)))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-27",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvadd (bvor (bvor x (bvadd (bvand y #x3e4c1362) #xd5511e14)) (bvxor (bvxor (bvor x y) (bvnot y)) y)) (bvadd (bvxor (bvadd x y) (bvsub (bvsub y x) (bvadd y x))) (bvor x (bvadd (bvshl #x998df20b #x00000005) x))))",
+  "formula": "(((a | ((b & 1045173090) + 3578863124)) | (((a | b) ^ (~b)) ^ b)) + (((a + b) ^ ((b - a) - (b + a))) + (a | ((2576216587 << 5) + a))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-28",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvsub (bvlshr (bvadd (bvsub (bvnot x) (bvsub (bvadd x #x59581c94) (bvxor #xb20ed719 #x4c43745b))) (bvnot x)) #x00000009) (bvadd (bvadd (bvxor (bvxor (bvnot y) (bvadd y #xe807092d)) y) (bvlshr (bvadd (bvnot x) (bvadd y y)) #x0000000f)) (bvlshr (bvxor (bvxor (bvadd y x) (bvadd y x)) (bvadd (bvadd y #x03a769aa) (bvsub y x))) #x00000003)))",
+  "formula": "(((((~a) - ((a + 1498946708) - (2987317017 ^ 1279489115))) + (~a)) >> 9) - (((((~b) ^ (b + 3892775213)) ^ b) + (((~a) + (b + b)) >> 15)) + ((((b + a) ^ (b + a)) ^ ((b + 61303210) + (b - a))) >> 3)))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-29",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvsub (bvadd (bvxor (bvxor (bvadd x #x6fa68010) y) (bvsub (bvshl x #x00000006) (bvsub x y))) (bvxor (bvshl (bvor x x) #x00000009) (bvxor (bvadd y y) (bvnot x)))) (bvxor (bvadd y (bvand (bvsub x x) (bvxor x #x0a78491f))) (bvadd (bvadd y (bvsub y y)) (bvand y (bvshl y #x00000003)))))",
+  "formula": "(((((a + 1873182736) ^ b) ^ ((a << 6) - (a - b))) + (((a | a) << 9) ^ ((b + b) ^ (~a)))) - ((b + ((a - a) & (a ^ 175655199))) ^ ((b + (b - b)) + (b & (b << 3)))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-30",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvsub (bvshl (bvand (bvsub (bvxor (bvxor y x) (bvadd y x)) (bvnot (bvor x x))) (bvadd #xc2ff347b x)) #x00000006) (bvadd (bvnot (bvnot (bvor x (bvxor #x7874166b x)))) (bvadd (bvsub (bvxor (bvxor y y) (bvxor x y)) #xa5005582) (bvadd #x448236e9 (bvlshr (bvnot #xbe725448) #x00000008)))))",
+  "formula": "((((((b ^ a) ^ (b + a)) - (~(a | a))) & (3271505019 + a)) << 6) - ((~(~(a | (2020873835 ^ a)))) + ((((b ^ b) ^ (a ^ b)) - 2768262530) + (1149384425 + ((~3195163720) >> 8)))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-31",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvadd (bvxor (bvand (bvor (bvor x (bvsub #xc43eebcc #x3e6fdeb2)) x) (bvlshr y #x00000006)) (bvadd (bvsub (bvshl (bvor y x) #x0000000b) (bvnot (bvlshr y #x0000000e))) (bvsub (bvlshr y #x0000000a) (bvshl (bvsub y y) #x00000009)))) (bvsub (bvadd (bvsub y (bvnot (bvshl x #x0000000a))) (bvxor (bvadd (bvxor #x89599298 y) (bvand x y)) (bvadd (bvadd x y) (bvsub x y)))) (bvshl (bvnot (bvadd (bvsub x y) x)) #x0000000f)))",
+  "formula": "(((((a | (3292457932 - 1047518898)) | a) & (b >> 6)) ^ ((((b | a) << 11) - (~(b >> 14))) + ((b >> 10) - ((b - b) << 9)))) + (((b - (~(a << 10))) + (((2304348824 ^ b) + (a & b)) ^ ((a + b) + (a - b)))) - ((~((a - b) + a)) << 15)))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-32",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvsub (bvadd (bvadd (bvsub (bvsub y y) (bvadd x x)) (bvxor (bvand x #xe6b0643c) x)) (bvnot (bvadd (bvsub #x20de5de4 #xf13a2ff3) (bvnot x)))) (bvadd (bvshl y #x00000005) (bvsub (bvand (bvadd y y) x) (bvxor (bvor x #x14e153ca) (bvnot #xcab24a0a)))))",
+  "formula": "(((((b - b) - (a + a)) + ((a & 3870319676) ^ a)) + (~((551443940 - 4047122419) + (~a)))) - ((b << 5) + (((b + b) & a) - ((a | 350311370) ^ (~3400681994)))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-33",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvadd (bvadd (bvadd (bvadd #x7c26c722 y) (bvsub (bvsub x y) x)) (bvsub (bvadd (bvsub y #x1d21ae7c) (bvadd y y)) #x42f81126)) (bvadd (bvor (bvadd (bvsub x y) (bvsub #x2038c8f6 y)) (bvadd (bvor y y) x)) (bvadd (bvxor (bvxor y y) y) #xd41cc2bc)))",
+  "formula": "((((2082916130 + b) + ((a - b) - a)) + (((b - 488746620) + (b + b)) - 1123553574)) + ((((a - b) + (540592374 - b)) | ((b | b) + a)) + (((b ^ b) ^ b) + 3558654652)))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-34",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvxor (bvadd (bvadd (bvadd #x31ffba99 (bvxor #x6e7fbad2 x)) (bvsub (bvor x y) (bvadd y #x371a2390))) (bvxor (bvadd (bvadd x x) (bvlshr x #x0000000a)) x)) (bvxor (bvxor y (bvadd y (bvxor y #x1da221b8))) (bvsub (bvadd (bvnot x) (bvsub y x)) x)))",
+  "formula": "((((838843033 + (1853864658 ^ a)) + ((a | b) - (b + 924459920))) + (((a + a) + (a >> 10)) ^ a)) ^ ((b ^ (b + (b ^ 497164728))) ^ (((~a) + (b - a)) - a)))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-35",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvand (bvor (bvadd (bvxor (bvxor (bvxor y y) #x24bf2792) (bvnot (bvshl x #x00000005))) (bvadd (bvxor (bvsub x y) x) (bvsub y #x16d24a67))) (bvand (bvadd (bvsub (bvadd y #x940795d0) (bvadd #x54f69e70 #xa7e15728)) (bvlshr x #x00000004)) (bvor (bvor y y) x))) (bvxor (bvor (bvsub (bvand x (bvnot x)) y) (bvadd (bvxor (bvnot x) x) (bvsub (bvand x y) (bvadd y y)))) (bvxor (bvsub (bvsub (bvlshr x #x00000001) (bvxor y y)) x) (bvsub (bvadd #x474fc1f7 x) x))))",
+  "formula": "((((((b ^ b) ^ 616507282) ^ (~(a << 5))) + (((a - b) ^ a) + (b - 382880359))) | ((((b + 2483525072) - (1425448560 + 2816562984)) + (a >> 4)) & ((b | b) | a))) & ((((a & (~a)) - b) | (((~a) ^ a) + ((a & b) - (b + b)))) ^ ((((a >> 1) - (b ^ b)) - a) ^ ((1196409335 + a) - a))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-36",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvsub (bvsub (bvnot #xe1abfa8b) (bvsub (bvlshr x #x00000006) (bvadd x (bvadd x x)))) (bvadd (bvnot (bvsub y (bvnot #x06fa11b4))) (bvsub (bvadd y y) #xa5276546)))",
+  "formula": "(((~3786144395) - ((a >> 6) - (a + (a + a)))) - ((~(b - (~117051828))) + ((b + b) - 2770822470)))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-37",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvadd (bvxor (bvadd (bvsub (bvadd (bvsub y x) (bvor y y)) (bvadd (bvor x y) y)) (bvand (bvadd (bvlshr y #x00000001) (bvlshr x #x00000004)) (bvadd (bvxor #xb8163f1a #xb1886048) (bvadd y #x05d79967)))) (bvsub (bvand (bvadd (bvnot y) (bvxor x x)) y) (bvsub (bvor (bvadd y x) (bvxor y y)) (bvsub (bvand #xf9576ac4 #xb8c6773e) (bvxor y #xd161387f))))) (bvxor (bvadd (bvadd (bvsub x #x06274afb) (bvadd (bvshl #x2d5b029b #x00000001) y)) (bvadd (bvlshr (bvadd y #x4fbf545a) #x00000001) x)) (bvxor (bvsub (bvand (bvsub x y) x) y) (bvxor (bvadd (bvsub x x) (bvadd #x0878f6db y)) (bvnot (bvadd x #xf290d831))))))",
+  "formula": "((((((b - a) + (b | b)) - ((a | b) + b)) + (((b >> 1) + (a >> 4)) & ((3088465690 ^ 2978504776) + (b + 98015591)))) ^ ((((~b) + (a ^ a)) & b) - (((b + a) | (b ^ b)) - ((4183255748 & 3100014398) - (b ^ 3512809599))))) + ((((a - 103238395) + ((760939163 << 1) + b)) + (((b + 1337939034) >> 1) + a)) ^ ((((a - b) & a) - b) ^ (((a - a) + (142145243 + b)) ^ (~(a + 4069578801))))))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-38",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvor (bvadd (bvadd (bvadd (bvlshr x #x00000008) (bvsub y x)) y) (bvxor x (bvxor y (bvxor #x52fb4fd4 #xb2e12089)))) (bvxor (bvshl (bvadd (bvnot x) (bvlshr x #x00000001)) #x00000003) (bvadd (bvadd (bvadd y y) (bvadd y x)) x)))",
+  "formula": "(((((a >> 8) + (b - a)) + b) + (a ^ (b ^ (1392201684 ^ 3001098377)))) | ((((~a) + (a >> 1)) << 3) ^ (((b + b) + (b + a)) + a)))"
+ },
+ {
+  "set": "deep",
+  "name": "deep-39",
+  "inputs": 2,
+  "params": [
+   "x",
+   "y"
+  ],
+  "term": "(bvadd (bvxor (bvxor (bvsub (bvsub (bvxor y y) (bvlshr x #x00000001)) (bvadd y (bvor x x))) (bvand (bvxor x y) (bvshl #x3301deb4 #x0000000a))) (bvxor (bvsub (bvxor (bvadd y y) (bvadd y x)) (bvor (bvsub y #x97d8c97d) (bvlshr x #x0000000d))) (bvor (bvadd (bvadd y #xc3a24c35) y) (bvsub (bvadd y y) (bvand y x))))) (bvand (bvadd (bvxor (bvshl x #x00000003) (bvxor (bvsub y y) x)) (bvadd (bvsub (bvsub #xa56a4a75 #xf281e24c) y) (bvlshr (bvlshr x #x00000001) #x00000008))) (bvxor (bvsub (bvxor (bvxor y y) (bvor x x)) (bvadd y (bvlshr y #x0000000e))) (bvand x (bvand (bvshl #x5c5b6d49 #x00000005) (bvxor #xe550dcea x))))))",
+  "formula": "((((((b ^ b) - (a >> 1)) - (b + (a | a))) ^ ((a ^ b) & (855760564 << 10))) ^ ((((b + b) ^ (b + a)) - ((b - 2547566973) | (a >> 13))) ^ (((b + 3282193461) + b) | ((b + b) - (b & a))))) + ((((a << 3) ^ ((b - b) ^ a)) + (((2775206517 - 4068598348) - b) + ((a >> 1) >> 8))) & ((((b ^ b) ^ (a | a)) - (b + (b >> 14))) ^ (a & ((1549495625 << 5) & (3847281898 ^ a))))))"
+ }
+]

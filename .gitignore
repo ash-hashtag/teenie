@@ -19,3 +19,4 @@ experiments/**/*.out
 # Checkpoint copies and markers written by the training checker
 experiments/**/snapshot.pt
 experiments/**/check-final
+tools/

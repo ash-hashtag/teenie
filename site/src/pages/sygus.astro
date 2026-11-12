@@ -1,0 +1,318 @@
+---
+import Layout from '../layouts/Layout.astro';
+import data from '../data/sygus.json';
+import { pct } from '../lib/format';
+
+type Method = { episodes: number; all_exact: number; exact: number[]; bits_right: number; seconds: number[] } | null;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const median = (xs: number[]) => {
+  const s = [...xs].sort((a, b) => a - b);
+  return s.length ? (s.length % 2 ? s[(s.length - 1) / 2]! : (s[s.length / 2 - 1]! + s[s.length / 2]!) / 2) : NaN;
+};
+const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+const seconds = (s: number) => (s < 1 ? `${Math.round(s * 1000)} ms` : `${s < 10 ? s.toFixed(1) : Math.round(s)} s`);
+
+// Hacker's Delight: cvc5 per file (grammar d0, d1, d5), Teenie and TabPFN per function.
+const files = data.hd.files;
+const solved = files.filter((f) => f.status === 'solved');
+const timeouts = files.filter((f) => f.status === 'timeout');
+const failed = files.filter((f) => f.status === 'failed');
+const grammars = ['d0', 'd1', 'd5'];
+const cvc5Cell = (fn: string, g: string) => files.find((f) => f.function === fn && f.grammar === g);
+const functions = data.hd.functions;
+const usable = functions.filter((f) => f.teenie);
+const teenieEpisodes = usable.flatMap((f) => (f.teenie as Method)!.exact);
+const teenieSeconds = usable.flatMap((f) => (f.teenie as Method)!.seconds);
+const teenieAll = usable.reduce((n, f) => n + (f.teenie as Method)!.all_exact, 0);
+const highFunctions = usable.filter((f) => mean((f.teenie as Method)!.exact) >= 0.98).length;
+const tabpfnInfo = data.tabpfn as { version: string; setup: string; device: string } | null;
+const tabpfnRan = usable.some((f) => f.tabpfn);
+const tabpfnAll = usable.reduce((n, f) => n + ((f.tabpfn as Method)?.all_exact ?? 0), 0);
+const tabpfnEpisodes = usable.flatMap((f) => (f.tabpfn as Method)?.exact ?? []);
+const tabpfnSeconds = usable.flatMap((f) => (f.tabpfn as Method)?.seconds ?? []);
+
+// Deep-carry set.
+const problems = data.deep.problems;
+const deepTimeouts = problems.filter((p) => p.cvc5 === 'timeout');
+const deepExact = problems.flatMap((p) => (p.teenie as Method)?.exact ?? []);
+const deepAll = problems.filter((p) => (p.teenie as Method)?.all_exact).length;
+const deepTabpfn = problems.flatMap((p) => (p.tabpfn as Method)?.exact ?? []);
+const profile = data.deep.bit_profile ?? [];
+const fnName = (name: string) => name.replace('hd', 'hd-');
+---
+
+<Layout
+  title="SyGuS bit-vector benchmarks: Teenie against cvc5"
+  description="Teenie on the SyGuS-Comp Hacker's Delight bit-vector benchmarks and on a set of deep-carry rules, next to the cvc5 program synthesizer, with how each is scored."
+  keywords={['SyGuS', 'program synthesis', 'cvc5', "Hacker's Delight", 'bit-vector', 'programming by example']}
+  kind="article"
+>
+  <p class="eyebrow">Results · program synthesis</p>
+  <h1>Against a program synthesizer</h1>
+  <p class="lede">
+    SyGuS-Comp is the yearly competition for program synthesizers: given a specification, find a program that meets
+    it. We took its bit-vector benchmarks and ran Teenie next to <strong>{data.solver.name}</strong>, a solver that has won
+    several of its tracks. The two don't do the same job, so read the scoring first: cvc5 returns a program it has
+    checked against the specification, while Teenie never writes a program. It reads 999 examples and answers new
+    questions, and here it counts as right on a function only when it answers all {data.questions.toLocaleString('en-US')}
+    fresh questions exactly. That is a sample, not a proof.
+  </p>
+
+  <div class="grid-3 stats">
+    <div class="card stat">
+      <span class="label">cvc5 on Hacker's Delight</span>
+      <span class="value">{solved.length} / {files.length} solved</span>
+      <span class="note">median {seconds(median(solved.map((f) => f.seconds)))} when solved; {timeouts.length + failed.length} not solved within {data.solver.timeout} s</span>
+    </div>
+    <div class="card stat">
+      <span class="label">Teenie on Hacker's Delight</span>
+      <span class="value">{teenieAll} / {teenieEpisodes.length} episodes</span>
+      <span class="note">all {data.questions.toLocaleString('en-US')} answers exact; at least 98% exact on {highFunctions} of {usable.length} functions; median {seconds(median(teenieSeconds))} per episode</span>
+    </div>
+    <div class="card stat">
+      <span class="label">Deep-carry rules (ours)</span>
+      <span class="value">cvc5 {problems.length - deepTimeouts.length} / {problems.length} · Teenie {deepAll} / {deepExact.length}</span>
+      <span class="note">cvc5 timed out on all {deepTimeouts.length}; Teenie answered a median {pct(median(deepExact))} exactly</span>
+    </div>
+  </div>
+
+  <h2>How each is scored</h2>
+  <div class="card">
+    <ul class="scoring">
+      <li>
+        <strong>cvc5</strong> ({data.solver.options}, {data.solver.timeout} s per problem, 4 at a time on a 12-core laptop
+        CPU): <em>solved</em> means it returned a program. We also ran every program it returned against the reference
+        function on 10,000 random inputs; none disagreed.
+      </li>
+      <li>
+        <strong>Teenie</strong> (the release model, on an {data.teenie.device}): for each function, 5 episodes of 999
+        examples and {data.questions.toLocaleString('en-US')} new questions, uniform 32-bit inputs. An episode counts
+        only if every answer is exact. Its time is one pass over the examples for all the questions.
+      </li>
+      {
+        tabpfnRan && (
+          <li>
+            <strong>TabPFN</strong> ({tabpfnInfo?.version}, {tabpfnInfo?.setup}, on the same GPU): the same episodes
+            and questions as Teenie, scored the same way.
+          </li>
+        )
+      }
+      <li>
+        Every episode was made by <code>scripts/generate-csv.ts</code>, the Try page's own formula evaluator, and every
+        answer file scored by its <code>--check</code>. Each rule was translated from the benchmark's SMT-LIB into the
+        Try page's formula language, and the 999 examples of every episode were checked against the original SMT-LIB
+        definition.
+      </li>
+    </ul>
+  </div>
+
+  <h2>Hacker's Delight (SyGuS-Comp General track)</h2>
+  <p class="small muted">
+    The {functions.length} bit-twiddling functions from <em>Hacker's Delight</em> used in SyGuS-Comp 2017 to 2019, each
+    with up to three grammars: d0 offers only the operators the answer needs, d1 a few more and d5 the full bit-vector
+    set, so the search grows from d0 to d5. Teenie ignores grammars: it sees only examples. One function,
+    {fnName('hd19')}, takes three inputs and Teenie takes two, so it has no Teenie result.
+  </p>
+  <div class="table-scroll">
+    <table class="hd">
+      <thead>
+        <tr>
+          <th>function</th>
+          <th>as a Try-page formula</th>
+          {grammars.map((g) => <th class="num">cvc5 {g}</th>)}
+          <th class="num">Teenie: all exact</th>
+          <th class="num">Teenie: exact</th>
+          {tabpfnRan && <th class="num">TabPFN: all exact</th>}
+          {tabpfnRan && <th class="num">TabPFN: exact</th>}
+        </tr>
+      </thead>
+      <tbody>
+        {
+          functions.map((f) => {
+            const t = f.teenie as Method;
+            const p = f.tabpfn as Method;
+            return (
+              <tr>
+                <td><b>{fnName(f.name)}</b></td>
+                <td><code class="formula" title={f.term}>{f.formula ?? f.term}</code></td>
+                {grammars.map((g) => {
+                  const c = cvc5Cell(f.name, g);
+                  if (!c) return <td class="num muted">·</td>;
+                  return (
+                    <td class={`num ${c.status === 'solved' ? 'ok' : 'bad'}`}>
+                      {c.status === 'solved' ? seconds(c.seconds) : c.status}
+                    </td>
+                  );
+                })}
+                <td class="num">{t ? `${t.all_exact} / ${t.episodes}` : '·'}</td>
+                <td class="num">{t ? pct(mean(t.exact)) : 'three inputs'}</td>
+                {tabpfnRan && <td class="num">{p ? `${p.all_exact} / ${p.episodes}` : '·'}</td>}
+                {tabpfnRan && <td class="num">{p ? pct(mean(p.exact)) : '·'}</td>}
+              </tr>
+            );
+          })
+        }
+      </tbody>
+    </table>
+  </div>
+  <p class="small muted">
+    A dot means the benchmark set has no file for that grammar.
+    Teenie's <em>exact</em> is the share of the {data.questions.toLocaleString('en-US')} questions answered exactly, averaged
+    over the 5 episodes.
+    {tabpfnRan && ` TabPFN: ${tabpfnAll} of ${tabpfnEpisodes.length} episodes all exact, median ${seconds(median(tabpfnSeconds))} per episode.`}
+  </p>
+  <p>
+    On these, the synthesizer is the better tool, and not only on time. With the small grammars it finds a correct program
+    in milliseconds, a program that is right on every input. Teenie gets 98 to 100% of answers exact on all but one
+    function, but on most it misses a few of every thousand, so it rarely gets a whole episode right. Neither does well on
+    {` ${fnName('hd20')}`} (the next higher number with the same count of 1-bits, which needs a division): cvc5 solved it with
+    no grammar, and Teenie answered {pct(mean((functions.find((f) => f.name === 'hd20')?.teenie as Method)?.exact ?? [0]))} exactly.
+  </p>
+
+  <h2>Deep-carry rules</h2>
+  <p class="small muted">
+    The protocol was fixed before any result was in (it is in <code>src/teenie/bits/sygus.py</code>): {problems.length}
+    random expressions in a and b from seed 0, built from +, −, xor, and, or, not, shifts by 1 to 15 and random 32-bit
+    constants, with at least 4 additions or subtractions and depth 5 or more, and no multiplication or division. cvc5 got
+    each as a programming-by-example problem with the same 999 examples Teenie reads, a grammar of those operators with
+    any 32-bit constant, and {data.solver.timeout} s; Teenie ran on every one cvc5 timed out on.
+  </p>
+  <div class="grid-3 stats">
+    <div class="card stat">
+      <span class="label">cvc5</span>
+      <span class="value">{deepTimeouts.length} / {problems.length} timeouts</span>
+      <span class="note">no program within {data.solver.timeout} s on any of them</span>
+    </div>
+    <div class="card stat">
+      <span class="label">Teenie, all {data.questions.toLocaleString('en-US')} exact</span>
+      <span class="value">{deepAll} / {deepExact.length}</span>
+      <span class="note">exact answers: median {pct(median(deepExact))}, best {pct(Math.max(...deepExact))}</span>
+    </div>
+    {
+      tabpfnRan && (
+        <div class="card stat">
+          <span class="label">TabPFN, all {data.questions.toLocaleString('en-US')} exact</span>
+          <span class="value">{problems.filter((p) => (p.tabpfn as Method)?.all_exact).length} / {deepTabpfn.length}</span>
+          <span class="note">exact answers: median {pct(median(deepTabpfn))}</span>
+        </div>
+      )
+    }
+  </div>
+  <p>
+    These rules are beyond Teenie too. It gets the lowest bits right most often and does worst in the middle of the word,
+    but even its lowest bit is wrong about one time in five, so this is not only a matter of long carries: rules this
+    deep, with constants this large, are outside what it learned. We report the set as it came out and haven't changed
+    it since seeing the results.
+  </p>
+  {
+    profile.length > 0 && (
+      <figure class="card profile">
+        <div class="bars" role="img" aria-label="Share of answer bits Teenie got right on the deep-carry set, by bit position">
+          {[...profile].reverse().map((v, i) => (
+            <span class="bar" style={`--v:${v}`} title={`bit ${profile.length - 1 - i}: ${pct(v)} right`} />
+          ))}
+        </div>
+        <figcaption class="small muted">
+          Share of answer bits right on the deep-carry set by position, high bit on the left (the axis runs from 50%,
+          a coin toss, to 100%). Lowest bit {pct(profile[0])}, worst {pct(Math.min(...profile))}.
+        </figcaption>
+      </figure>
+    )
+  }
+  <details class="small">
+    <summary>All {problems.length} rules</summary>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>rule</th><th>c =</th><th class="num">cvc5</th><th class="num">Teenie exact</th><th class="num">bits right</th>{tabpfnRan && <th class="num">TabPFN exact</th>}</tr></thead>
+        <tbody>
+          {
+            problems.map((p) => (
+              <tr>
+                <td>{p.name}</td>
+                <td><code class="formula">{p.formula}</code></td>
+                <td class="num">{p.cvc5}</td>
+                <td class="num">{p.teenie ? pct((p.teenie as Method)!.exact[0]) : '·'}</td>
+                <td class="num">{p.teenie ? pct((p.teenie as Method)!.bits_right) : '·'}</td>
+                {tabpfnRan && <td class="num">{p.tabpfn ? pct((p.tabpfn as Method)!.exact[0]) : '·'}</td>}
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+    <p>Paste any of them into <a href={`${base}/try/`}>Try it</a> to see it answer for yourself.</p>
+  </details>
+
+  <h2>What we didn't run</h2>
+  <p>
+    The SyGuS-Comp PBE bit-vector track ({data.pbe_bv.problems} problems) is the obvious other half, but {data.pbe_bv.reason},
+    so there is nothing fair to run. {!tabpfnRan && 'TabPFN, the other model that predicts from examples in one pass, is not in this comparison yet.'}
+  </p>
+
+  <h2>Run it yourself</h2>
+  <p class="small">
+    Benchmarks from <a href={data.source.repository}>SyGuS-Org/benchmarks</a> at commit <code>{data.source.commit}</code>,
+    <code>{data.source.path}</code>. Everything else is in <code>experiments/sygus/</code>:
+  </p>
+  <pre><code>experiments/sygus/run.sh fetch         # the benchmark files at that commit
+experiments/sygus/run.sh cvc5-hd       # cvc5 on them, and its programs checked
+experiments/sygus/run.sh episodes      # generate-csv.ts writes every episode
+experiments/sygus/run.sh teenie-hd     # Teenie answers, generate-csv --check scores
+experiments/sygus/run.sh cvc5-deep     # cvc5 on the deep-carry problems
+experiments/sygus/run.sh teenie-deep
+uv run python -m teenie.bits.sygus export   # this page's numbers</code></pre>
+</Layout>
+
+<style>
+  .stats {
+    margin: 1.2rem 0;
+  }
+
+  .scoring {
+    margin: 0;
+    padding-left: 1.2rem;
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .formula {
+    font-size: 0.78rem;
+    overflow-wrap: anywhere;
+    background: none;
+  }
+
+  table.hd td:nth-child(2) {
+    max-width: 22rem;
+  }
+
+  .ok {
+    color: var(--good);
+  }
+
+  .bad {
+    color: var(--bad);
+  }
+
+  .profile {
+    margin: 1rem 0;
+  }
+
+  .bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 120px;
+  }
+
+  .bar {
+    flex: 1;
+    height: calc((var(--v) - 0.5) * 2 * 100%);
+    min-height: 2px;
+    background: var(--series-1);
+    border-radius: 2px 2px 0 0;
+  }
+
+  pre {
+    overflow-x: auto;
+  }
+</style>

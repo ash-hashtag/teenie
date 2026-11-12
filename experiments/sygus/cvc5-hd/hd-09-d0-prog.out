@@ -1,0 +1,3 @@
+(
+(define-fun f ((x (_ BitVec 32))) (_ BitVec 32) (let ((_let_1 (bvashr x #b00000000000000000000000000011111))) (bvsub (bvxor x _let_1) _let_1)))
+)

@@ -25,14 +25,21 @@ function weighted<T>(items: readonly (readonly [T, number])[]): T {
 // Multiplication is the model's weak spot when its operands are computed, so random rules use it sparingly.
 const BINARY = [['+', 4], ['-', 3], ['^', 4], ['&', 2], ['|', 2], ['*', 1]] as const;
 const between = (low: number, high: number) => low + Math.floor(Math.random() * (high - low + 1));
-const constant = () => (Math.random() < 0.8 ? String(between(2, 255)) : `0x${between(0x1000, 0xffff).toString(16).toUpperCase()}`);
+/** A constant of random size: anywhere from 2 to 32 bits long, so some are small and some large. */
+function constant(): string {
+  const bits = between(2, 32);
+  const value = Math.floor(2 ** (bits - 1) + Math.random() * 2 ** (bits - 1));
+  return value < 10000 ? String(value) : `0x${value.toString(16).toUpperCase()}`;
+}
+/** Right shifts beyond 1 rarely give the model anything to find, so they're rare. */
+const rightShift = () => weighted([[1, 8], [2, 1], [3, 1]] as const);
 
 /** A random expression with `ops` operations over the given leaves. */
 function tree(ops: number, leaves: readonly string[]): string {
   if (ops === 0) return Math.random() < 0.15 ? constant() : pick(leaves);
   if (Math.random() < 0.15) {
     const inner = tree(ops - 1, leaves);
-    return pick([`~${inner}`, `(${inner} >> ${between(1, 5)})`, `(${inner} << ${between(1, 3)})`]);
+    return weighted([[`~${inner}`, 2], [`(${inner} >> ${rightShift()})`, 1], [`(${inner} << ${between(1, 3)})`, 2]] as const);
   }
   const left = between(0, ops - 1);
   const op = weighted(BINARY);
@@ -53,13 +60,13 @@ function balanced(text: string): boolean {
 
 const STARTS = [['a + b', 3], ['a ^ b', 3], ['a - b', 3], ['a | b', 2], ['a & b', 2], ['max(a, b)', 1], ['min(a, b)', 1],
   ['a * b', 1]] as const;
-const STEP_WEIGHTS = [3, 3, 3, 1, 2, 2, 2, 2, 2, 3, 1];
+const STEP_WEIGHTS = [3, 3, 3, 1, 1, 2, 2, 2, 2, 3, 1];
 const STEPS: ((e: string) => string)[] = [
   (e) => `(${e} + ${constant()})`,
   (e) => `(${e} ^ b)`,
   (e) => `(${e} ^ a)`,
   (e) => `(${e} * ${pick(['3', '5', '7', '9'])})`,
-  (e) => `(${e} >> ${between(1, 6)})`,
+  (e) => `(${e} >> ${rightShift()})`,
   (e) => `(${e} << ${between(1, 3)})`,
   (e) => `(${e} | a)`,
   (e) => `(${e} - b)`,

@@ -202,7 +202,7 @@ const parameters = info.parameters.toLocaleString('en-US');
       const mb = (n: number) => (n / 1e6).toFixed(1);
       const done = m.total > 0 && m.loaded >= m.total;
       showProgress(m.total ? m.loaded / m.total : 0, done ? 'Setting up (checking whether your GPU gives the right answers)…'
-        : `Downloading the model and its runtime: ${mb(m.loaded)}${m.total ? ` of ${mb(m.total)}` : ''} MB`);
+        : `Downloading the model: ${mb(m.loaded)}${m.total ? ` of ${mb(m.total)}` : ''} MB`);
     } else if (m.type === 'ready') {
       loaded.add(m.width);
       backends[m.width] = { backend: m.backend, device: m.device };

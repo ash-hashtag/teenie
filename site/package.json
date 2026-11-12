@@ -3,17 +3,15 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "node scripts/ort-assets.mjs && astro dev",
-    "build": "node scripts/ort-assets.mjs && astro check && astro build",
-    "build:static": "node scripts/ort-assets.mjs && TEENIE_STATIC=1 astro check && TEENIE_STATIC=1 astro build",
+    "dev": "astro dev",
+    "build": "astro check && astro build",
+    "build:static": "TEENIE_STATIC=1 astro check && TEENIE_STATIC=1 astro build",
     "preview": "astro preview",
-    "check": "astro check",
-    "ort": "node scripts/ort-assets.mjs"
+    "check": "astro check"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",
-    "astro": "^7.4.7",
-    "onnxruntime-web": "1.31.1"
+    "astro": "^7.4.7"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",

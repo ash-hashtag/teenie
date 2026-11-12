@@ -12,46 +12,31 @@
 // adapters (SwiftShader) are skipped: they are correct but 30 times slower than WebAssembly. The choice is logged to the
 // console and shown on the page.
 
-import * as onnx from 'onnxruntime-web/webgpu';
-import runtimeInfo from '../data/ort.json';
-
+// onnxruntime-web from the CDN, pinned. Its WebGPU build also runs WebAssembly, so one runtime covers both.
+const ORT = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/';
 const CONTEXT = 999;
 const CHECK_QUESTIONS = 4;
 
 type Backend = 'webgpu' | 'wasm';
-type Ort = typeof onnx;
-type Session = onnx.InferenceSession;
+type Tensor = { data: Float32Array | number[] };
+type Session = { run(feeds: Record<string, unknown>): Promise<Record<string, Tensor>>; release(): Promise<void> };
+type Ort = {
+  env: { wasm: { wasmPaths: string; numThreads: number; proxy: boolean } };
+  Tensor: new (type: 'float32', data: Float32Array, dims: number[]) => Tensor;
+  InferenceSession: { create(model: Uint8Array, options: object): Promise<Session> };
+};
 type Opened = { session: Session; backend: Backend; device: string };
 
 let runtime: Promise<Ort> | null = null;
 const sessions = new Map<number, Promise<Opened>>();
 
-// Downloads in flight (the runtime and a model at once), reported to the page as one progress bar.
-const downloads = new Map<string, { loaded: number; total: number }>();
-function report(): void {
-  let loaded = 0;
-  let total = 0;
-  for (const d of downloads.values()) {
-    loaded += d.loaded;
-    total += d.total;
-  }
-  postMessage({ type: 'progress', loaded, total });
-}
-
-// onnxruntime-web is bundled with the site; its WebAssembly binary is served from this site too, gzipped
-// (scripts/ort-assets.mjs), and unpacked here, so nothing is loaded from a CDN.
 function ort(): Promise<Ort> {
-  runtime ??= (async () => {
-    const packed = await download(new URL(runtimeInfo.wasm.replace(/^\//, ''), new URL(import.meta.env.BASE_URL, self.location.origin)).href);
-    const gzipped = packed[0] === 0x1f && packed[1] === 0x8b; // a server may already have unpacked it
-    const binary = gzipped
-      ? await new Response(new Blob([packed as BlobPart]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
-      : packed.buffer;
-    onnx.env.wasm.wasmBinary = binary;
-    onnx.env.wasm.numThreads = 1; // a static site is not cross-origin isolated, so one thread
-    onnx.env.wasm.proxy = false; // already off the main thread
-    return onnx;
-  })();
+  runtime ??= (import(/* @vite-ignore */ `${ORT}ort.webgpu.min.mjs`) as Promise<Ort>).then((module) => {
+    module.env.wasm.wasmPaths = ORT;
+    module.env.wasm.numThreads = 1; // a static site is not cross-origin isolated, so one thread
+    module.env.wasm.proxy = false; // already off the main thread
+    return module;
+  });
   runtime.catch(() => (runtime = null));
   return runtime;
 }
@@ -78,8 +63,6 @@ async function download(url: string): Promise<Uint8Array> {
   const response = await fetch(url);
   if (!response.ok || !response.body) throw new Error(`could not download ${url.split('/').pop()} (HTTP ${response.status})`);
   const total = Number(response.headers.get('content-length') ?? 0);
-  const progress = { loaded: 0, total };
-  downloads.set(url, progress);
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let loaded = 0;
@@ -88,10 +71,8 @@ async function download(url: string): Promise<Uint8Array> {
     if (done) break;
     chunks.push(value);
     loaded += value.length;
-    progress.loaded = loaded;
-    report();
+    postMessage({ type: 'progress', loaded, total });
   }
-  downloads.delete(url);
   const bytes = new Uint8Array(loaded);
   let offset = 0;
   for (const chunk of chunks) {
@@ -102,7 +83,7 @@ async function download(url: string): Promise<Uint8Array> {
 }
 
 // The self-check episode (export_web.check_episode): a, b below 256 from a multiplicative hash, c = a*b + a.
-function checkFeeds(module: Ort, width: number): Record<string, onnx.Tensor> {
+function checkFeeds(module: Ort, width: number): Record<string, Tensor> {
   const hashed = (i: number) => Math.imul(i + 1, 0x9e3779b1) >>> 0;
   const signed = (target: Float32Array, offset: number, value: number) => {
     for (let k = 0; k < width; k++) target[offset + k] = Math.floor(value / 2 ** k) % 2 ? 1 : -1;
@@ -137,7 +118,7 @@ async function onGpu(module: Ort, bytes: Uint8Array, width: number, check: numbe
   let why = '';
   try {
     session = await module.InferenceSession.create(bytes, { executionProviders: ['webgpu'] });
-    const got = (await session.run(checkFeeds(module, width))).probabilities!.data as Float32Array;
+    const got = (await session.run(checkFeeds(module, width))).probabilities!.data;
     const off = check.reduce((worst, x, i) => Math.max(worst, Math.abs(got[i]! - x)), got.length === check.length ? 0 : 1);
     if (off < 0.01) return { session, device: gpu.device };
     why = `${gpu.device} failed the self-check (off by ${off.toFixed(3)})`;

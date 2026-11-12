@@ -1,0 +1,8 @@
+# Cloudflare static asset headers. Model files carry a content hash in their name (export_web.py), and Astro's
+# bundles in /_astro/ do too, so both can be cached for a year without ever going stale.
+/weights/*.onnx
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: application/octet-stream
+
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable

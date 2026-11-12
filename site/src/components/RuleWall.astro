@@ -1,0 +1,50 @@
+---
+import showcase from '../data/showcase.json';
+// Rules the release model cracks with small numbers, with its measured exact rate on each (export_showcase.py).
+const rules = [...showcase.rules].sort((x, y) => y.right / y.total - x.right / x.total).slice(0, 12);
+---
+
+<div class="wall">
+  {rules.map((r) => {
+    const [a, b, c] = r.examples[0]!;
+    return (
+      <a class="card brick" href={`/try/?rule=${encodeURIComponent(r.formula)}&width=16&small=1`}>
+        <code class="formula">c = {r.shown}</code>
+        <span class="score"><b>{Math.round((100 * r.right) / r.total)}%</b> exactly right</span>
+        <span class="sample small muted">e.g. a = {a}, b = {b} → {c}</span>
+      </a>
+    );
+  })}
+</div>
+
+<style>
+  .wall {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    gap: 0.75rem;
+  }
+
+  .brick {
+    display: grid;
+    gap: 0.35rem;
+    text-decoration: none;
+    color: var(--ink);
+    transition: border-color 0.15s, transform 0.15s;
+  }
+
+  .brick:hover {
+    border-color: var(--series-1);
+    transform: translateY(-1px);
+  }
+
+  .formula {
+    font-size: 0.95rem;
+    background: none;
+    padding: 0;
+  }
+
+  .score b {
+    font-size: 1.4rem;
+    color: var(--good);
+  }
+</style>

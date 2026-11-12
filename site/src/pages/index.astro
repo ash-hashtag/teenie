@@ -5,6 +5,8 @@ import ChainsTable from '../components/ChainsTable.astro';
 import ProductsTable from '../components/ProductsTable.astro';
 import Examples from '../components/Examples.astro';
 import GroupTable from '../components/GroupTable.astro';
+import Puzzle from '../components/Puzzle.astro';
+import RuleWall from '../components/RuleWall.astro';
 import rounds from '../../public/data/rounds.json';
 import { progress } from '../lib/data';
 import { pct, thousands } from '../lib/format';
@@ -35,16 +37,26 @@ const release = progress.release?.results ?? {};
 >
   <section class="hero">
     <p class="eyebrow">Teenie · a research experiment by <a href="https://www.linkedin.com/in/sri-pranav-tene">Sri Pranav Tene</a></p>
-    <h1>Can a small model infer a hidden rule from 999 examples?</h1>
+    <h1>Show it 999 examples. It works out the rule.</h1>
     <p class="lede">
-      Each episode shows the model 999 examples <code>(a, b, c)</code> of a hidden rule on 16- or 32-bit integers (a
-      random expression, a conditional, a loop) and then asks for <code>c</code> at a new <code>(a, b)</code>. Nobody
-      tells it the rule and its weights stay fixed while it answers, so it gets one forward pass to work out what the
-      examples have in common and write down every bit of <code>c</code>. At 32 bits a lucky guess comes up once in four
-      billion tries, which is why a right answer has to come from the examples. Some kinds of rule it handles well and
-      some it can't do at all; the tables below show both.
+      Teenie is a small neural network, 1.1 million numbers in all, trained on a laptop. Give it examples of a hidden
+      rule and it answers questions it has never seen, without anyone telling it the rule. Have a go at one of its
+      puzzles first, then see what it said.
+    </p>
+    <p class="cta">
+      <a class="button" href={`${base}/try/`}>Try it with your own rule</a>
+      <a class="button quiet" href="#where">How good is it?</a>
     </p>
   </section>
+
+  <Puzzle />
+
+  <h2>Rules it cracks</h2>
+  <p>
+    Each of these is a hidden rule Teenie works out from examples with small numbers, and how often it got a fresh
+    question exactly right. Click one to test it yourself.
+  </p>
+  <RuleWall />
 
   <section class="stats grid-3">
     <div class="card stat">
@@ -64,7 +76,7 @@ const release = progress.release?.results ?? {};
     </div>
   </section>
 
-  <h2>Where it stands</h2>
+  <h2 id="where">Where it stands</h2>
   <p>
     The current model on every test group at 32 bits. It never trained on any of these rules. <b>Bits recovered</b>
     measures how far its guess beats chance, from 0 for a blind guess to 32 for certain and right, and <b>lookup</b>
@@ -247,6 +259,29 @@ const release = progress.release?.results ?? {};
 </script>
 
 <style>
+  .cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 1rem;
+  }
+
+  .cta .button {
+    display: inline-block;
+    padding: 0.6rem 1.1rem;
+    border-radius: 8px;
+    background: var(--series-1);
+    color: #fff;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .cta .button.quiet {
+    background: none;
+    color: var(--ink);
+    border: 1px solid var(--axis);
+  }
+
   .mega ul {
     margin: 0.4rem 0 0.6rem;
     padding-left: 1.2rem;

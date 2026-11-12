@@ -5,10 +5,13 @@ uv run --extra web python -m teenie.bits.export_web --checkpoint checkpoints/wid
 The browser turns integers into bits itself (the shift that does it has no ONNX form), so the graph takes
 bits [1, 999, 3, W] and asked [1, Q, 2, W] in {-1, 1} and returns each answer bit's probability of being 1,
 [1, Q, W], after the model's last round. The question count Q is free; the export fixes the width, so there is one
-self-contained file per width (teenie-w16.onnx, teenie-w32.onnx; weights inside, about 8 MB each, well under the
-25 MB Cloudflare asset limit) plus a small JSON description. Each file is checked against PyTorch.
+self-contained file per width, named with a hash of its contents (teenie-w32-<hash>.onnx; weights inside, about 8 MB
+each, well under the 25 MB Cloudflare asset limit), plus a small JSON description the site reads at build time. A new
+export gets new names, so the files can be cached forever (site/public/_headers) and older versions are removed.
+Each file is checked against PyTorch.
 """
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -71,8 +74,14 @@ def main() -> None:
             difference = float((got - reference).abs().max())
             print(f'width {w}, {q} questions: max difference from PyTorch {difference:.2e}')
             assert difference < 1e-4, difference
-        files[str(w)] = {'file': output.name, 'bytes': output.stat().st_size}
-        print(f'{output} ({output.stat().st_size / 1e6:.1f} MB)')
+        digest = hashlib.sha256(output.read_bytes()).hexdigest()[:10]
+        versioned = folder / f'teenie-w{w}-{digest}.onnx'
+        for old in folder.glob(f'teenie-w{w}-*.onnx'):
+            if old != versioned:
+                old.unlink()
+        output.replace(versioned)
+        files[str(w)] = {'file': versioned.name, 'bytes': versioned.stat().st_size}
+        print(f'{versioned} ({versioned.stat().st_size / 1e6:.1f} MB)')
 
     parameters = sum(p.numel() for p in model.parameters())
     info = {'checkpoint': args.checkpoint, 'update': metadata.get('update'), 'train_set': metadata.get('train_set'),

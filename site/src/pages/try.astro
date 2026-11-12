@@ -39,7 +39,7 @@ const parameters = info.parameters.toLocaleString('en-US');
     is a download of about 8 MB.
   </p>
 
-  <p class="status small" data-role="status">Loading the model…</p>
+  <p class="status small" data-role="status" data-files={JSON.stringify(Object.fromEntries(Object.entries(info.widths).map(([w, f]) => [w, f.file])))}>Loading the model…</p>
 
   <section class="card form">
     <label for="formula" class="eyebrow">The hidden rule</label>
@@ -74,6 +74,7 @@ const parameters = info.parameters.toLocaleString('en-US');
           <option value="16">16 bits</option>
         </select>
       </label>
+      <label class="small"><input type="checkbox" data-role="small" /> small numbers (a, b under 256)</label>
       <button class="primary" type="button" data-role="run" disabled>Ask 16 questions</button>
     </div>
     <details class="own" data-role="own-box">
@@ -161,7 +162,10 @@ const parameters = info.parameters.toLocaleString('en-US');
   const widthSelect = $<HTMLSelectElement>('width');
   const runButton = $<HTMLButtonElement>('run');
   const worker = new Worker(new URL('../lib/infer.worker.ts', import.meta.url), { type: 'module' });
-  const modelUrl = (width: number) => `${BASE}/weights/teenie-w${width}.onnx`;
+  // File names carry a content hash (export_web.py), so the browser and Cloudflare can cache them forever.
+  const FILES = JSON.parse(document.querySelector<HTMLElement>('[data-files]')!.dataset.files!) as Record<string, string>;
+  const modelUrl = (width: number) => `${BASE}/weights/${FILES[String(width)]}`;
+  const smallBox = $<HTMLInputElement>('small');
 
   // Seconds one pass took last time, per width: drives the estimated progress while the model thinks.
   const lastSeconds: Record<number, number> = { 16: 3, 32: 6 };
@@ -265,6 +269,7 @@ const parameters = info.parameters.toLocaleString('en-US');
   async function run(): Promise<void> {
     showError(null);
     const width = Number(widthSelect.value);
+    const inputBits = smallBox.checked ? 8 : width;
     let tree;
     let mine: [bigint, bigint][];
     try {
@@ -283,8 +288,8 @@ const parameters = info.parameters.toLocaleString('en-US');
       const examples: [bigint, bigint][] = [];
       const questions: [bigint, bigint][] = [...mine];
       while (examples.length < CONTEXT || questions.length < QUESTIONS) {
-        const a = random(width);
-        const b = random(width);
+        const a = random(inputBits);
+        const b = random(inputBits);
         const key = `${a},${b}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -374,7 +379,7 @@ const parameters = info.parameters.toLocaleString('en-US');
     $('w').textContent = String(width);
     $('times').textContent = mean > 1 ? `≈ ${formatPower(mean)}× better than a blind guess` : 'about a blind guess';
     $('sure').textContent = `${sure} / ${QUESTIONS} · ${sure ? `${sureRight} / ${sure}` : '—'}`;
-    $('note').textContent = `c = ${input.value} at ${width} bits: 999 examples (${distinct.toLocaleString('en-US')} different answers), ${QUESTIONS} new questions${mine ? ` (${mine} of yours)` : ''}, answered on your device in ${seconds.toFixed(1)} s.`;
+    $('note').textContent = `c = ${input.value} at ${width} bits${smallBox.checked ? ' with a, b under 256' : ''}: 999 examples (${distinct.toLocaleString('en-US')} different answers), ${QUESTIONS} new questions${mine ? ` (${mine} of yours)` : ''}, answered on your device in ${seconds.toFixed(1)} s.`;
     $('rows').innerHTML = rows.join('');
     $('examples').innerHTML = `<table><thead><tr><th class="num">a</th><th class="num">b</th><th class="num">c</th></tr></thead><tbody>${pairs
       .slice(0, 8)
@@ -440,6 +445,12 @@ const parameters = info.parameters.toLocaleString('en-US');
   );
   runButton.addEventListener('click', () => void run());
   widthSelect.addEventListener('change', () => void load(Number(widthSelect.value)).catch(() => undefined));
+
+  // A link such as /try/?rule=a*10%2Bb&width=16&small=1 opens with that rule (from the overview's puzzles and wall).
+  const params = new URLSearchParams(location.search);
+  if (params.get('rule')) input.value = params.get('rule')!;
+  if (params.get('width') === '16' || params.get('width') === '32') widthSelect.value = params.get('width')!;
+  if (params.get('small') === '1') smallBox.checked = true;
 
   load(Number(widthSelect.value))
     .then(() => {

@@ -1,0 +1,219 @@
+---
+import showcase from '../data/showcase.json';
+// Spot-the-rule puzzles from real episodes of the release model (export_showcase.py): a few of the 999 examples, one
+// question, the model's actual answer, then the rule.
+const puzzles = showcase.rules.filter((r) => r.puzzle);
+const level = (i: number) => (i < 2 ? 'easy' : i < 3 ? 'medium' : 'hard');
+---
+
+<section class="puzzle card" data-puzzles={JSON.stringify(puzzles)} aria-label="Spot the rule">
+  <div class="top">
+    <p class="eyebrow" data-role="puzzle-title">Puzzle 1 of {puzzles.length} · {level(0)}</p>
+    <button class="ghost" type="button" data-role="puzzle-next">Next puzzle →</button>
+  </div>
+  <div class="body">
+    <div>
+      <p class="hint small muted">These numbers follow one hidden rule. Can you work it out?</p>
+      <table class="rows">
+        <thead><tr><th class="num">a</th><th class="num">b</th><th></th><th class="num">c</th></tr></thead>
+        <tbody data-role="puzzle-rows"></tbody>
+        <tfoot>
+          <tr class="question"><td class="num" data-role="qa"></td><td class="num" data-role="qb"></td><td>→</td><td class="num"><span class="mystery" data-role="qc">?</span></td></tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="side">
+      <button class="primary" type="button" data-role="show-answer">Show Teenie's answer</button>
+      <p class="verdict" data-role="answer-box" hidden></p>
+      <button class="secondary" type="button" data-role="show-rule" hidden>Reveal the rule</button>
+      <div class="rule-box" data-role="rule-box" hidden>
+        <p class="rule"><code data-role="rule"></code></p>
+        <p class="small muted" data-role="rule-note"></p>
+        <a class="small" data-role="rule-try" href="/try/">Test it on this rule yourself →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  type Rule = {
+    shown: string; formula: string; examples: number[][];
+    questions: { a: number; b: number; truth: number; answer: number }[]; right: number; total: number;
+  };
+  const root = document.querySelector<HTMLElement>('.puzzle')!;
+  const puzzles = JSON.parse(root.dataset.puzzles!) as Rule[];
+  const $ = <T extends Element>(role: string) => root.querySelector<T>(`[data-role="${role}"]`)!;
+  const level = (i: number) => (i < 2 ? 'easy' : i < 3 ? 'medium' : 'hard');
+  let index = 0;
+
+  function show(i: number): void {
+    const p = puzzles[i]!;
+    const q = p.questions[0]!;
+    $('puzzle-title').textContent = `Puzzle ${i + 1} of ${puzzles.length} · ${level(i)}`;
+    $('puzzle-rows').innerHTML = p.examples
+      .map(([a, b, c]) => `<tr><td class="num">${a}</td><td class="num">${b}</td><td>→</td><td class="num">${c}</td></tr>`)
+      .join('');
+    $('qa').textContent = String(q.a);
+    $('qb').textContent = String(q.b);
+    $('qc').textContent = '?';
+    $('qc').className = 'mystery';
+    $<HTMLElement>('answer-box').hidden = true;
+    $<HTMLElement>('show-rule').hidden = true;
+    $<HTMLElement>('rule-box').hidden = true;
+    $<HTMLElement>('show-answer').hidden = false;
+  }
+
+  $('show-answer').addEventListener('click', () => {
+    const p = puzzles[index]!;
+    const q = p.questions[0]!;
+    const ok = q.answer === q.truth;
+    $('qc').textContent = String(q.answer);
+    $('qc').className = ok ? 'mystery solved' : 'mystery missed';
+    $('answer-box').textContent = ok
+      ? `Teenie says ${q.answer}, and that's right. It read 999 examples like these.`
+      : `Teenie says ${q.answer}; the right answer is ${q.truth}. Wrong this time.`;
+    $<HTMLElement>('answer-box').hidden = false;
+    $<HTMLElement>('show-answer').hidden = true;
+    $<HTMLElement>('show-rule').hidden = false;
+  });
+
+  $('show-rule').addEventListener('click', () => {
+    const p = puzzles[index]!;
+    $('rule').textContent = `c = ${p.shown}`;
+    $('rule-note').textContent = `Over 512 fresh questions with numbers this size, Teenie got ${Math.round((100 * p.right) / p.total)}% exactly right.`;
+    $<HTMLAnchorElement>('rule-try').href = `/try/?rule=${encodeURIComponent(p.formula)}&width=16&small=1`;
+    $<HTMLElement>('rule-box').hidden = false;
+    $<HTMLElement>('show-rule').hidden = true;
+  });
+
+  $('puzzle-next').addEventListener('click', () => {
+    index = (index + 1) % puzzles.length;
+    show(index);
+  });
+  show(0);
+</script>
+
+<style>
+  .puzzle {
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .top .eyebrow {
+    margin: 0;
+  }
+
+  .body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  @media (max-width: 720px) {
+    .body {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .hint {
+    margin: 0 0 0.4rem;
+  }
+
+  .rows {
+    font: 1.15rem var(--mono);
+    max-width: 22rem;
+  }
+
+  .rows td,
+  .rows th {
+    padding: 0.2rem 0.6rem;
+  }
+
+  .rows td:nth-child(3) {
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .question td {
+    border-top: 2px solid var(--axis);
+    font-weight: 700;
+  }
+
+  .mystery {
+    display: inline-block;
+    min-width: 3ch;
+    padding: 0 0.3rem;
+    border-radius: 4px;
+    background: color-mix(in oklab, var(--series-1) 15%, transparent);
+  }
+
+  .mystery.solved {
+    background: color-mix(in oklab, var(--good) 25%, transparent);
+  }
+
+  .mystery.missed {
+    background: color-mix(in oklab, var(--bad) 25%, transparent);
+  }
+
+  .side {
+    display: grid;
+    gap: 0.7rem;
+    align-content: start;
+  }
+
+  .primary,
+  .secondary,
+  .ghost {
+    font: inherit;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 0.55rem 1rem;
+    cursor: pointer;
+    justify-self: start;
+  }
+
+  .primary {
+    border: none;
+    background: var(--series-1);
+    color: #fff;
+  }
+
+  .secondary {
+    border: 1px solid var(--series-1);
+    background: none;
+    color: var(--series-1);
+  }
+
+  .ghost {
+    border: 1px solid var(--axis);
+    background: none;
+    color: var(--ink);
+    font-weight: 500;
+    padding: 0.35rem 0.8rem;
+  }
+
+  .verdict {
+    margin: 0;
+  }
+
+  .rule {
+    font-size: 1.3rem;
+    margin: 0;
+  }
+
+  .rule code {
+    font-size: 1.1rem;
+  }
+
+  .rule-box p {
+    margin: 0 0 0.4rem;
+  }
+</style>

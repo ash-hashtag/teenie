@@ -22,6 +22,7 @@ const weak = [
   { label: 'rotation', formula: 'rotl(a, 7) ^ b' },
 ];
 const parameters = info.parameters.toLocaleString('en-US');
+const CHUNK = 128; // questions per pass for an uploaded file (also in the script below)
 ---
 
 <Layout
@@ -36,7 +37,8 @@ const parameters = info.parameters.toLocaleString('en-US');
     Type a function of <code>a</code> and <code>b</code>. Your browser draws 999 examples of it plus 16 new questions,
     and the model, which never sees your formula, reads the examples and answers every bit of every question in one
     pass. It also says how sure it is of each bit. Everything runs on your device; the {parameters}-parameter model
-    is a download of about 8 MB.
+    is a download of about 8 MB. You can also <a href="#csv">upload your own data</a> as a CSV file and download its
+    answers.
   </p>
 
   <p class="status small" data-role="status" data-files={JSON.stringify(Object.fromEntries(Object.entries(info.widths).map(([w, f]) => [w, f.file])))} data-checks={JSON.stringify(Object.fromEntries(Object.entries(info.widths).map(([w, f]) => [w, f.check])))}>Loading the model…</p>
@@ -154,6 +156,73 @@ const parameters = info.parameters.toLocaleString('en-US');
       score down. Addition gets the full width; a hash gets about 0.
     </p>
   </section>
+
+  <h2 id="csv">Use your own data</h2>
+  <section class="card form csv">
+    <p class="small">
+      Upload a CSV file with columns <code>a, b, c</code>. The first 999 rows are the examples it reads; every row after
+      them is a question for it to answer. Leave <code>c</code> empty on the question rows, or fill it in to see how often
+      it gets them right. Numbers are whole and unsigned, decimal or <code>0x…</code>, below 2<sup>32</sup>. The file
+      never leaves your device.
+    </p>
+    <div class="options">
+      <label class="file chip">Choose a CSV file<input type="file" accept=".csv,.tsv,.txt,text/csv" data-role="csv-file" /></label>
+      <button class="chip" type="button" data-role="csv-sample">Download an example file</button>
+      <span class="small muted">(made from the rule above: 999 examples and 200 questions)</span>
+    </div>
+    <p class="small" data-role="csv-summary" hidden></p>
+    <div class="options" data-role="csv-actions" hidden>
+      <label class="small">Numbers of
+        <select data-role="csv-width">
+          <option value="16">16 bits</option>
+          <option value="32">32 bits</option>
+        </select>
+      </label>
+      <button class="primary" type="button" data-role="csv-run">Answer the questions</button>
+      <button class="chip" type="button" data-role="csv-stop" hidden>Stop</button>
+      <button class="chip" type="button" data-role="csv-download" hidden>Download the answers (CSV)</button>
+    </div>
+    <div class="progress" data-role="csv-progress" hidden>
+      <div class="track"><div class="fill" data-role="csv-fill"></div></div>
+      <span class="small muted" data-role="csv-progress-label"></span>
+    </div>
+    <p class="error small" data-role="csv-error" hidden></p>
+    <div class="result csv-result" data-role="csv-result" hidden>
+      <div class="grid-4 tiles">
+        <div class="stat">
+          <span class="label">Questions answered</span>
+          <span class="value" data-role="csv-answered">—</span>
+          <span class="note" data-role="csv-speed"></span>
+        </div>
+        <div class="stat">
+          <span class="label">Sure of every bit</span>
+          <span class="value" data-role="csv-sure">—</span>
+        </div>
+        <div class="stat" data-role="csv-scored">
+          <span class="label">Exactly right</span>
+          <span class="value" data-role="csv-exact">—</span>
+          <span class="note" data-role="csv-exact-note"></span>
+        </div>
+      </div>
+      <div class="pager">
+        <button type="button" class="chip" data-role="csv-prev">← Previous</button>
+        <span class="small muted" data-role="csv-page"></span>
+        <button type="button" class="chip" data-role="csv-next">Next →</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead data-role="csv-head"></thead>
+          <tbody data-role="csv-rows"></tbody>
+        </table>
+      </div>
+      <p class="small muted">
+        <strong>Confidence</strong> is the probability of its least certain bit; an answer counts as sure when every bit
+        is at 0.99 or above. Questions are answered {CHUNK} at a time: each is answered on its own (the questions in a
+        pass never see each other, so the answers are the same as asking one by one), but one pass reads the 999
+        examples once for all of them, which is about 30 times faster.
+      </p>
+    </div>
+  </section>
 </Layout>
 
 <script>
@@ -233,11 +302,11 @@ const parameters = info.parameters.toLocaleString('en-US');
     });
   }
 
-  function think(width: number, bits: Float32Array, asked: Float32Array): Promise<[Float32Array, number]> {
+  function think(width: number, bits: Float32Array, asked: Float32Array, questions = QUESTIONS): Promise<[Float32Array, number]> {
     const id = nextId++;
     return new Promise((resolve, reject) => {
       waiting.set(id, { resolve: (p, s) => resolve([p, s]), reject });
-      worker.postMessage({ type: 'run', id, width, bits, asked, questions: QUESTIONS, url: new URL(modelUrl(width), location.href).href },
+      worker.postMessage({ type: 'run', id, width, bits, asked, questions, url: new URL(modelUrl(width), location.href).href },
         [bits.buffer, asked.buffer]);
     });
   }
@@ -489,6 +558,281 @@ const parameters = info.parameters.toLocaleString('en-US');
   );
   runButton.addEventListener('click', () => void run());
   widthSelect.addEventListener('change', () => void load(Number(widthSelect.value)).catch(() => undefined));
+
+  // ---- Your own data: a CSV of a, b, c. The first 999 rows are the examples, every later row a question. ----
+  const CHUNK = 128; // questions per pass: answers don't depend on the others in the pass, and one pass reads the examples once
+  type Row = { a: bigint; b: bigint; c: bigint | null; line: number };
+  type Answer = { answer: bigint; confidence: number; recovered: number | null };
+  let table: { name: string; examples: Row[]; questions: Row[]; fits16: boolean } | null = null;
+  let answers: Answer[] = [];
+  let probabilities = new Float32Array(0);
+  let csvWidth = 32;
+  let stopping = false;
+  const csvWidthSelect = $<HTMLSelectElement>('csv-width');
+
+  function csvError(message: string | null): void {
+    const box = $<HTMLParagraphElement>('csv-error');
+    box.hidden = message === null;
+    box.textContent = message ?? '';
+  }
+
+  function csvProgress(fraction: number | null, label = ''): void {
+    $<HTMLElement>('csv-progress').hidden = fraction === null;
+    if (fraction === null) return;
+    $<HTMLElement>('csv-fill').style.width = `${Math.round(Math.min(fraction, 1) * 100)}%`;
+    $('csv-progress-label').textContent = label;
+  }
+
+  const NUMBER = /^(0x[0-9a-f]+|0b[01]+|\d+)$/i;
+  function parseCsv(text: string): { examples: Row[]; questions: Row[] } {
+    const lines = text.split(/\r?\n/);
+    const split = (line: string) => line.split(/[,;\t]/).map((cell) => cell.trim().replace(/^"(.*)"$/, '$1').trim());
+    let columns = [0, 1, 2];
+    let first = 0;
+    while (first < lines.length && !lines[first]!.trim()) first++;
+    const head = split(lines[first] ?? '');
+    if (head.some((cell) => cell && !NUMBER.test(cell))) {
+      // A header row: use columns named a, b, c if there are, else the first three.
+      const named = ['a', 'b', 'c'].map((name) => head.findIndex((cell) => cell.toLowerCase() === name));
+      if (named[0]! >= 0 && named[1]! >= 0) columns = [named[0]!, named[1]!, named[2]!];
+      first++;
+    }
+    const rows: Row[] = [];
+    for (let n = first; n < lines.length; n++) {
+      if (!lines[n]!.trim()) continue;
+      const cells = split(lines[n]!);
+      const value = (column: number, name: string, optional: boolean): bigint | null => {
+        const cell = column >= 0 ? (cells[column] ?? '') : '';
+        if (!cell) {
+          if (optional) return null;
+          throw new Error(`Line ${n + 1}: ${name} is missing`);
+        }
+        if (!NUMBER.test(cell)) throw new Error(`Line ${n + 1}: ${name} = "${cell}" is not a whole number of 0 or more`);
+        const v = BigInt(cell.toLowerCase());
+        if (v >= 1n << 32n) throw new Error(`Line ${n + 1}: ${name} = ${cell} does not fit in 32 bits`);
+        return v;
+      };
+      rows.push({ a: value(columns[0]!, 'a', false)!, b: value(columns[1]!, 'b', false)!, c: value(columns[2]!, 'c', true), line: n + 1 });
+    }
+    if (rows.length < CONTEXT) throw new Error(`The file has ${rows.length.toLocaleString('en-US')} rows; it needs 999 examples and then at least one question`);
+    const examples = rows.slice(0, CONTEXT);
+    const missing = examples.find((row) => row.c === null);
+    if (missing) throw new Error(`Line ${missing.line}: the first 999 rows are the examples and each needs c`);
+    const questions = rows.slice(CONTEXT);
+    if (!questions.length) throw new Error('The file has only the 999 examples; add rows after them for it to answer');
+    return { examples, questions };
+  }
+
+  $<HTMLInputElement>('csv-file').addEventListener('change', async (event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    csvError(null);
+    $<HTMLElement>('csv-result').hidden = true;
+    $<HTMLElement>('csv-download').hidden = true;
+    try {
+      const { examples, questions } = parseCsv(await file.text());
+      const fits16 = [...examples, ...questions].every((r) => r.a < 65536n && r.b < 65536n && (r.c ?? 0n) < 65536n);
+      table = { name: file.name, examples, questions, fits16 };
+      csvWidthSelect.value = fits16 ? '16' : '32';
+      csvWidthSelect.querySelector<HTMLOptionElement>('option[value="16"]')!.disabled = !fits16;
+      const scored = questions.filter((q) => q.c !== null).length;
+      $('csv-summary').textContent = `${file.name}: 999 examples and ${questions.length.toLocaleString('en-US')} questions${
+        scored ? ` (${scored === questions.length ? 'all' : scored.toLocaleString('en-US')} with c, so it can be checked)` : ''}.${
+        fits16 ? '' : ' Some numbers need more than 16 bits, so it uses 32.'}`;
+      $<HTMLElement>('csv-summary').hidden = false;
+      $<HTMLElement>('csv-actions').hidden = false;
+      $('csv-run').textContent = `Answer ${questions.length.toLocaleString('en-US')} question${questions.length === 1 ? '' : 's'}`;
+    } catch (error) {
+      table = null;
+      $<HTMLElement>('csv-summary').hidden = true;
+      $<HTMLElement>('csv-actions').hidden = true;
+      csvError((error as Error).message);
+    }
+  });
+
+  function duration(seconds: number): string {
+    if (seconds < 90) return `${Math.max(1, Math.round(seconds))} s`;
+    if (seconds < 5400) return `${Math.round(seconds / 60)} min`;
+    return `${(seconds / 3600).toFixed(1)} h`;
+  }
+
+  async function runCsv(): Promise<void> {
+    if (!table) return;
+    const { examples, questions } = table;
+    const width = (csvWidth = Number(csvWidthSelect.value));
+    const runButton2 = $<HTMLButtonElement>('csv-run');
+    const picker = $<HTMLInputElement>('csv-file');
+    runButton2.disabled = picker.disabled = csvWidthSelect.disabled = true;
+    stopping = false;
+    $<HTMLElement>('csv-stop').hidden = false;
+    $<HTMLElement>('csv-download').hidden = true;
+    csvError(null);
+    answers = [];
+    probabilities = new Float32Array(questions.length * width);
+    const bits = new Float32Array(CONTEXT * 3 * width);
+    examples.forEach((row, n) => {
+      fill(bits, n * 3 * width, row.a, width);
+      fill(bits, (n * 3 + 1) * width, row.b, width);
+      fill(bits, (n * 3 + 2) * width, row.c!, width);
+    });
+    let spent = 0;
+    try {
+      csvProgress(0, 'Loading the model…');
+      await load(width);
+      for (let start = 0; start < questions.length && !stopping; start += CHUNK) {
+        const chunk = questions.slice(start, start + CHUNK);
+        const asked = new Float32Array(chunk.length * 2 * width);
+        chunk.forEach((row, q) => {
+          fill(asked, q * 2 * width, row.a, width);
+          fill(asked, (q * 2 + 1) * width, row.b, width);
+        });
+        const [p, seconds] = await think(width, bits.slice(), asked, chunk.length);
+        spent += seconds;
+        probabilities.set(p, start * width);
+        chunk.forEach((row, q) => answers.push(score(p.subarray(q * width, (q + 1) * width), row.c, width)));
+        const left = (spent / answers.length) * (questions.length - answers.length);
+        csvProgress(answers.length / questions.length, `Answered ${answers.length.toLocaleString('en-US')} of ${
+          questions.length.toLocaleString('en-US')} on your ${where(width)}${answers.length < questions.length ? `, about ${duration(left)} left` : ''}`);
+        if (start === 0) csvPage = 0;
+        showCsv(spent);
+      }
+      csvProgress(null);
+      if (stopping) csvError(`Stopped after ${answers.length.toLocaleString('en-US')} questions; the download has those.`);
+    } catch (error) {
+      csvProgress(null);
+      csvError(`Something went wrong: ${(error as Error).message}`);
+    } finally {
+      runButton2.disabled = picker.disabled = csvWidthSelect.disabled = false;
+      $<HTMLElement>('csv-stop').hidden = true;
+      $<HTMLElement>('csv-download').hidden = answers.length === 0;
+    }
+  }
+
+  function score(p: Float32Array, truth: bigint | null, width: number): Answer {
+    let answer = 0n;
+    let confidence = 1;
+    let recovered: number | null = truth === null ? null : width;
+    for (let k = 0; k < width; k++) {
+      const one = p[k]!;
+      if (one > 0.5) answer |= 1n << BigInt(k);
+      confidence = Math.min(confidence, Math.max(one, 1 - one));
+      if (recovered !== null) recovered += Math.log2(Math.min(Math.max((truth! >> BigInt(k)) & 1n ? one : 1 - one, FLOOR), 1 - FLOOR));
+    }
+    return { answer, confidence, recovered };
+  }
+
+  const CSV_PAGE = 25;
+  let csvPage = 0;
+  let csvSpent = 0;
+  function showCsv(spent: number): void {
+    if (!table) return;
+    csvSpent = spent;
+    const width = csvWidth;
+    const done = answers.length;
+    const scored = table.questions.slice(0, done).map((row, n) => [row, answers[n]!] as const).filter(([row]) => row.c !== null);
+    const sure = answers.filter((x) => x.confidence >= 0.99).length;
+    $('csv-answered').textContent = `${done.toLocaleString('en-US')} / ${table.questions.length.toLocaleString('en-US')}`;
+    $('csv-speed').textContent = `${(spent * 1000 / done).toFixed(0)} ms each on your ${where(width)}, ${width} bits`;
+    $('csv-sure').textContent = `${((100 * sure) / done).toFixed(1)}%`;
+    $<HTMLElement>('csv-scored').hidden = scored.length === 0;
+    if (scored.length) {
+      const exact = scored.filter(([row, x]) => row.c === x.answer).length;
+      let bitsRight = 0;
+      for (const [row, x] of scored) {
+        const same = ~(row.c! ^ x.answer) & ((1n << BigInt(width)) - 1n);
+        bitsRight += same.toString(2).split('').filter((d) => d === '1').length;
+      }
+      $('csv-exact').textContent = `${((100 * exact) / scored.length).toFixed(1)}%`;
+      $('csv-exact-note').textContent = `${exact.toLocaleString('en-US')} of the ${scored.length.toLocaleString('en-US')} questions with c; ${((100 * bitsRight) / (scored.length * width)).toFixed(1)}% of their bits right`;
+    }
+    const withTruth = table.questions.some((row) => row.c !== null);
+    $('csv-head').innerHTML = `<tr><th class="num">line</th><th class="num">a</th><th class="num">b</th>${withTruth ? '<th class="num">c</th>' : ''}<th class="num">its answer</th><th class="num">confidence</th><th>each bit, high → low</th></tr>`;
+    const pages = Math.max(1, Math.ceil(done / CSV_PAGE));
+    csvPage = Math.min(Math.max(csvPage, 0), pages - 1);
+    const from = csvPage * CSV_PAGE;
+    const rows: string[] = [];
+    for (let n = from; n < Math.min(from + CSV_PAGE, done); n++) {
+      const row = table.questions[n]!;
+      const x = answers[n]!;
+      const cells: string[] = [];
+      for (let k = width - 1; k >= 0; k--) {
+        const one = probabilities[n * width + k]!;
+        const miss = row.c !== null && (one > 0.5) !== (((row.c >> BigInt(k)) & 1n) === 1n);
+        cells.push(`<span class="cell${miss ? ' miss' : ''}" style="--p:${one.toFixed(3)}" title="bit ${k}: p(1) = ${one.toFixed(3)}"></span>`);
+      }
+      const verdict = row.c === null ? '' : row.c === x.answer ? 'ok' : 'bad';
+      rows.push(`<tr><td class="num muted">${row.line}</td><td class="num">${row.a}</td><td class="num">${row.b}</td>${
+        withTruth ? `<td class="num">${row.c ?? ''}</td>` : ''}<td class="num ${verdict}">${x.answer}${verdict === 'ok' ? ' ✓' : ''}</td><td class="num">${
+        x.confidence.toFixed(3)}</td><td><span class="bits">${cells.join('')}</span></td></tr>`);
+    }
+    $('csv-rows').innerHTML = rows.join('');
+    $('csv-page').textContent = `questions ${(from + 1).toLocaleString('en-US')}–${Math.min(from + CSV_PAGE, done).toLocaleString('en-US')} of ${done.toLocaleString('en-US')}`;
+    $<HTMLButtonElement>('csv-prev').disabled = csvPage === 0;
+    $<HTMLButtonElement>('csv-next').disabled = csvPage === pages - 1;
+    $<HTMLElement>('csv-result').hidden = false;
+  }
+  $('csv-prev').addEventListener('click', () => {
+    csvPage--;
+    showCsv(csvSpent);
+  });
+  $('csv-next').addEventListener('click', () => {
+    csvPage++;
+    showCsv(csvSpent);
+  });
+
+  function save(name: string, text: string): void {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));
+    link.download = name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  }
+
+  // One row per answered question: its line in the file, a, b, c if given, the answer, its confidence, whether it was
+  // sure, and when c is given whether it was right and the bits recovered; then each bit's probability, high to low.
+  $('csv-download').addEventListener('click', () => {
+    if (!table) return;
+    const width = csvWidth;
+    const withTruth = table.questions.some((row) => row.c !== null);
+    const bitNames = Array.from({ length: width }, (_, i) => `p_bit${width - 1 - i}`);
+    const lines = [['line', 'a', 'b', ...(withTruth ? ['c'] : []), 'answer', 'confidence', 'sure', ...(withTruth ? ['correct', 'bits_recovered'] : []), ...bitNames].join(',')];
+    answers.forEach((x, n) => {
+      const row = table!.questions[n]!;
+      const bitsOut = Array.from({ length: width }, (_, i) => probabilities[n * width + width - 1 - i]!.toFixed(4));
+      lines.push([row.line, row.a, row.b, ...(withTruth ? [row.c ?? ''] : []), x.answer, x.confidence.toFixed(4), x.confidence >= 0.99 ? 1 : 0,
+        ...(withTruth ? (row.c === null ? ['', ''] : [row.c === x.answer ? 1 : 0, x.recovered!.toFixed(2)]) : []), ...bitsOut].join(','));
+    });
+    save(`${table.name.replace(/\.[^.]*$/, '')}-answers.csv`, `${lines.join('\n')}\n`);
+  });
+
+  // An example file from the rule in the box: 999 examples, then 200 questions with c filled in so they can be checked.
+  $('csv-sample').addEventListener('click', () => {
+    csvError(null);
+    let tree;
+    try {
+      tree = parse(input.value);
+    } catch (error) {
+      csvError(`The rule above has a mistake: ${(error as Error).message}`);
+      return;
+    }
+    const width = Number(widthSelect.value);
+    const inputBits = smallBox.checked ? 8 : width;
+    const seen = new Set<string>();
+    const lines = ['a,b,c'];
+    while (lines.length <= CONTEXT + 200) {
+      const a = random(inputBits);
+      const b = random(inputBits);
+      if (seen.has(`${a},${b}`)) continue;
+      seen.add(`${a},${b}`);
+      lines.push(`${a},${b},${evaluate(tree, a, b, width)}`);
+    }
+    save(`teenie-example-${width}bit.csv`, `${lines.join('\n')}\n`);
+  });
+  $('csv-run').addEventListener('click', () => void runCsv());
+  $('csv-stop').addEventListener('click', () => {
+    stopping = true;
+    $<HTMLElement>('csv-stop').hidden = true;
+  });
 
   // A link such as /try/?rule=a*10%2Bb&width=16&small=1 opens with that rule (from the overview's puzzles and wall).
   const params = new URLSearchParams(location.search);
@@ -828,5 +1172,40 @@ const parameters = info.parameters.toLocaleString('en-US');
   .result :global(.cell.miss) {
     outline: 1.5px solid var(--bad);
     outline-offset: -1px;
+  }
+  .csv .file {
+    position: relative;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .csv .file input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    width: 100%;
+    cursor: pointer;
+  }
+
+  .csv .file:focus-within {
+    outline: 2px solid var(--series-1);
+    outline-offset: 2px;
+  }
+
+  .csv p {
+    margin: 0;
+  }
+
+  .csv-result {
+    margin-top: 0;
+  }
+
+  .csv .pager {
+    margin: 0;
+  }
+
+  [data-role='csv-scored'][hidden],
+  .options[hidden] {
+    display: none;
   }
 </style>

@@ -24,8 +24,8 @@ function weighted<T>(items: readonly (readonly [T, number])[]): T {
 }
 // Weights measured on the release model (1,500 generated rules at 32 bits): rules with * were 11% exact against 51%
 // without (products of computed values are its weak spot), shifts cost about 10 points, chains past 7 steps about 20,
-// and loops counting to b & 7 did best. So * is rare, shifts are rare and mostly by 1, chains and bodies are short.
-const BINARY = [['+', 4], ['-', 3], ['^', 4], ['&', 2], ['|', 2], ['*', 0.25]] as const;
+// and loops counting to b & 7 did best. So * is very rare (about one rule in 80 has one), shifts are rare and mostly by 1, chains and bodies are short.
+const BINARY = [['+', 4], ['-', 3], ['^', 4], ['&', 2], ['|', 2], ['*', 0.05]] as const;
 const between = (low: number, high: number) => low + Math.floor(Math.random() * (high - low + 1));
 /** A constant of random size: anywhere from 2 to 32 bits long, so some are small and some large. */
 function constant(): string {
@@ -61,8 +61,8 @@ function balanced(text: string): boolean {
 }
 
 const STARTS = [['a + b', 3], ['a ^ b', 3], ['a - b', 3], ['a | b', 2], ['a & b', 2], ['max(a, b)', 1], ['min(a, b)', 1],
-  ['a * b', 1]] as const;
-const STEP_WEIGHTS = [3, 3, 3, 0.25, 0.5, 0.5, 2, 2, 2, 3, 1];
+  ['a * b', 0.2]] as const;
+const STEP_WEIGHTS = [3, 3, 3, 0.05, 0.5, 0.5, 2, 2, 2, 3, 1];
 const STEPS: ((e: string) => string)[] = [
   (e) => `(${e} + ${constant()})`,
   (e) => `(${e} ^ b)`,
@@ -80,7 +80,7 @@ const STEPS: ((e: string) => string)[] = [
 function draft(kind: Kind): string {
   switch (kind) {
     case 'chain': {
-      let e = `(${weighted(STARTS)})`; // a * b is a fine start: multiplying the inputs is what it does well
+      let e = `(${weighted(STARTS)})`; // a * b is a rare start: products are its weakest kind of rule
       let last = -1;
       for (let k = between(3, 6); k > 0; k--) {
         // the same xor twice in a row undoes itself, so it can't follow itself

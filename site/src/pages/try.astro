@@ -39,7 +39,8 @@ const parameters = info.parameters.toLocaleString('en-US');
     is a download of about 8 MB.
   </p>
 
-  <p class="status small" data-role="status" data-files={JSON.stringify(Object.fromEntries(Object.entries(info.widths).map(([w, f]) => [w, f.file])))}>Loading the model…</p>
+  <p class="status small" data-role="status" data-files={JSON.stringify(Object.fromEntries(Object.entries(info.widths).map(([w, f]) => [w, f.file])))} data-checks={JSON.stringify(Object.fromEntries(Object.entries(info.widths).map(([w, f]) => [w, f.check])))}>Loading the model…</p>
+  <p class="backend small" data-role="backend" aria-live="polite"></p>
 
   <section class="card form">
     <label for="formula" class="eyebrow">The hidden rule</label>
@@ -173,6 +174,19 @@ const parameters = info.parameters.toLocaleString('en-US');
   // File names carry a content hash (export_web.py), so the browser and Cloudflare can cache them forever.
   const FILES = JSON.parse(document.querySelector<HTMLElement>('[data-files]')!.dataset.files!) as Record<string, string>;
   const modelUrl = (width: number) => `${BASE}/weights/${FILES[String(width)]}`;
+  // Per width, a small fixed episode's expected output: the worker checks the GPU against it before trusting it.
+  const CHECKS = JSON.parse(document.querySelector<HTMLElement>('[data-checks]')!.dataset.checks!) as Record<string, number[]>;
+  const backends: Record<number, { backend: string; device: string }> = {};
+  const where = (width: number) => (backends[width]?.backend === 'webgpu' ? 'GPU' : 'CPU');
+  // What the model runs on, for the status line: the GPU through WebGPU, or the CPU through WebAssembly and why.
+  function backendLine(width: number): string {
+    const b = backends[width];
+    if (!b) return '';
+    return b.backend === 'webgpu'
+      ? `<span class="chip gpu">GPU</span> Running on your GPU (WebGPU, ${escape(b.device)}).`
+      : `<span class="chip cpu">CPU</span> Running on your CPU (WebAssembly). GPU not used: ${escape(b.device)}.`;
+  }
+  const escape = (text: string) => text.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
   const smallBox = $<HTMLInputElement>('small');
 
   // Seconds one pass took last time, per width: drives the estimated progress while the model thinks.
@@ -186,9 +200,14 @@ const parameters = info.parameters.toLocaleString('en-US');
     const m = event.data;
     if (m.type === 'progress') {
       const mb = (n: number) => (n / 1e6).toFixed(1);
-      showProgress(m.total ? m.loaded / m.total : 0, `Downloading the model: ${mb(m.loaded)}${m.total ? ` of ${mb(m.total)}` : ''} MB`);
+      const done = m.total > 0 && m.loaded >= m.total;
+      showProgress(m.total ? m.loaded / m.total : 0, done ? 'Setting up (checking whether your GPU gives the right answers)…'
+        : `Downloading the model and its runtime: ${mb(m.loaded)}${m.total ? ` of ${mb(m.total)}` : ''} MB`);
     } else if (m.type === 'ready') {
       loaded.add(m.width);
+      backends[m.width] = { backend: m.backend, device: m.device };
+      console.info(`[teenie] ${m.width}-bit model ready on the ${where(m.width)}: ${m.device}`);
+      $('backend').innerHTML = backendLine(m.width);
       loadWaiters.filter((w) => w.width === m.width).forEach((w) => w.resolve());
       loadWaiters = loadWaiters.filter((w) => w.width !== m.width);
     } else if (m.type === 'result') {
@@ -210,7 +229,7 @@ const parameters = info.parameters.toLocaleString('en-US');
     if (loaded.has(width)) return Promise.resolve();
     return new Promise((resolve, reject) => {
       loadWaiters.push({ width, resolve, reject });
-      worker.postMessage({ type: 'load', width, url: new URL(modelUrl(width), location.href).href });
+      worker.postMessage({ type: 'load', width, url: new URL(modelUrl(width), location.href).href, check: CHECKS[String(width)] });
     });
   }
 
@@ -412,7 +431,7 @@ const parameters = info.parameters.toLocaleString('en-US');
     $('w').textContent = String(width);
     $('times').textContent = mean > 1 ? `≈ ${formatPower(mean)}× better than a blind guess` : 'about a blind guess';
     $('sure').textContent = `${sure} / ${QUESTIONS} · ${sure ? `${sureRight} / ${sure}` : '—'}`;
-    $('note').textContent = `c = ${input.value} at ${width} bits${smallBox.checked ? ' with a, b under 256' : ''}: 999 examples (${distinct.toLocaleString('en-US')} different answers), ${QUESTIONS} new questions${mine ? ` (${mine} of yours)` : ''}, answered on your device in ${seconds.toFixed(1)} s.`;
+    $('note').textContent = `c = ${input.value} at ${width} bits${smallBox.checked ? ' with a, b under 256' : ''}: 999 examples (${distinct.toLocaleString('en-US')} different answers), ${QUESTIONS} new questions${mine ? ` (${mine} of yours)` : ''}, answered on your device's ${where(width)} in ${seconds.toFixed(1)} s.`;
     $('rows').innerHTML = rows.join('');
     shownExamples = pairs.slice(0, CONTEXT).map(([a, b], n) => [a, b, answers[n]!]);
     examplePage = 0;
@@ -490,6 +509,33 @@ const parameters = info.parameters.toLocaleString('en-US');
 </script>
 
 <style>
+  .backend {
+    margin: 0.2rem 0 0;
+    color: var(--ink-2);
+  }
+
+  .backend:empty {
+    display: none;
+  }
+
+  .backend :global(.chip) {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    margin-right: 0.3rem;
+    color: #fff;
+  }
+
+  .backend :global(.chip.gpu) {
+    background: var(--good);
+  }
+
+  .backend :global(.chip.cpu) {
+    background: var(--muted);
+  }
+
   .status {
     color: var(--ink-2);
   }

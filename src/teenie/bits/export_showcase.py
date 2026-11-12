@@ -28,7 +28,7 @@ def _sum_one_to(n: torch.Tensor) -> torch.Tensor:
 # the chains a person would struggle with.
 RULES = [
     ('2a + 3b + 7', '2 * a + 3 * b + 7', lambda a, b, w: 2 * a + 3 * b + 7, True, False),
-    ('(a + 1) × (b + 1)', '(a + 1) * (b + 1)', lambda a, b, w: (a + 1) * (b + 1), True, False),
+    ('(a + 1) × (b + 1)', '(a + 1) * (b + 1)', lambda a, b, w: (a + 1) * (b + 1), False, False),
     ('a + (1 + 2 + … + n), with n = b mod 16', 'a + sum(i + 1 for i in range(b & 15))',
      lambda a, b, w: a + _sum_one_to(b & 15), True, True),
     ('((a + b) × 3 − a) xor 5', '((a + b) * 3 - a) ^ 5', lambda a, b, w: ((a + b) * 3 - a) ^ 5, True, True),
@@ -39,10 +39,10 @@ RULES = [
     ('((a xor b) + a) × 2 + b', '((a ^ b) + a) * 2 + b', lambda a, b, w: ((a ^ b) + a) * 2 + b, True, True),
     ('(a + b) × 2 + (a xor 3) − b', '(a + b) * 2 + (a ^ 3) - b', lambda a, b, w: (a + b) * 2 + (a ^ 3) - b, False,
      True),
-    ('(a × b + a) xor 9', '(a * b + a) ^ 9', lambda a, b, w: (a * b + a) ^ 9, True, True),
+    ('(a × b + a) xor 9', '(a * b + a) ^ 9', lambda a, b, w: (a * b + a) ^ 9, False, True),
     ('(a + 1 + 2 + … + n) × 2, with n = b mod 16', '(a + sum(i + 1 for i in range(b & 15))) * 2',
      lambda a, b, w: (a + _sum_one_to(b & 15)) * 2, False, True),
-    ('a × b', 'a * b', lambda a, b, w: a * b, True, False),
+    ('a × b', 'a * b', lambda a, b, w: a * b, False, False),
 ]
 
 

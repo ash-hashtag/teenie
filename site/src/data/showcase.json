@@ -1350,7 +1350,7 @@
   {
    "shown": "(a + 1) \u00d7 (b + 1)",
    "formula": "(a + 1) * (b + 1)",
-   "puzzle": true,
+   "puzzle": false,
    "wall": false,
    "episodes": [
     {
@@ -12102,7 +12102,7 @@
   {
    "shown": "(a \u00d7 b + a) xor 9",
    "formula": "(a * b + a) ^ 9",
-   "puzzle": true,
+   "puzzle": false,
    "wall": true,
    "episodes": [
     {
@@ -14790,7 +14790,7 @@
   {
    "shown": "a \u00d7 b",
    "formula": "a * b",
-   "puzzle": true,
+   "puzzle": false,
    "wall": false,
    "episodes": [
     {

@@ -6,3 +6,8 @@
 
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
+
+# onnxruntime-web's WebAssembly binary, gzipped, with the runtime version in its name (scripts/ort-assets.mjs).
+/ort/*
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: application/octet-stream

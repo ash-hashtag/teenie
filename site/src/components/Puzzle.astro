@@ -1,20 +1,20 @@
 ---
 import showcase from '../data/showcase.json';
 // Spot-the-rule puzzles from real episodes of the release model (export_showcase.py): a few of the 999 examples, one
-// question, the model's actual answer, then the rule.
+// question, the model's actual answer, then the rule. Each rule has several recorded episodes; the page shuffles them.
 const puzzles = showcase.rules.filter((r) => r.puzzle);
-const level = (i: number) => (i < 2 ? 'easy' : i < 3 ? 'medium' : 'hard');
 ---
 
 <section class="puzzle card" data-puzzles={JSON.stringify(puzzles)} aria-label="Spot the rule">
   <div class="top">
-    <p class="eyebrow" data-role="puzzle-title">Puzzle 1 of {puzzles.length} · {level(0)}</p>
-    <button class="ghost" type="button" data-role="puzzle-next">Next puzzle →</button>
+    <p class="eyebrow" data-role="puzzle-title">Puzzle</p>
+    <button class="ghost" type="button" data-role="puzzle-next">Another puzzle ↻</button>
   </div>
   <div class="body">
     <div>
       <p class="hint small muted">These numbers follow one hidden rule. Can you work it out?</p>
       <table class="rows">
+        <colgroup><col class="col-n" /><col class="col-n" /><col class="col-arrow" /><col class="col-c" /></colgroup>
         <thead><tr><th class="num">a</th><th class="num">b</th><th></th><th class="num">c</th></tr></thead>
         <tbody data-role="puzzle-rows"></tbody>
         <tfoot>
@@ -36,49 +36,44 @@ const level = (i: number) => (i < 2 ? 'easy' : i < 3 ? 'medium' : 'hard');
 </section>
 
 <script>
-  type Rule = {
-    shown: string; formula: string; examples: number[][];
-    questions: { a: number; b: number; truth: number; answer: number }[]; right: number; total: number;
-  };
+  type Episode = { examples: number[][]; a: number; b: number; truth: number; answer: number };
+  type Rule = { shown: string; formula: string; episodes: Episode[]; right: number; total: number };
   const root = document.querySelector<HTMLElement>('.puzzle')!;
   const puzzles = JSON.parse(root.dataset.puzzles!) as Rule[];
   const $ = <T extends Element>(role: string) => root.querySelector<T>(`[data-role="${role}"]`)!;
-  const level = (i: number) => (i < 2 ? 'easy' : i < 3 ? 'medium' : 'hard');
-  let index = 0;
+  const level = (rule: Rule) => (rule.shown.length <= 18 ? 'warm-up' : rule.shown.length <= 26 ? 'tricky' : 'hard');
+  const random = (n: number) => Math.floor(Math.random() * n);
+  let current = random(puzzles.length);
+  let episode = puzzles[current]!.episodes[random(puzzles[current]!.episodes.length)]!;
 
-  function show(i: number): void {
-    const p = puzzles[i]!;
-    const q = p.questions[0]!;
-    $('puzzle-title').textContent = `Puzzle ${i + 1} of ${puzzles.length} · ${level(i)}`;
-    $('puzzle-rows').innerHTML = p.examples
+  function show(): void {
+    const p = puzzles[current]!;
+    $('puzzle-title').textContent = `Puzzle · ${level(p)}`;
+    $('puzzle-rows').innerHTML = episode.examples
       .map(([a, b, c]) => `<tr><td class="num">${a}</td><td class="num">${b}</td><td>→</td><td class="num">${c}</td></tr>`)
       .join('');
-    $('qa').textContent = String(q.a);
-    $('qb').textContent = String(q.b);
+    $('qa').textContent = String(episode.a);
+    $('qb').textContent = String(episode.b);
     $('qc').textContent = '?';
     $('qc').className = 'mystery';
-    $<HTMLElement>('answer-box').hidden = true;
-    $<HTMLElement>('show-rule').hidden = true;
-    $<HTMLElement>('rule-box').hidden = true;
+    for (const role of ['answer-box', 'show-rule', 'rule-box']) $<HTMLElement>(role).hidden = true;
     $<HTMLElement>('show-answer').hidden = false;
   }
 
   $('show-answer').addEventListener('click', () => {
-    const p = puzzles[index]!;
-    const q = p.questions[0]!;
-    const ok = q.answer === q.truth;
-    $('qc').textContent = String(q.answer);
+    const ok = episode.answer === episode.truth;
+    $('qc').textContent = String(episode.answer);
     $('qc').className = ok ? 'mystery solved' : 'mystery missed';
     $('answer-box').textContent = ok
-      ? `Teenie says ${q.answer}, and that's right. It read 999 examples like these.`
-      : `Teenie says ${q.answer}; the right answer is ${q.truth}. Wrong this time.`;
+      ? `Teenie says ${episode.answer}, and that's right. It read 999 examples like these.`
+      : `Teenie says ${episode.answer}; the right answer is ${episode.truth}. Wrong this time.`;
     $<HTMLElement>('answer-box').hidden = false;
     $<HTMLElement>('show-answer').hidden = true;
     $<HTMLElement>('show-rule').hidden = false;
   });
 
   $('show-rule').addEventListener('click', () => {
-    const p = puzzles[index]!;
+    const p = puzzles[current]!;
     $('rule').textContent = `c = ${p.shown}`;
     $('rule-note').textContent = `Over 512 fresh questions with numbers this size, Teenie got ${Math.round((100 * p.right) / p.total)}% exactly right.`;
     $<HTMLAnchorElement>('rule-try').href = `/try/?rule=${encodeURIComponent(p.formula)}&width=16&small=1`;
@@ -87,10 +82,13 @@ const level = (i: number) => (i < 2 ? 'easy' : i < 3 ? 'medium' : 'hard');
   });
 
   $('puzzle-next').addEventListener('click', () => {
-    index = (index + 1) % puzzles.length;
-    show(index);
+    let next = random(puzzles.length);
+    if (puzzles.length > 1) while (next === current) next = random(puzzles.length);
+    current = next;
+    episode = puzzles[current]!.episodes[random(puzzles[current]!.episodes.length)]!;
+    show();
   });
-  show(0);
+  show();
 </script>
 
 <style>
@@ -112,7 +110,7 @@ const level = (i: number) => (i < 2 ? 'easy' : i < 3 ? 'medium' : 'hard');
 
   .body {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: 22rem minmax(0, 1fr);
     gap: 1.5rem;
     align-items: start;
   }
@@ -127,14 +125,31 @@ const level = (i: number) => (i < 2 ? 'easy' : i < 3 ? 'medium' : 'hard');
     margin: 0 0 0.4rem;
   }
 
+  /* Fixed widths: revealing the answer never moves the numbers. */
   .rows {
+    table-layout: fixed;
+    width: 21rem;
+    max-width: 100%;
     font: 1.15rem var(--mono);
-    max-width: 22rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .rows .col-n {
+    width: 5.5rem;
+  }
+
+  .rows .col-arrow {
+    width: 2.5rem;
+  }
+
+  .rows .col-c {
+    width: 7.5rem;
   }
 
   .rows td,
   .rows th {
     padding: 0.2rem 0.6rem;
+    white-space: nowrap;
   }
 
   .rows td:nth-child(3) {
@@ -149,9 +164,11 @@ const level = (i: number) => (i < 2 ? 'easy' : i < 3 ? 'medium' : 'hard');
 
   .mystery {
     display: inline-block;
-    min-width: 3ch;
+    width: 6.5ch;
+    text-align: right;
     padding: 0 0.3rem;
     border-radius: 4px;
+    box-sizing: border-box;
     background: color-mix(in oklab, var(--series-1) 15%, transparent);
   }
 
@@ -205,7 +222,6 @@ const level = (i: number) => (i < 2 ? 'easy' : i < 3 ? 'medium' : 'hard');
   }
 
   .rule {
-    font-size: 1.3rem;
     margin: 0;
   }
 

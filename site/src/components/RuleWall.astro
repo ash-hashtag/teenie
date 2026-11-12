@@ -1,16 +1,34 @@
 ---
 import showcase from '../data/showcase.json';
-// Rules the release model cracks with small numbers, with its measured exact rate on each (export_showcase.py).
-const rules = [...showcase.rules].sort((x, y) => y.right / y.total - x.right / x.total).slice(0, 12);
+// Chained rules a person would struggle to spot, which the release model works out from examples with small numbers
+// (export_showcase.py). Below 95% exact, a card says so and gives the measured reason: how often it misses and by how
+// many bits.
+const rules = showcase.rules.filter((r) => r.wall).sort((x, y) => y.right / y.total - x.right / x.total);
+const rate = (r: { right: number; total: number }) => (100 * r.right) / r.total;
 ---
 
 <div class="wall">
   {rules.map((r) => {
-    const [a, b, c] = r.examples[0]!;
+    const [a, b, c] = r.episodes[0]!.examples[0]!;
+    const shaky = rate(r) < 95;
+    const missEvery = Math.round(r.total / Math.max(r.total - r.right, 1));
     return (
-      <a class="card brick" href={`/try/?rule=${encodeURIComponent(r.formula)}&width=16&small=1`}>
+      <a class={`card brick${shaky ? ' shaky' : ''}`} href={`/try/?rule=${encodeURIComponent(r.formula)}&width=16&small=1`}>
         <code class="formula">c = {r.shown}</code>
-        <span class="score"><b>{Math.round((100 * r.right) / r.total)}%</b> exactly right</span>
+        {shaky ? (
+          <span class="score warn">
+            <b>{Math.round(rate(r))}%</b> · not always right
+          </span>
+        ) : (
+          <span class="score">
+            <b>{Math.round(rate(r))}%</b> exactly right
+          </span>
+        )}
+        {shaky && (
+          <span class="why small">
+            {`Wrong about 1 time in ${missEvery}, usually by ${r.bits_off} bit${r.bits_off === 1 ? '' : 's'} (at most ${r.bits_off_max}).`}
+          </span>
+        )}
         <span class="sample small muted">e.g. a = {a}, b = {b} → {c}</span>
       </a>
     );
@@ -27,6 +45,7 @@ const rules = [...showcase.rules].sort((x, y) => y.right / y.total - x.right / x
   .brick {
     display: grid;
     gap: 0.35rem;
+    align-content: start;
     text-decoration: none;
     color: var(--ink);
     transition: border-color 0.15s, transform 0.15s;
@@ -46,5 +65,18 @@ const rules = [...showcase.rules].sort((x, y) => y.right / y.total - x.right / x
   .score b {
     font-size: 1.4rem;
     color: var(--good);
+  }
+
+  .shaky {
+    border-color: color-mix(in oklab, #d08700 45%, var(--axis));
+  }
+
+  .score.warn,
+  .score.warn b {
+    color: #b06f00;
+  }
+
+  .why {
+    color: var(--ink-2);
   }
 </style>

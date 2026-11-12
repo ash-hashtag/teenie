@@ -188,7 +188,7 @@ const CHUNK = 128; // questions per pass for an uploaded file (also in the scrip
     </div>
     <p class="error small" data-role="csv-error" hidden></p>
     <div class="result csv-result" data-role="csv-result" hidden>
-      <div class="grid-4 tiles">
+      <div class="grid-4 tiles" data-role="csv-tiles">
         <div class="stat">
           <span class="label">Questions answered</span>
           <span class="value" data-role="csv-answered">—</span>
@@ -642,6 +642,10 @@ const CHUNK = 128; // questions per pass for an uploaded file (also in the scrip
       $<HTMLElement>('csv-summary').hidden = false;
       $<HTMLElement>('csv-actions').hidden = false;
       $('csv-run').textContent = `Answer ${questions.length.toLocaleString('en-US')} question${questions.length === 1 ? '' : 's'}`;
+      answers = [];
+      probabilities = new Float32Array(0);
+      csvPage = 0;
+      showCsv(0); // the questions, before any answers
     } catch (error) {
       table = null;
       $<HTMLElement>('csv-summary').hidden = true;
@@ -693,7 +697,6 @@ const CHUNK = 128; // questions per pass for an uploaded file (also in the scrip
         const left = (spent / answers.length) * (questions.length - answers.length);
         csvProgress(answers.length / questions.length, `Answered ${answers.length.toLocaleString('en-US')} of ${
           questions.length.toLocaleString('en-US')} on your ${where(width)}${answers.length < questions.length ? `, about ${duration(left)} left` : ''}`);
-        if (start === 0) csvPage = 0;
         showCsv(spent);
       }
       csvProgress(null);
@@ -729,6 +732,8 @@ const CHUNK = 128; // questions per pass for an uploaded file (also in the scrip
     csvSpent = spent;
     const width = csvWidth;
     const done = answers.length;
+    const total = table.questions.length;
+    $<HTMLElement>('csv-tiles').hidden = done === 0;
     const scored = table.questions.slice(0, done).map((row, n) => [row, answers[n]!] as const).filter(([row]) => row.c !== null);
     const sure = answers.filter((x) => x.confidence >= 0.99).length;
     $('csv-answered').textContent = `${done.toLocaleString('en-US')} / ${table.questions.length.toLocaleString('en-US')}`;
@@ -747,13 +752,18 @@ const CHUNK = 128; // questions per pass for an uploaded file (also in the scrip
     }
     const withTruth = table.questions.some((row) => row.c !== null);
     $('csv-head').innerHTML = `<tr><th class="num">line</th><th class="num">a</th><th class="num">b</th>${withTruth ? '<th class="num">c</th>' : ''}<th class="num">its answer</th><th class="num">confidence</th><th>each bit, high → low</th></tr>`;
-    const pages = Math.max(1, Math.ceil(done / CSV_PAGE));
+    const pages = Math.max(1, Math.ceil(total / CSV_PAGE));
     csvPage = Math.min(Math.max(csvPage, 0), pages - 1);
     const from = csvPage * CSV_PAGE;
     const rows: string[] = [];
-    for (let n = from; n < Math.min(from + CSV_PAGE, done); n++) {
+    for (let n = from; n < Math.min(from + CSV_PAGE, total); n++) {
       const row = table.questions[n]!;
-      const x = answers[n]!;
+      const x = answers[n];
+      if (!x) {
+        rows.push(`<tr><td class="num muted">${row.line}</td><td class="num">${row.a}</td><td class="num">${row.b}</td>${
+          withTruth ? `<td class="num">${row.c ?? ''}</td>` : ''}<td class="num muted">—</td><td class="num muted">—</td><td></td></tr>`);
+        continue;
+      }
       const cells: string[] = [];
       for (let k = width - 1; k >= 0; k--) {
         const one = probabilities[n * width + k]!;
@@ -766,7 +776,8 @@ const CHUNK = 128; // questions per pass for an uploaded file (also in the scrip
         x.confidence.toFixed(3)}</td><td><span class="bits">${cells.join('')}</span></td></tr>`);
     }
     $('csv-rows').innerHTML = rows.join('');
-    $('csv-page').textContent = `questions ${(from + 1).toLocaleString('en-US')}–${Math.min(from + CSV_PAGE, done).toLocaleString('en-US')} of ${done.toLocaleString('en-US')}`;
+    $('csv-page').textContent = `questions ${(from + 1).toLocaleString('en-US')}–${Math.min(from + CSV_PAGE, total).toLocaleString('en-US')} of ${
+      total.toLocaleString('en-US')}${done && done < total ? ` · ${done.toLocaleString('en-US')} answered` : ''}`;
     $<HTMLButtonElement>('csv-prev').disabled = csvPage === 0;
     $<HTMLButtonElement>('csv-next').disabled = csvPage === pages - 1;
     $<HTMLElement>('csv-result').hidden = false;
@@ -1205,6 +1216,7 @@ const CHUNK = 128; // questions per pass for an uploaded file (also in the scrip
   }
 
   [data-role='csv-scored'][hidden],
+  [data-role='csv-tiles'][hidden],
   .options[hidden] {
     display: none;
   }

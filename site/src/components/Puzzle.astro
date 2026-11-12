@@ -1,16 +1,19 @@
 ---
 import showcase from '../data/showcase.json';
-// Spot-the-rule puzzles from real episodes of the release model (export_showcase.py). Each rule has six recorded
-// episodes with 24 of their 999 examples and all 16 questions with the model's actual answers; every puzzle shows a
-// random few examples in random order and one random question, so the numbers change on each visit.
-const puzzles = showcase.rules.filter((r) => r.puzzle);
+// Spot-the-rule puzzles: the task Teenie does, for a person to try. Each puzzle makes 999 examples of a hidden rule in the
+// browser (a, b below 256, answers 16 bits wide, with the Try it page's evaluator), shows a few, asks for one more, and
+// lets the visitor page through all 999 if they want. The answer shown is the rule's, not the model's; the rule's note
+// gives the release model's measured rate on the same kind of episode (export_showcase.py).
+const puzzles = showcase.rules
+  .filter((r) => r.puzzle)
+  .map((r) => ({ shown: r.shown, formula: r.formula, rate: Math.round((100 * r.right) / r.total) }));
 ---
 
 <section class="puzzle card" data-puzzles={JSON.stringify(puzzles)} aria-label="Spot the rule">
   <p class="eyebrow" data-role="puzzle-title">Puzzle</p>
   <div class="body">
     <div>
-      <p class="hint small muted">These numbers follow one hidden rule. Can you work it out?</p>
+      <p class="hint small muted">These numbers follow one hidden rule. Can you work out the last one?</p>
       <table class="rows">
         <colgroup><col class="col-n" /><col class="col-n" /><col class="col-arrow" /><col class="col-c" /></colgroup>
         <thead><tr><th class="num">a</th><th class="num">b</th><th></th><th class="num">c</th></tr></thead>
@@ -19,14 +22,15 @@ const puzzles = showcase.rules.filter((r) => r.puzzle);
           <tr class="question"><td class="num" data-role="qa"></td><td class="num" data-role="qb"></td><td>→</td><td class="num"><span class="mystery" data-role="qc">?</span></td></tr>
         </tfoot>
       </table>
+      <button class="link small" type="button" data-role="all-toggle" aria-expanded="false" aria-controls="puzzle-all">See all 999 examples ↓</button>
     </div>
     <div class="side" aria-live="polite">
-      <p class="placeholder small muted" data-role="placeholder">Make your guess, then press Show answer.</p>
+      <p class="placeholder small muted" data-role="placeholder">Make your guess, then press Show answer. Stuck? Look at more examples.</p>
       <p class="verdict" data-role="answer-box" hidden></p>
       <div class="rule-box" data-role="rule-box" hidden>
         <p class="rule"><code data-role="rule"></code></p>
         <p class="small muted" data-role="rule-note"></p>
-        <a class="small" data-role="rule-try" href="/try/">Test it on this rule yourself →</a>
+        <a class="small" data-role="rule-try" href="/try/">Watch Teenie work it out →</a>
       </div>
     </div>
   </div>
@@ -35,50 +39,87 @@ const puzzles = showcase.rules.filter((r) => r.puzzle);
     <button class="btn secondary" type="button" data-role="show-rule" disabled>Reveal the rule</button>
     <button class="btn ghost next" type="button" data-role="puzzle-next">Another puzzle ↻</button>
   </div>
+  <div class="all" id="puzzle-all" data-role="all" hidden>
+    <div class="pager">
+      <button class="btn ghost small-btn" type="button" data-role="all-prev" aria-label="Previous examples">←</button>
+      <span class="small muted" data-role="all-label"></span>
+      <button class="btn ghost small-btn" type="button" data-role="all-next" aria-label="Next examples">→</button>
+    </div>
+    <div class="all-scroll" data-role="all-scroll">
+    <table class="rows all-rows">
+      <colgroup><col class="col-i" /><col class="col-n" /><col class="col-n" /><col class="col-arrow" /><col class="col-c" /></colgroup>
+      <thead><tr><th class="num">#</th><th class="num">a</th><th class="num">b</th><th></th><th class="num">c</th></tr></thead>
+      <tbody data-role="all-rows"></tbody>
+    </table>
+    </div>
+  </div>
 </section>
 
 <script>
-  type Episode = { examples: number[][]; questions: number[][] };
-  type View = { rows: number[][]; a: number; b: number; truth: number; answer: number };
-  type Rule = { shown: string; formula: string; episodes: Episode[]; right: number; total: number };
+  import { evaluate, parse } from '../lib/expression';
+
+  type Rule = { shown: string; formula: string; rate: number };
+  const COUNT = 999;
+  const SHOWN = 7;
+  const PAGE = 25;
+  const WIDTH = 16;
   const root = document.querySelector<HTMLElement>('.puzzle')!;
   const puzzles = JSON.parse(root.dataset.puzzles!) as Rule[];
   const $ = <T extends Element>(role: string) => root.querySelector<T>(`[data-role="${role}"]`)!;
   const level = (rule: Rule) => (rule.shown.length <= 18 ? 'warm-up' : rule.shown.length <= 26 ? 'tricky' : 'hard');
   const random = (n: number) => Math.floor(Math.random() * n);
-  const pick = <T,>(xs: T[]): T => xs[random(xs.length)]!;
-  const SHOWN = 7;
 
-  // A random few of the episode's examples, shuffled, and one of its questions with the model's recorded answer.
-  function draw(rule: Rule): View {
-    const e = pick(rule.episodes);
-    const rows = [...e.examples];
-    for (let i = rows.length - 1; i > 0; i--) {
-      const j = random(i + 1);
-      [rows[i], rows[j]] = [rows[j]!, rows[i]!];
+  // 999 examples of the rule on fresh random a, b below 256, plus one question that is not among them.
+  function episode(rule: Rule): { examples: number[][]; question: number[] } {
+    const tree = parse(rule.formula);
+    const seen = new Set<number>();
+    const rows: number[][] = [];
+    while (rows.length < COUNT + 1) {
+      const a = random(256);
+      const b = random(256);
+      if (seen.has(a * 256 + b)) continue;
+      seen.add(a * 256 + b);
+      rows.push([a, b, Number(evaluate(tree, BigInt(a), BigInt(b), WIDTH))]);
     }
-    const [a, b, truth, answer] = pick(e.questions) as [number, number, number, number];
-    return { rows: rows.slice(0, SHOWN), a, b, truth, answer };
+    return { examples: rows.slice(0, COUNT), question: rows[COUNT]! };
   }
 
   let current = random(puzzles.length);
-  let episode = draw(puzzles[current]!);
+  let made = episode(puzzles[current]!);
+  let page = 0;
 
   function show(): void {
     const p = puzzles[current]!;
     $('puzzle-title').textContent = `Puzzle · ${level(p)}`;
-    $('puzzle-rows').innerHTML = episode.rows
+    $('puzzle-rows').innerHTML = made.examples
+      .slice(0, SHOWN)
       .map(([a, b, c]) => `<tr><td class="num">${a}</td><td class="num">${b}</td><td>→</td><td class="num">${c}</td></tr>`)
       .join('');
-    $('qa').textContent = String(episode.a);
-    $('qb').textContent = String(episode.b);
+    $('qa').textContent = String(made.question[0]);
+    $('qb').textContent = String(made.question[1]);
     $('qc').textContent = '?';
     $('qc').className = 'mystery';
     for (const role of ['answer-box', 'rule-box']) $<HTMLElement>(role).hidden = true;
     $<HTMLElement>('placeholder').hidden = false;
     $<HTMLButtonElement>('show-answer').disabled = false;
     $<HTMLButtonElement>('show-rule').disabled = true;
+    page = 0;
+    showAll();
     step('show-answer');
+  }
+
+  function showAll(): void {
+    const pages = Math.ceil(COUNT / PAGE);
+    page = Math.min(Math.max(page, 0), pages - 1);
+    const start = page * PAGE;
+    $('all-rows').innerHTML = made.examples
+      .slice(start, start + PAGE)
+      .map(([a, b, c], k) => `<tr><td class="num muted">${start + k + 1}</td><td class="num">${a}</td><td class="num">${b}</td><td>→</td><td class="num">${c}</td></tr>`)
+      .join('');
+    $('all-label').textContent = `${start + 1}–${Math.min(start + PAGE, COUNT)} of ${COUNT}`;
+    $<HTMLButtonElement>('all-prev').disabled = page === 0;
+    $<HTMLButtonElement>('all-next').disabled = page === pages - 1;
+    $('all-scroll').scrollTop = 0;
   }
 
   // The button for the next step is the filled one, and focus follows it so keyboard users never lose their place.
@@ -91,13 +132,26 @@ const puzzles = showcase.rules.filter((r) => r.puzzle);
     if (focus) $<HTMLButtonElement>(next).focus();
   }
 
+  $('all-toggle').addEventListener('click', () => {
+    const box = $<HTMLElement>('all');
+    box.hidden = !box.hidden;
+    $('all-toggle').setAttribute('aria-expanded', String(!box.hidden));
+    $('all-toggle').textContent = box.hidden ? 'See all 999 examples ↓' : 'Hide the 999 examples ↑';
+    if (!box.hidden) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  $('all-prev').addEventListener('click', () => {
+    page--;
+    showAll();
+  });
+  $('all-next').addEventListener('click', () => {
+    page++;
+    showAll();
+  });
+
   $('show-answer').addEventListener('click', () => {
-    const ok = episode.answer === episode.truth;
-    $('qc').textContent = String(episode.answer);
-    $('qc').className = ok ? 'mystery solved' : 'mystery missed';
-    $('answer-box').textContent = ok
-      ? `Teenie says ${episode.answer}, and that's right. It read 999 examples like these.`
-      : `Teenie says ${episode.answer}; the right answer is ${episode.truth}. Wrong this time.`;
+    $('qc').textContent = String(made.question[2]);
+    $('qc').className = 'mystery revealed';
+    $('answer-box').textContent = `The answer is ${made.question[2]}. Did you get it?`;
     $<HTMLElement>('answer-box').hidden = false;
     $<HTMLElement>('placeholder').hidden = true;
     $<HTMLButtonElement>('show-answer').disabled = true;
@@ -108,7 +162,7 @@ const puzzles = showcase.rules.filter((r) => r.puzzle);
   $('show-rule').addEventListener('click', () => {
     const p = puzzles[current]!;
     $('rule').textContent = `c = ${p.shown}`;
-    $('rule-note').textContent = `Over 512 fresh questions with numbers this size, Teenie got ${Math.round((100 * p.right) / p.total)}% exactly right.`;
+    $('rule-note').textContent = `This is Teenie's job: from 999 examples like these, answer new questions. On this rule it gets ${p.rate}% exactly right.`;
     $<HTMLAnchorElement>('rule-try').href = `/try/?rule=${encodeURIComponent(p.formula)}&width=16&small=1`;
     $<HTMLElement>('rule-box').hidden = false;
     $<HTMLButtonElement>('show-rule').disabled = true;
@@ -119,7 +173,7 @@ const puzzles = showcase.rules.filter((r) => r.puzzle);
     let next = random(puzzles.length);
     if (puzzles.length > 1) while (next === current) next = random(puzzles.length);
     current = next;
-    episode = draw(puzzles[current]!);
+    made = episode(puzzles[current]!);
     show();
     $<HTMLButtonElement>('show-answer').focus();
   });
@@ -170,13 +224,17 @@ const puzzles = showcase.rules.filter((r) => r.puzzle);
     width: 7.5rem;
   }
 
+  .rows .col-i {
+    width: 3.5rem;
+  }
+
   .rows td,
   .rows th {
     padding: 0.2rem 0.6rem;
     white-space: nowrap;
   }
 
-  .rows td:nth-child(3) {
+  .rows td:nth-last-child(2) {
     color: var(--muted);
     text-align: center;
   }
@@ -196,12 +254,19 @@ const puzzles = showcase.rules.filter((r) => r.puzzle);
     background: color-mix(in oklab, var(--series-1) 15%, transparent);
   }
 
-  .mystery.solved {
+  .mystery.revealed {
     background: color-mix(in oklab, var(--good) 25%, transparent);
   }
 
-  .mystery.missed {
-    background: color-mix(in oklab, var(--bad) 25%, transparent);
+  .link {
+    font: inherit;
+    background: none;
+    border: none;
+    padding: 0.4rem 0 0;
+    color: var(--series-1);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
 
   .side {
@@ -229,7 +294,7 @@ const puzzles = showcase.rules.filter((r) => r.puzzle);
     border-top: 1px solid var(--axis);
   }
 
-  .actions button:disabled {
+  .puzzle button:disabled {
     opacity: 0.4;
     cursor: not-allowed;
   }
@@ -260,7 +325,8 @@ const puzzles = showcase.rules.filter((r) => r.puzzle);
     color: var(--ink);
   }
 
-  .btn:focus-visible {
+  .btn:focus-visible,
+  .link:focus-visible {
     outline: 2px solid var(--series-1);
     outline-offset: 2px;
   }
@@ -272,6 +338,42 @@ const puzzles = showcase.rules.filter((r) => r.puzzle);
   /* the next puzzle sits apart, on the right */
   .btn.next {
     margin-left: auto;
+  }
+
+  .all {
+    border-top: 1px solid var(--axis);
+    padding-top: 0.6rem;
+  }
+
+  .pager {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .small-btn {
+    padding: 0.25rem 0.7rem;
+  }
+
+  .all-scroll {
+    max-height: 20rem;
+    overflow-y: auto;
+    width: fit-content;
+    max-width: 100%;
+    border: 1px solid var(--axis);
+    border-radius: 6px;
+  }
+
+  .all-rows thead th {
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+  }
+
+  .all-rows {
+    width: 24.5rem;
+    font-size: 1rem;
   }
 
   .verdict {

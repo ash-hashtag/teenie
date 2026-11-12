@@ -3,7 +3,7 @@
 uv run python -m teenie.bits.export_showcase --checkpoint checkpoints/wide/wide-mix7-chains.pt --device cuda
 
 Each rule is a chain of steps the model handles with small inputs (a, b below 256, answers 16 bits wide). For each one
-this records four real episodes (a few of their 999 examples, one question, and the model's answer, right or wrong) and
+this records six real episodes (24 of their 999 examples, all 16 questions, and the model's answers, right or wrong) and
 the model's exact rate over 32 fresh episodes of 16 questions, with how many bits its wrong answers were off by, so the
 page shows measured numbers, not picked ones.
 """
@@ -100,6 +100,9 @@ def _exact(model, family, width: int, small: float, device: str, seed: int) -> f
     return right / total
 
 
+EPISODES, POOL = 6, 24
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('--checkpoint', default='checkpoints/wide/wide-mix7-chains.pt')
@@ -113,12 +116,15 @@ def main() -> None:
         family = fixed(shown, rule)
         episodes = []
         with torch.no_grad():
-            for k in range(4):
+            for k in range(EPISODES):
                 e = BitSampler([family], WIDTH, 500 + 10 * index + k, small=1.).sample(1, 16).to(args.device)
                 answers = model(e.context, e.query, WIDTH).values()[0].tolist()
-                rows = sorted(e.context[0, :7].tolist(), key=lambda row: (row[0], row[1]))
-                a, b = e.query[0, 0].tolist()
-                episodes.append({'examples': rows, 'a': a, 'b': b, 'truth': int(e.target[0, 0]), 'answer': int(answers[0])})
+                # A pool of the episode's examples in the order drawn (the page shows a random few, shuffled) and every
+                # question with the model's real answer, so each visit can show a different view of a recorded run.
+                rows = e.context[0, :POOL].tolist()
+                questions = [[a, b, int(t), int(v)] for (a, b), t, v in
+                             zip(e.query[0].tolist(), e.target[0].tolist(), answers)]
+                episodes.append({'examples': rows, 'questions': questions})
             right = total = 0
             off: list[int] = []
             scorer = BitSampler([family], WIDTH, 9000 + index, small=1.)
@@ -135,7 +141,7 @@ def main() -> None:
                     'bits_off': sorted(off)[len(off) // 2] if off else 0, 'bits_off_max': max(off, default=0)})
         print(f'{shown:45s} {100 * right / total:5.1f}%  misses off by a median {out[-1]["bits_off"]} bits '
               f'(at most {out[-1]["bits_off_max"]}); shown answers right: '
-              f'{sum(x["answer"] == x["truth"] for x in episodes)}/4')
+              f'{sum(q[2] == q[3] for x in episodes for q in x["questions"])}/{16 * EPISODES}')
     failures = []
     for index, (shown, formula, rule, why) in enumerate(FAILURES):
         family = fixed(shown, rule)

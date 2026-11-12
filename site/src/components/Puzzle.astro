@@ -1,7 +1,8 @@
 ---
 import showcase from '../data/showcase.json';
-// Spot-the-rule puzzles from real episodes of the release model (export_showcase.py): a few of the 999 examples, one
-// question, the model's actual answer, then the rule. Each rule has several recorded episodes; the page shuffles them.
+// Spot-the-rule puzzles from real episodes of the release model (export_showcase.py). Each rule has six recorded
+// episodes with 24 of their 999 examples and all 16 questions with the model's actual answers; every puzzle shows a
+// random few examples in random order and one random question, so the numbers change on each visit.
 const puzzles = showcase.rules.filter((r) => r.puzzle);
 ---
 
@@ -37,20 +38,36 @@ const puzzles = showcase.rules.filter((r) => r.puzzle);
 </section>
 
 <script>
-  type Episode = { examples: number[][]; a: number; b: number; truth: number; answer: number };
+  type Episode = { examples: number[][]; questions: number[][] };
+  type View = { rows: number[][]; a: number; b: number; truth: number; answer: number };
   type Rule = { shown: string; formula: string; episodes: Episode[]; right: number; total: number };
   const root = document.querySelector<HTMLElement>('.puzzle')!;
   const puzzles = JSON.parse(root.dataset.puzzles!) as Rule[];
   const $ = <T extends Element>(role: string) => root.querySelector<T>(`[data-role="${role}"]`)!;
   const level = (rule: Rule) => (rule.shown.length <= 18 ? 'warm-up' : rule.shown.length <= 26 ? 'tricky' : 'hard');
   const random = (n: number) => Math.floor(Math.random() * n);
+  const pick = <T,>(xs: T[]): T => xs[random(xs.length)]!;
+  const SHOWN = 7;
+
+  // A random few of the episode's examples, shuffled, and one of its questions with the model's recorded answer.
+  function draw(rule: Rule): View {
+    const e = pick(rule.episodes);
+    const rows = [...e.examples];
+    for (let i = rows.length - 1; i > 0; i--) {
+      const j = random(i + 1);
+      [rows[i], rows[j]] = [rows[j]!, rows[i]!];
+    }
+    const [a, b, truth, answer] = pick(e.questions) as [number, number, number, number];
+    return { rows: rows.slice(0, SHOWN), a, b, truth, answer };
+  }
+
   let current = random(puzzles.length);
-  let episode = puzzles[current]!.episodes[random(puzzles[current]!.episodes.length)]!;
+  let episode = draw(puzzles[current]!);
 
   function show(): void {
     const p = puzzles[current]!;
     $('puzzle-title').textContent = `Puzzle · ${level(p)}`;
-    $('puzzle-rows').innerHTML = episode.examples
+    $('puzzle-rows').innerHTML = episode.rows
       .map(([a, b, c]) => `<tr><td class="num">${a}</td><td class="num">${b}</td><td>→</td><td class="num">${c}</td></tr>`)
       .join('');
     $('qa').textContent = String(episode.a);
@@ -102,7 +119,7 @@ const puzzles = showcase.rules.filter((r) => r.puzzle);
     let next = random(puzzles.length);
     if (puzzles.length > 1) while (next === current) next = random(puzzles.length);
     current = next;
-    episode = puzzles[current]!.episodes[random(puzzles[current]!.episodes.length)]!;
+    episode = draw(puzzles[current]!);
     show();
     $<HTMLButtonElement>('show-answer').focus();
   });

@@ -24,10 +24,10 @@ const puzzles = showcase.rules
       </table>
       <button class="link small" type="button" data-role="all-toggle" aria-expanded="false" aria-controls="puzzle-all">See all 999 examples ↓</button>
     </div>
-    <div class="side" aria-live="polite">
+    <div class="side" data-role="side" aria-live="polite">
       <p class="placeholder small muted" data-role="placeholder">Make your guess, then press Show answer. Stuck? Look at more examples.</p>
-      <p class="verdict" data-role="answer-box" hidden></p>
-      <div class="rule-box" data-role="rule-box" hidden>
+      <p class="verdict concealed" data-role="answer-box"></p>
+      <div class="rule-box concealed" data-role="rule-box">
         <p class="rule"><code data-role="rule"></code></p>
         <p class="small muted" data-role="rule-note"></p>
         <a class="small" data-role="rule-try" href="/try/">Watch Teenie work it out →</a>
@@ -97,14 +97,46 @@ const puzzles = showcase.rules
     $('qb').textContent = String(made.question[1]);
     $('qc').textContent = '?';
     $('qc').className = 'mystery';
-    for (const role of ['answer-box', 'rule-box']) $<HTMLElement>(role).hidden = true;
-    $<HTMLElement>('placeholder').hidden = false;
+    // The answer and the rule are laid out from the start and only made visible later, so revealing them moves nothing.
+    fillSide(p);
+    for (const role of ['answer-box', 'rule-box']) $(role).classList.add('concealed');
+    $('placeholder').classList.remove('concealed');
     $<HTMLButtonElement>('show-answer').disabled = false;
     $<HTMLButtonElement>('show-rule').disabled = true;
     page = 0;
     showAll();
     step('show-answer');
   }
+
+  function fillSide(p: Rule): void {
+    $('answer-box').textContent = `The answer is ${made.question[2]}. Did you get it?`;
+    $('rule').textContent = `c = ${p.shown}`;
+    $('rule-note').textContent = `This is Teenie's job: from 999 examples like these, answer new questions. On this rule it gets ${p.rate}% exactly right.`;
+    $<HTMLAnchorElement>('rule-try').href = `/try/?rule=${encodeURIComponent(p.formula)}&width=16&small=1`;
+  }
+
+  // The answer panel is as tall as the tallest puzzle needs at this width, so the buttons below never move, not even
+  // between puzzles. Measured, not guessed: rules wrap differently on every screen.
+  function reserve(): void {
+    const side = $<HTMLElement>('side');
+    side.style.minHeight = '';
+    let tallest = 0;
+    for (const p of puzzles) {
+      $('rule').textContent = `c = ${p.shown}`;
+      $('rule-note').textContent = `This is Teenie's job: from 999 examples like these, answer new questions. On this rule it gets ${p.rate}% exactly right.`;
+      tallest = Math.max(tallest, side.offsetHeight);
+    }
+    side.style.minHeight = `${tallest}px`;
+    fillSide(puzzles[current]!);
+  }
+  let lastWidth = 0;
+  new ResizeObserver(() => {
+    const width = root.clientWidth;
+    if (width !== lastWidth) {
+      lastWidth = width;
+      reserve();
+    }
+  }).observe(root);
 
   function showAll(): void {
     const pages = Math.ceil(COUNT / PAGE);
@@ -148,20 +180,15 @@ const puzzles = showcase.rules
   $('show-answer').addEventListener('click', () => {
     $('qc').textContent = String(made.question[2]);
     $('qc').className = 'mystery revealed';
-    $('answer-box').textContent = `The answer is ${made.question[2]}. Did you get it?`;
-    $<HTMLElement>('answer-box').hidden = false;
-    $<HTMLElement>('placeholder').hidden = true;
+    $('answer-box').classList.remove('concealed');
+    $('placeholder').classList.add('concealed');
     $<HTMLButtonElement>('show-answer').disabled = true;
     $<HTMLButtonElement>('show-rule').disabled = false;
     step('show-rule', true);
   });
 
   $('show-rule').addEventListener('click', () => {
-    const p = puzzles[current]!;
-    $('rule').textContent = `c = ${p.shown}`;
-    $('rule-note').textContent = `This is Teenie's job: from 999 examples like these, answer new questions. On this rule it gets ${p.rate}% exactly right.`;
-    $<HTMLAnchorElement>('rule-try').href = `/try/?rule=${encodeURIComponent(p.formula)}&width=16&small=1`;
-    $<HTMLElement>('rule-box').hidden = false;
+    $('rule-box').classList.remove('concealed');
     $<HTMLButtonElement>('show-rule').disabled = true;
     step('puzzle-next', true);
   });
@@ -182,6 +209,7 @@ const puzzles = showcase.rules
     display: grid;
     grid-template-columns: minmax(0, 1fr); /* never wider than the card, whatever a long rule wants */
     gap: 0.6rem;
+    container-type: inline-size;
   }
 
   .body {
@@ -204,31 +232,44 @@ const puzzles = showcase.rules
   /* Fixed widths: revealing the answer never moves the numbers. */
   .rows {
     table-layout: fixed;
-    width: 21rem;
-    max-width: 100%;
+    width: 100%;
+    max-width: 21rem;
     font: 1.15rem var(--mono);
     font-variant-numeric: tabular-nums;
   }
 
+  /* Column shares, not lengths: the table shrinks with a phone screen and still never reflows on reveal. */
   .rows .col-n {
-    width: 5.5rem;
+    width: 26%;
   }
 
   .rows .col-arrow {
-    width: 2.5rem;
+    width: 12%;
   }
 
   .rows .col-c {
-    width: 7.5rem;
+    width: 36%;
   }
 
-  .rows .col-i {
-    width: 3.5rem;
+  .all-rows .col-i {
+    width: 14%;
+  }
+
+  .all-rows .col-n {
+    width: 22%;
+  }
+
+  .all-rows .col-arrow {
+    width: 10%;
+  }
+
+  .all-rows .col-c {
+    width: 32%;
   }
 
   .rows td,
   .rows th {
-    padding: 0.2rem 0.6rem;
+    padding: 0.2rem 0.5rem;
     white-space: nowrap;
   }
 
@@ -268,28 +309,52 @@ const puzzles = showcase.rules
   }
 
   .side {
+    position: relative;
     display: grid;
     gap: 0.7rem;
     align-content: start;
-    min-height: 9.5rem; /* room for the answer and the rule, so nothing below moves */
   }
 
-  @media (max-width: 720px) {
-    .side {
-      min-height: 12rem; /* the same text wraps onto more lines on a phone */
-    }
-  }
-
+  /* The prompt sits over the answer's place until the answer shows. */
   .placeholder {
+    position: absolute;
+    inset: 0 0 auto;
     margin: 0;
   }
 
+  .concealed {
+    visibility: hidden;
+  }
+
+  /* Wide: one row, the two steps on the left and the next puzzle apart on the right. */
   .actions {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
     gap: 0.6rem;
     padding-top: 0.6rem;
     border-top: 1px solid var(--axis);
+  }
+
+  .actions .next {
+    grid-column: 4;
+  }
+
+  /* Narrow: the two steps side by side at equal width, the next puzzle across the full width below. */
+  @container (max-width: 34rem) {
+    .actions {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .actions .next {
+      grid-column: 1 / -1;
+    }
+  }
+
+  /* Small phones: too narrow for two buttons side by side, so all three stack at full width, in step order. */
+  @container (max-width: 19.5rem) {
+    .actions {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 
   .puzzle button:disabled {
@@ -304,6 +369,8 @@ const puzzles = showcase.rules
   .btn {
     font: inherit;
     font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
     border-radius: 8px;
     padding: 0.55rem 1rem;
     cursor: pointer;
@@ -333,11 +400,6 @@ const puzzles = showcase.rules
     filter: brightness(1.06);
   }
 
-  /* the next puzzle sits apart, on the right */
-  .btn.next {
-    margin-left: auto;
-  }
-
   .all {
     border-top: 1px solid var(--axis);
     padding-top: 0.6rem;
@@ -355,7 +417,7 @@ const puzzles = showcase.rules
   }
 
   .all-rows {
-    width: 24.5rem;
+    max-width: 24.5rem;
     font-size: 1rem;
   }
 
@@ -367,8 +429,14 @@ const puzzles = showcase.rules
     margin: 0;
   }
 
+  /* A long rule wraps as one block, not as broken inline chips. */
   .rule code {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    box-sizing: border-box;
     font-size: 1.1rem;
+    padding: 0.2rem 0.5rem;
     white-space: normal;
     overflow-wrap: anywhere;
   }

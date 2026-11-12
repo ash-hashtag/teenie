@@ -45,13 +45,11 @@ const puzzles = showcase.rules
       <span class="small muted" data-role="all-label"></span>
       <button class="btn ghost small-btn" type="button" data-role="all-next" aria-label="Next examples">→</button>
     </div>
-    <div class="all-scroll" data-role="all-scroll">
     <table class="rows all-rows">
       <colgroup><col class="col-i" /><col class="col-n" /><col class="col-n" /><col class="col-arrow" /><col class="col-c" /></colgroup>
       <thead><tr><th class="num">#</th><th class="num">a</th><th class="num">b</th><th></th><th class="num">c</th></tr></thead>
       <tbody data-role="all-rows"></tbody>
     </table>
-    </div>
   </div>
 </section>
 
@@ -61,7 +59,7 @@ const puzzles = showcase.rules
   type Rule = { shown: string; formula: string; rate: number };
   const COUNT = 999;
   const SHOWN = 7;
-  const PAGE = 25;
+  const PAGE = 10; // a page fits on screen, so paging is all it takes
   const WIDTH = 16;
   const root = document.querySelector<HTMLElement>('.puzzle')!;
   const puzzles = JSON.parse(root.dataset.puzzles!) as Rule[];
@@ -119,7 +117,6 @@ const puzzles = showcase.rules
     $('all-label').textContent = `${start + 1}–${Math.min(start + PAGE, COUNT)} of ${COUNT}`;
     $<HTMLButtonElement>('all-prev').disabled = page === 0;
     $<HTMLButtonElement>('all-next').disabled = page === pages - 1;
-    $('all-scroll').scrollTop = 0;
   }
 
   // The button for the next step is the filled one, and focus follows it so keyboard users never lose their place.
@@ -354,21 +351,6 @@ const puzzles = showcase.rules
 
   .small-btn {
     padding: 0.25rem 0.7rem;
-  }
-
-  .all-scroll {
-    max-height: 20rem;
-    overflow-y: auto;
-    width: fit-content;
-    max-width: 100%;
-    border: 1px solid var(--axis);
-    border-radius: 6px;
-  }
-
-  .all-rows thead th {
-    position: sticky;
-    top: 0;
-    background: var(--surface);
   }
 
   .all-rows {

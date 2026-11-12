@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import info from '../../public/weights/teenie.json';
+import { KINDS } from '../lib/rulegen';
 
 // Rules it handles well (ordinary ones, then ones with no textbook solution from the held-out middle band), then rules
 // it is known to be weak at, so visitors see both.
@@ -53,6 +54,15 @@ const parameters = info.parameters.toLocaleString('en-US');
       <span class="small muted">Known weak spots:</span>
       {weak.map((p) => <button class="chip" type="button" data-formula={p.formula} title={p.formula}>{p.label}</button>)}
     </div>
+    <div class="generated">
+      <div class="generated-head">
+        <span class="small muted">Random rules, made up in your browser:</span>
+        <button class="chip kind active" type="button" data-kind="all">All kinds</button>
+        {KINDS.map((k) => <button class="chip kind" type="button" data-kind={k.kind}>{k.label}</button>)}
+        <button class="chip again" type="button" data-role="again">New batch ↻</button>
+      </div>
+      <div class="chips" data-role="generated"></div>
+    </div>
     <p class="small muted weak-note">
       It can multiply <code>a</code> by <code>b</code>, but not values it has to compute first, such as
       <code>(a + b) * a</code>, where it gets the lowest few bits and guesses the rest. Rotations are new to it as well.
@@ -83,7 +93,11 @@ const parameters = info.parameters.toLocaleString('en-US');
       <p>
         Python-style: <code>+ - * // % **</code>, <code>&amp; | ^ ~ &lt;&lt; &gt;&gt;</code>, comparisons (1 or 0),
         <code>not and or</code>, <code>x if cond else y</code> or <code>cond ? x : y</code>, and
-        <code>min max popcount reverse rotl rotr</code>. Numbers are unsigned and wrap at the width after every step,
+        <code>min max popcount reverse rotl rotr</code>, and three kinds of loop: <code>sum(f for i in range(n))</code>
+        adds up <code>f</code> for <code>i</code> from 0 to <code>n − 1</code>; <code>loop(n, start, f)</code> starts with
+        <code>x = start</code> and sets <code>x = f</code> n times; <code>rec(n, x0, y0, f)</code> starts with
+        <code>x, y = x0, y0</code> and sets <code>x, y = f, x</code> n times (the answer is <code>x</code>). Inside a loop,
+        <code>i</code> is the step number. A loop runs at most 255 times and loops can't be nested. Numbers are unsigned and wrap at the width after every step,
         as in training, and division by zero gives all ones. Don't expect much on rules built to scramble bits, like
         hashes or ciphers.
       </p>
@@ -134,6 +148,7 @@ const parameters = info.parameters.toLocaleString('en-US');
 
 <script>
   import { evaluate, parse } from '../lib/expression';
+  import { generate, KINDS, type Kind } from '../lib/rulegen';
 
   const CONTEXT = 999;
   const QUESTIONS = 16;
@@ -376,6 +391,37 @@ const parameters = info.parameters.toLocaleString('en-US');
     return `2^${bits.toFixed(0)}`;
   }
 
+  // Random rules: a fresh batch on load and on demand. Picking one only fills in the rule.
+  let shownKind: Kind | 'all' = 'all';
+  function batch(): void {
+    const kinds = shownKind === 'all' ? KINDS.flatMap((k) => [k.kind, k.kind]) : Array<Kind>(8).fill(shownKind);
+    const box = $('generated');
+    box.replaceChildren(
+      ...kinds.map((kind) => {
+        const rule = generate(kind);
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'chip rule';
+        chip.textContent = rule;
+        chip.title = KINDS.find((k) => k.kind === kind)!.label;
+        chip.addEventListener('click', () => {
+          input.value = rule;
+          input.focus();
+        });
+        return chip;
+      }),
+    );
+  }
+  document.querySelectorAll<HTMLButtonElement>('[data-kind]').forEach((button) =>
+    button.addEventListener('click', () => {
+      shownKind = button.dataset.kind as Kind | 'all';
+      document.querySelectorAll('[data-kind]').forEach((b) => b.classList.toggle('active', b === button));
+      batch();
+    }),
+  );
+  $('again').addEventListener('click', batch);
+  batch();
+
   document.querySelectorAll<HTMLButtonElement>('[data-formula]').forEach((button) =>
     button.addEventListener('click', () => {
       input.value = button.dataset.formula ?? '';  // fills the rule only; the visitor asks when ready
@@ -446,6 +492,34 @@ const parameters = info.parameters.toLocaleString('en-US');
 
   .chips .chip {
     font-size: 0.8rem;
+  }
+
+  .generated {
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.7rem;
+    border: 1px dashed var(--axis);
+    border-radius: 8px;
+  }
+
+  .generated-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+  }
+
+  .generated .kind.active {
+    background: var(--series-1);
+    color: #fff;
+    border-color: var(--series-1);
+  }
+
+  .generated :global(.chip.rule) {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    text-align: left;
+    overflow-wrap: anywhere;
   }
 
   .chips.weak {

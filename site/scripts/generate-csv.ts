@@ -9,6 +9,7 @@
 //   --small           a and b under 256
 //   --questions N     question rows after the 999 examples (default 200)
 //   --blank           leave c empty on the question rows (otherwise filled in, so the page can check its answers)
+//   --seed N          the same file every time for the same N (default: a new random file each run)
 //   -o, --output F    write to F instead of stdout
 //
 // The formula language is the page's own (src/lib/expression.ts): + - * // % **, & | ^ ~ << >>, comparisons,
@@ -21,7 +22,7 @@ const CONTEXT = 999;
 function usage(message?: string): never {
   if (message) console.error(`error: ${message}`);
   console.error(
-    "usage: bun scripts/generate-csv.ts '<formula>' [--width 16|32] [--small] [--questions N] [--blank] [-o file]",
+    "usage: bun scripts/generate-csv.ts '<formula>' [--width 16|32] [--small] [--questions N] [--blank] [--seed N] [-o file]",
   );
   process.exit(message ? 1 : 0);
 }
@@ -32,6 +33,7 @@ let width = 32;
 let small = false;
 let questions = 200;
 let blank = false;
+let seed: number | undefined;
 let output: string | undefined;
 for (let i = 0; i < args.length; i++) {
   const arg = args[i]!;
@@ -41,6 +43,7 @@ for (let i = 0; i < args.length; i++) {
   else if (arg === "--small") small = true;
   else if (arg === "--questions") questions = Number(value());
   else if (arg === "--blank") blank = true;
+  else if (arg === "--seed") seed = Number(value());
   else if (arg === "-o" || arg === "--output") output = value();
   else if (formula === undefined) formula = arg;
   else usage(`unexpected argument ${arg}`);
@@ -49,6 +52,8 @@ if (formula === undefined) usage("give a formula, e.g. 'a * b + a'");
 if (width !== 16 && width !== 32) usage("--width must be 16 or 32");
 if (!Number.isInteger(questions) || questions < 1)
   usage("--questions must be a whole number of 1 or more");
+if (seed !== undefined && !Number.isSafeInteger(seed))
+  usage("--seed must be a whole number");
 
 let tree;
 try {
@@ -58,11 +63,22 @@ try {
 }
 
 const inputBits = small ? 8 : width;
-// Two random 32-bit words, cut down to their top inputBits bits (>>> keeps them unsigned).
-const pair = (): [bigint, bigint] => {
-  const [a, b] = crypto.getRandomValues(new Uint32Array(2));
-  return [BigInt(a! >>> (32 - inputBits)), BigInt(b! >>> (32 - inputBits))];
+// Uniform random 32-bit words: from crypto, or with --seed from SplitMix32, which steps a counter by a fixed odd
+// number and scrambles it with a bijection, so over its 2^32 period it gives every 32-bit value exactly once.
+let state = (seed ?? 0) >>> 0;
+const word = (): number => {
+  if (seed === undefined) return crypto.getRandomValues(new Uint32Array(1))[0]!;
+  state = (state + 0x9e3779b9) >>> 0;
+  let z = state;
+  z = Math.imul(z ^ (z >>> 16), 0x85ebca6b);
+  z = Math.imul(z ^ (z >>> 13), 0xc2b2ae35);
+  return (z ^ (z >>> 16)) >>> 0;
 };
+// a and b: the top inputBits bits of a word each (>>> keeps them unsigned).
+const pair = (): [bigint, bigint] => [
+  BigInt(word() >>> (32 - inputBits)),
+  BigInt(word() >>> (32 - inputBits)),
+];
 
 const total = CONTEXT + questions;
 if (total > 2 ** (2 * inputBits))

@@ -180,6 +180,7 @@ const puzzles = showcase.rules
 <style>
   .puzzle {
     display: grid;
+    grid-template-columns: minmax(0, 1fr); /* never wider than the card, whatever a long rule wants */
     gap: 0.6rem;
   }
 
@@ -192,7 +193,7 @@ const puzzles = showcase.rules
 
   @media (max-width: 720px) {
     .body {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 
@@ -368,6 +369,8 @@ const puzzles = showcase.rules
 
   .rule code {
     font-size: 1.1rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .rule-box p {

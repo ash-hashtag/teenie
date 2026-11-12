@@ -36,7 +36,7 @@
         The bluer, the surer the bit is 1; the paler, the surer it is 0. Undecided bits stay in between.
       </p>
     </div>
-    <div class="panel">
+    <div class="panel look">
       <h3>Where it looks</h3>
       <canvas data-role="plane" aria-label="The 999 examples on the a–b plane, shaded by attention"></canvas>
       <p class="small muted caption">
@@ -187,6 +187,7 @@
 
 <style>
   .rounds {
+    container: rounds / inline-size;
     display: grid;
     gap: 1.25rem;
   }
@@ -211,6 +212,21 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
     gap: 1.25rem;
+  }
+
+  /* Two columns: the map takes the whole row below, beside its caption, instead of leaving a gap next to it. */
+  @container rounds (min-width: 36rem) and (max-width: 56rem) {
+    .look {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      column-gap: 1.25rem;
+      align-items: start;
+    }
+
+    .look h3 {
+      grid-column: 1 / -1;
+    }
   }
 
   .panel h3 {
@@ -313,7 +329,6 @@
 
   canvas {
     width: 100%;
-    max-width: 340px;
     aspect-ratio: 1;
     display: block;
     border: 1px solid var(--border);

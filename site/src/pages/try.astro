@@ -59,7 +59,7 @@ const parameters = info.parameters.toLocaleString('en-US');
         <span class="small muted">Random rules, made up in your browser:</span>
         <button class="chip kind active" type="button" data-kind="all">All kinds</button>
         {KINDS.map((k) => <button class="chip kind" type="button" data-kind={k.kind}>{k.label}</button>)}
-        <button class="chip again" type="button" data-role="again">New rule +</button>
+        <button class="chip again" type="button" data-role="again">New rules ↻</button>
       </div>
       <ol class="rule-list" data-role="generated"></ol>
     </div>
@@ -396,10 +396,9 @@ const parameters = info.parameters.toLocaleString('en-US');
     return `2^${bits.toFixed(0)}`;
   }
 
-  // Random rules, one per line: a few on load, one more (of the chosen kind) per click on "New rule". Picking a rule
-  // only fills it in.
+  // Random rules, one per line: five on load and five fresh ones (replacing the old) per click on "New rules". Picking
+  // a rule only fills it in.
   let shownKind: Kind | 'all' = 'all';
-  const LIMIT = 12;
   function line(kind: Kind): HTMLLIElement {
     const rule = generate(kind);
     const item = document.createElement('li');
@@ -417,12 +416,6 @@ const parameters = info.parameters.toLocaleString('en-US');
     item.append(pickButton);
     return item;
   }
-  const nextKind = (): Kind => (shownKind === 'all' ? KINDS[Math.floor(Math.random() * KINDS.length)]!.kind : shownKind);
-  function addRule(): void {
-    const list = $('generated');
-    list.prepend(line(nextKind()));
-    while (list.children.length > LIMIT) list.lastElementChild!.remove();
-  }
   function fillRules(): void {
     const kinds = shownKind === 'all' ? KINDS.map((k) => k.kind) : Array<Kind>(5).fill(shownKind);
     $('generated').replaceChildren(...kinds.map(line));
@@ -434,7 +427,7 @@ const parameters = info.parameters.toLocaleString('en-US');
       fillRules();
     }),
   );
-  $('again').addEventListener('click', addRule);
+  $('again').addEventListener('click', fillRules);
   fillRules();
 
   document.querySelectorAll<HTMLButtonElement>('[data-formula]').forEach((button) =>

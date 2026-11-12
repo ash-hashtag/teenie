@@ -13,6 +13,17 @@ export const KINDS: { kind: Kind; label: string }[] = [
 ];
 
 const pick = <T>(items: readonly T[]): T => items[Math.floor(Math.random() * items.length)]!;
+/** Like pick, with weights. */
+function weighted<T>(items: readonly (readonly [T, number])[]): T {
+  let roll = Math.random() * items.reduce((total, [, weight]) => total + weight, 0);
+  for (const [item, weight] of items) {
+    roll -= weight;
+    if (roll <= 0) return item;
+  }
+  return items[items.length - 1]![0];
+}
+// Multiplication is the model's weak spot when its operands are computed, so random rules use it sparingly.
+const BINARY = [['+', 4], ['-', 3], ['^', 4], ['&', 2], ['|', 2], ['*', 1]] as const;
 const between = (low: number, high: number) => low + Math.floor(Math.random() * (high - low + 1));
 const constant = () => (Math.random() < 0.8 ? String(between(2, 255)) : `0x${between(0x1000, 0xffff).toString(16).toUpperCase()}`);
 
@@ -24,7 +35,7 @@ function tree(ops: number, leaves: readonly string[]): string {
     return pick([`~${inner}`, `(${inner} >> ${between(1, 5)})`, `(${inner} << ${between(1, 3)})`]);
   }
   const left = between(0, ops - 1);
-  const op = pick(['+', '-', '*', '^', '&', '|', '+', '^', '*']);
+  const op = weighted(BINARY);
   return `(${tree(left, leaves)} ${op} ${tree(ops - 1 - left, leaves)})`;
 }
 
@@ -40,7 +51,9 @@ function balanced(text: string): boolean {
   return depth === 0;
 }
 
-const STARTS = ['a + b', 'a ^ b', 'a * b', 'a - b', 'a | b', 'max(a, b)', 'a & b', 'min(a, b)'];
+const STARTS = [['a + b', 3], ['a ^ b', 3], ['a - b', 3], ['a | b', 2], ['a & b', 2], ['max(a, b)', 1], ['min(a, b)', 1],
+  ['a * b', 1]] as const;
+const STEP_WEIGHTS = [3, 3, 3, 1, 2, 2, 2, 2, 2, 3, 1];
 const STEPS: ((e: string) => string)[] = [
   (e) => `(${e} + ${constant()})`,
   (e) => `(${e} ^ b)`,
@@ -58,8 +71,8 @@ const STEPS: ((e: string) => string)[] = [
 function draft(kind: Kind): string {
   switch (kind) {
     case 'chain': {
-      let e = `(${pick(STARTS)})`;
-      for (let k = between(4, 8); k > 0; k--) e = pick(STEPS)(e);
+      let e = `(${weighted(STARTS)})`;
+      for (let k = between(4, 8); k > 0; k--) e = weighted(STEPS.map((step, i) => [step, STEP_WEIGHTS[i]!] as const))(e);
       return strip(e);
     }
     case 'loop': {

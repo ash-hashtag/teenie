@@ -17,10 +17,14 @@ type Trace = {
   context: number[][];
   examples: { a: number; b: number; target: number; prediction: number; rounds: { p: number[] }[] }[];
 };
+type Recording = { width: number; traces: Trace[] };
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-const product = (rounds as Trace[]).find((t) => t.relation === 'a*b')!;
+// The release model answering a × b at 16 bits (export_rounds.py), replayed round by round.
+const recording = rounds as Recording;
+const product = recording.traces.find((t) => t.relation === 'a × b')!;
 const rows = product.context.slice(0, 4) as [number, number, number][];
-const question = product.examples[0]!;
+// The largest product it got right, so the bits have something to show.
+const question = [...product.examples].sort((x, y) => Number(y.prediction === y.target) - Number(x.prediction === x.target) || y.target - x.target)[0]!;
 const guesses = question.rounds.map((r) => r.p);
 const wide = progress.wide;
 const w32 = wide.widths['32']!;
@@ -158,42 +162,31 @@ const release = progress.release?.results ?? {};
   <Examples />
 
   <h2>How it answers</h2>
-  <section class="demo card" id="demo" data-guesses={JSON.stringify(guesses)} aria-label="An 8-bit model answering a multiplication question, round by round">
+  <section class="demo card" id="demo" data-guesses={JSON.stringify(guesses)} aria-label="Teenie answering a multiplication question, round by round">
     <div class="demo-grid">
       <div>
         <p class="eyebrow">999 examples (4 shown) · relation hidden</p>
-        <div class="rows">
-          {
-            rows.map(([a, b, c]) => (
-              <div class="ex">
-                <BitStrip value={a} />
-                <span class="op">?</span>
-                <BitStrip value={b} />
-                <span class="op">→</span>
-                <BitStrip value={c} />
-              </div>
-            ))
-          }
-          <div class="ex dots">⋮ 995 more</div>
-        </div>
+        <table class="pairs">
+          <thead><tr><th class="num">a</th><th class="num">b</th><th></th><th class="num">c</th></tr></thead>
+          <tbody>
+            {
+              rows.map(([a, b, c]) => (
+                <tr><td class="num">{a}</td><td class="num">{b}</td><td class="op">→</td><td class="num">{c}</td></tr>
+              ))
+            }
+            <tr><td class="dots" colspan="4">⋮ 995 more</td></tr>
+          </tbody>
+        </table>
       </div>
       <div>
         <p class="eyebrow">New question · <span data-role="round">round 1 of {guesses.length}</span></p>
-        <div class="ex">
-          <BitStrip value={question.a} />
-          <span class="op">?</span>
-          <BitStrip value={question.b} />
-          <span class="op">→</span>
-          <div class="answer">
-            <BitStrip value={0} probs={guesses[0]} />
-          </div>
+        <p class="ask"><span class="num">a = {question.a}</span>, <span class="num">b = {question.b}</span> → <span class="muted">c, bit by bit:</span></p>
+        <div class="ex answer">
+          <BitStrip value={0} width={recording.width} probs={guesses[0]} />
         </div>
         <p class="small muted note">
-          A recording from the earlier 8-bit model, small enough to show: it guesses every bit at once and corrects the
-          guess each round by reading the examples again. Here the hidden relation is <code>a*b</code>:
-          {` ${question.a} × ${question.b} = ${question.target} (mod 256).`} Blue = surely 1, pale = surely 0. 8-bit results
-          are not used to judge the model: with only 256 possible answers and examples covering 1.5% of all inputs,
-          lookup alone does well there.
+          {`A recording of Teenie itself, at ${recording.width} bits. It guesses all ${recording.width} bits of the answer at once, then corrects the guess each round by reading the examples again. Here the hidden rule is a × b: ${question.a} × ${question.b} = ${question.target}. Blue means surely 1, pale means surely 0. `}
+          <a href={`${base}/model/#rounds`}>Step through it round by round →</a>
         </p>
       </div>
     </div>
@@ -243,7 +236,7 @@ const release = progress.release?.results ?? {};
 </Layout>
 
 <script>
-  // Replay the recorded guesses: all 8 bits update together, round after round.
+  // Replay the recorded guesses: all the answer bits update together, round after round.
   const demo = document.getElementById('demo');
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (demo) {
@@ -252,7 +245,7 @@ const release = progress.release?.results ?? {};
     const label = demo.querySelector('[data-role="round"]')!;
     const show = (t: number) => {
       const p = guesses[t]!;
-      cells.forEach((c, i) => c.style.setProperty('--p', String(p[7 - i])));
+      cells.forEach((c, i) => c.style.setProperty('--p', String(p[p.length - 1 - i])));
       label.textContent = `round ${t + 1} of ${guesses.length}`;
     };
     if (reduce) show(guesses.length - 1);
@@ -308,9 +301,20 @@ const release = progress.release?.results ?? {};
     gap: 1.5rem;
   }
 
-  .rows {
-    display: grid;
-    gap: 0.35rem;
+  .pairs {
+    width: auto;
+    font: 1rem var(--mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pairs td,
+  .pairs th {
+    padding: 0.15rem 0.6rem;
+  }
+
+  .ask {
+    font-family: var(--mono);
+    margin: 0.2rem 0 0.6rem;
   }
 
   .ex {

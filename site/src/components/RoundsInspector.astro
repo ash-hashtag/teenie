@@ -1,12 +1,12 @@
 ---
-// Replay of the current model's recorded predictions (rounds.json): the 8-bit guess after every round and where
-// the question looks among the 999 examples.
+// Replay of the release model's recorded answers (rounds.json, export_rounds.py): at 16 bits, the guess and the two
+// scratch registers after every round, and where the question looks among the 999 examples.
 ---
 
 <section class="rounds card" id="rounds" aria-live="polite">
   <div class="controls">
     <div>
-      <p class="eyebrow">Relation (hidden from the model)</p>
+      <p class="eyebrow">Hidden rule (the model only sees the examples)</p>
       <div class="chips" data-role="relations"></div>
     </div>
     <div>
@@ -16,8 +16,8 @@
     <div class="roundrow">
       <button class="chip" type="button" data-role="play" aria-label="Play through the rounds">▶ play</button>
       <label class="slider">
-        <span class="small muted">after round <b data-role="round-label">1</b> of <span data-role="round-count">8</span></span>
-        <input type="range" min="1" max="8" value="1" step="1" data-role="round" aria-label="Round" />
+        <span class="small muted">after round <b data-role="round-label">1</b> of <span data-role="round-count">12</span></span>
+        <input type="range" min="1" max="12" value="1" step="1" data-role="round" aria-label="Round" />
       </label>
     </div>
   </div>
@@ -32,8 +32,8 @@
       <h3>The guess, round by round</h3>
       <div class="evolution" data-role="evolution"></div>
       <p class="small muted caption">
-        Rows are rounds, columns are answer bits (most significant on the left). The bluer, the surer the bit is 1; the
-        paler, the surer it is 0. Undecided bits stay in between.
+        Rows are rounds, columns are answer bits (most significant on the left), and the last row is the true answer.
+        The bluer, the surer the bit is 1; the paler, the surer it is 0. Undecided bits stay in between.
       </p>
     </div>
     <div class="panel">
@@ -41,7 +41,8 @@
       <canvas data-role="plane" aria-label="The 999 examples on the a–b plane, shaded by attention"></canvas>
       <p class="small muted caption">
         Each dot is one of the 999 examples (a → right, b → up), sized and shaded by the question's attention in the last
-        look layer of this round (gray = no more than an even share). The ring is the question.
+        bit layer of this round, averaged over its 16 answer bits (gray = no more than an even share). The ring is the
+        question.
       </p>
     </div>
   </div>
@@ -56,9 +57,9 @@
   import { strip } from '../lib/bits-dom';
   import { drawPlane, evenShares, hit } from '../lib/plane';
 
-  type Round = { p: number[]; attention: number[]; top: { i: number; w: number }[] };
+  type Round = { p: number[]; registers: number[][]; attention: number[]; top: { i: number; w: number }[] };
   type Example = { a: number; b: number; target: number; prediction: number; confidence: number; rounds: Round[] };
-  type Trace = { relation: string; context: [number, number, number][]; examples: Example[] };
+  type Trace = { relation: string; width: number; context: [number, number, number][]; examples: Example[] };
 
   const root = document.getElementById('rounds')!;
   const q = <T extends Element>(role: string) => root.querySelector<T>(`[data-role="${role}"]`)!;
@@ -97,28 +98,31 @@
     q('round-count').textContent = String(total);
 
     const right = example.prediction === example.target;
+    const width = trace.width;
     q('question').innerHTML = [
-      strip(example.a, { label: 'a' }),
-      strip(example.b, { label: 'b' }),
+      strip(example.a, { label: 'a', width }),
+      strip(example.b, { label: 'b', width }),
       `<div class="sep small muted">guess after round ${state.round + 1}</div>`,
-      strip(0, { label: 'c?', probs: round.p }),
+      strip(0, { label: 'c?', probs: round.p, width }),
+      `<div class="sep small muted">scratch registers after round ${state.round + 1} (its own working, never supervised)</div>`,
+      ...round.registers.map((r, i) => strip(0, { label: `r${i + 1}`, probs: r, width })),
       `<div class="sep small muted">answer after the last round</div>`,
-      strip(example.prediction, { label: 'ĉ', wrong: !right }),
-      strip(example.target, { label: 'c' }),
+      strip(example.prediction, { label: 'ĉ', wrong: !right, width }),
+      strip(example.target, { label: 'c', width }),
     ].join('');
     q('verdict').innerHTML = `<span class="${right ? 'ok' : 'bad'}">${right ? '✓ exact' : '✗ wrong'}</span>
       <span class="muted small">confidence ${(example.confidence * 100).toFixed(1)}% (least certain bit)</span>`;
 
     q('evolution').innerHTML = example.rounds
       .map((r, t) => {
-        const cells = [...r.p].map((_, i) => r.p[7 - i]!)
-          .map((p, i) => `<span class="cell" style="--p:${p}" data-tip="round ${t + 1}, bit ${7 - i}: p(1) = ${p.toFixed(3)}"></span>`)
+        const cells = [...r.p].map((_, i) => r.p[width - 1 - i]!)
+          .map((p, i) => `<span class="cell" style="--p:${p}" data-tip="round ${t + 1}, bit ${width - 1 - i}: p(1) = ${p.toFixed(3)}"></span>`)
           .join('');
         return `<div class="erow${t === state.round ? ' now' : ''}"><span class="rlabel">${t + 1}</span>${cells}</div>`;
       })
       .join('') +
-      `<div class="erow truth"><span class="rlabel">c</span>${[...Array(8).keys()]
-        .map((i) => `<span class="cell${(example.target >> (7 - i)) & 1 ? ' on' : ''}"></span>`)
+      `<div class="erow truth"><span class="rlabel">c</span>${[...Array(width).keys()]
+        .map((i) => `<span class="cell${(example.target >> (width - 1 - i)) & 1 ? ' on' : ''}"></span>`)
         .join('')}</div>`;
 
     drawPlane(q<HTMLCanvasElement>('plane'), { points: trace.context, weights: round.attention, query: [example.a, example.b] });
@@ -171,9 +175,9 @@
   window.addEventListener('resize', () => traces.length && render());
 
   fetch(dataUrl('rounds.json'))
-    .then((r) => r.json() as Promise<Trace[]>)
+    .then((r) => r.json() as Promise<{ traces: Trace[] }>)
     .then((data) => {
-      traces = data;
+      traces = data.traces;
       render();
     })
     .catch(() => {
@@ -216,6 +220,25 @@
   [data-role='question'] {
     display: grid;
     gap: 0.4rem;
+  }
+
+  [data-role='question'] :global(.strip) {
+    display: flex;
+    min-width: 0;
+  }
+
+  [data-role='question'] :global(.strip .cells) {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  [data-role='question'] :global(.strip .cell) {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 24px;
+    height: 22px;
+    font-size: 0.65rem;
   }
 
   [data-role='question'] :global(.sep) {
@@ -270,8 +293,11 @@
     margin-right: 4px;
   }
 
+  /* 16 bits in a narrow panel: cells share the row, up to 24px each. */
   .evolution :global(.cell) {
-    width: 24px;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 24px;
     height: 18px;
     border-radius: 3px;
     background: color-mix(in oklab, var(--series-1) calc(var(--p, 0) * 100%), var(--bit-off));

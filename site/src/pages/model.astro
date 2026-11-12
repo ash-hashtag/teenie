@@ -119,11 +119,12 @@ const share = (n: number) => `${((100 * n) / model.parameters).toFixed(1)}%`;
     > and the <a href={`${base}/findings/`}>findings</a>.
   </p>
 
-  <h2>Watch an earlier model answer</h2>
+  <h2>Watch it answer, round by round</h2>
   <p>
-    A recording from the earlier 8-bit version of the same design, small enough to step through. The guess starts out
-    undecided and sharpens each round as the answer bits look back at the examples. We don't judge the model on 8-bit
-    results, because lookup alone does well at that width.
+    Recordings of this model at 16 bits, with a and b below 256: the rules from the puzzles on the overview, a product
+    it can do and one it can't. Each round it reads the examples again and corrects its guess, and it writes two
+    scratch registers of its own. Nobody tells it what to put there; they hold whatever helps it get the answer. Play
+    a question, or drag through the 12 rounds.
   </p>
   <RoundsInspector />
 </Layout>

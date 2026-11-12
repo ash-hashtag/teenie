@@ -70,7 +70,7 @@ const inputBits = small ? 8 : width;
 const draw = () => BigInt(word()) & ((1n << BigInt(inputBits)) - 1n);
 
 const total = CONTEXT + questions;
-if (total > (1 << inputBits) ** 2) usage(`only ${(1 << inputBits) ** 2} distinct (a, b) pairs exist; ask fewer questions`);
+if (total > 2 ** (2 * inputBits)) usage(`only ${2 ** (2 * inputBits)} distinct (a, b) pairs exist; ask fewer questions`);
 const seen = new Set<string>();
 const lines = ['a,b,c'];
 const answers = new Set<string>();

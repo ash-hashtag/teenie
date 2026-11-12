@@ -1,0 +1,61 @@
+---
+import showcase from '../data/showcase.json';
+// Simple-looking rules where the release model fails, measured in both modes the Try it page offers
+// (export_showcase.py, 256 questions each).
+const failures = showcase.failures ?? [];
+const pct = (x: number) => `${Math.round(100 * x)}%`;
+const tone = (x: number) => (x < 0.2 ? 'bad' : x < 0.9 ? 'meh' : 'fine');
+---
+
+<div class="scroll">
+  <table class="fails">
+    <thead>
+      <tr>
+        <th>rule</th>
+        <th class="num">32 bits, any numbers</th>
+        <th class="num">16 bits, small numbers</th>
+        <th>why</th>
+      </tr>
+    </thead>
+    <tbody>
+      {failures.map((f) => (
+        <tr>
+          <td><a href={`/try/?rule=${encodeURIComponent(f.formula)}`}><code>{f.shown}</code></a></td>
+          <td class={`num ${tone(f.full32)}`}><b>{pct(f.full32)}</b></td>
+          <td class={`num ${tone(f.small16)}`}><b>{pct(f.small16)}</b></td>
+          <td class="small">{f.why}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+<style>
+  .scroll {
+    overflow-x: auto;
+  }
+
+  .fails {
+    min-width: 40rem;
+  }
+
+  .fails td {
+    vertical-align: top;
+  }
+
+  .fails code {
+    white-space: nowrap;
+  }
+
+  .bad b {
+    color: var(--bad);
+  }
+
+  .meh b {
+    color: #b06f00;
+  }
+
+  .fine b {
+    color: var(--good);
+  }
+</style>

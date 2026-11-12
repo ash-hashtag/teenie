@@ -7,6 +7,7 @@ import Examples from '../components/Examples.astro';
 import GroupTable from '../components/GroupTable.astro';
 import Puzzle from '../components/Puzzle.astro';
 import RuleWall from '../components/RuleWall.astro';
+import FailureTable from '../components/FailureTable.astro';
 import rounds from '../../public/data/rounds.json';
 import { progress } from '../lib/data';
 import { pct, thousands } from '../lib/format';
@@ -115,7 +116,14 @@ const release = progress.release?.results ?? {};
     {`After 32-bit training with 12 rounds, the current model gets a*b ${pct(release['a*b']?.exact)} and (a*b)+a ${pct(release['(a*b)+a']?.exact)} exactly right at 32 bits. Products of values it has to compute first, like (a+b)*a or a*a − b*b, are still right only on their lowest ~6 bits.`}
   </p>
 
-  <h2 id="limits">What works and what doesn't</h2>
+  <h2 id="limits">How bad is it?</h2>
+  <p>
+    Bad enough to be worth showing. These rules look simple, and Teenie gets most of them wrong almost every time.
+    Each percentage is how often it got a fresh question exactly right, out of 256. Click a rule to watch it fail.
+  </p>
+  <FailureTable />
+
+  <h3>In short</h3>
   <div class="grid-3">
     <div class="card">
       <h3>Works: combining steps it knows</h3>

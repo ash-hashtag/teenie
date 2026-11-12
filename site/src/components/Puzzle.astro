@@ -23,15 +23,18 @@ const puzzles = showcase.rules.filter((r) => r.puzzle);
       </table>
     </div>
     <div class="side">
-      <button class="primary" type="button" data-role="show-answer">Show Teenie's answer</button>
+      <p class="placeholder small muted" data-role="placeholder">Make your guess, then ask for Teenie's answer below.</p>
       <p class="verdict" data-role="answer-box" hidden></p>
-      <button class="secondary" type="button" data-role="show-rule" hidden>Reveal the rule</button>
       <div class="rule-box" data-role="rule-box" hidden>
         <p class="rule"><code data-role="rule"></code></p>
         <p class="small muted" data-role="rule-note"></p>
         <a class="small" data-role="rule-try" href="/try/">Test it on this rule yourself →</a>
       </div>
     </div>
+  </div>
+  <div class="actions">
+    <button class="primary" type="button" data-role="show-answer">Show Teenie's answer</button>
+    <button class="secondary" type="button" data-role="show-rule" disabled>Reveal the rule</button>
   </div>
 </section>
 
@@ -56,8 +59,10 @@ const puzzles = showcase.rules.filter((r) => r.puzzle);
     $('qb').textContent = String(episode.b);
     $('qc').textContent = '?';
     $('qc').className = 'mystery';
-    for (const role of ['answer-box', 'show-rule', 'rule-box']) $<HTMLElement>(role).hidden = true;
-    $<HTMLElement>('show-answer').hidden = false;
+    for (const role of ['answer-box', 'rule-box']) $<HTMLElement>(role).hidden = true;
+    $<HTMLElement>('placeholder').hidden = false;
+    $<HTMLButtonElement>('show-answer').disabled = false;
+    $<HTMLButtonElement>('show-rule').disabled = true;
   }
 
   $('show-answer').addEventListener('click', () => {
@@ -68,8 +73,9 @@ const puzzles = showcase.rules.filter((r) => r.puzzle);
       ? `Teenie says ${episode.answer}, and that's right. It read 999 examples like these.`
       : `Teenie says ${episode.answer}; the right answer is ${episode.truth}. Wrong this time.`;
     $<HTMLElement>('answer-box').hidden = false;
-    $<HTMLElement>('show-answer').hidden = true;
-    $<HTMLElement>('show-rule').hidden = false;
+    $<HTMLElement>('placeholder').hidden = true;
+    $<HTMLButtonElement>('show-answer').disabled = true;
+    $<HTMLButtonElement>('show-rule').disabled = false;
   });
 
   $('show-rule').addEventListener('click', () => {
@@ -78,7 +84,7 @@ const puzzles = showcase.rules.filter((r) => r.puzzle);
     $('rule-note').textContent = `Over 512 fresh questions with numbers this size, Teenie got ${Math.round((100 * p.right) / p.total)}% exactly right.`;
     $<HTMLAnchorElement>('rule-try').href = `/try/?rule=${encodeURIComponent(p.formula)}&width=16&small=1`;
     $<HTMLElement>('rule-box').hidden = false;
-    $<HTMLElement>('show-rule').hidden = true;
+    $<HTMLButtonElement>('show-rule').disabled = true;
   });
 
   $('puzzle-next').addEventListener('click', () => {
@@ -184,6 +190,24 @@ const puzzles = showcase.rules.filter((r) => r.puzzle);
     display: grid;
     gap: 0.7rem;
     align-content: start;
+    min-height: 9.5rem; /* room for the answer and the rule, so nothing below moves */
+  }
+
+  .placeholder {
+    margin: 0;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--axis);
+  }
+
+  .actions button:disabled {
+    opacity: 0.45;
+    cursor: default;
   }
 
   .primary,
@@ -194,7 +218,6 @@ const puzzles = showcase.rules.filter((r) => r.puzzle);
     border-radius: 8px;
     padding: 0.55rem 1rem;
     cursor: pointer;
-    justify-self: start;
   }
 
   .primary {

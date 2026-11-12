@@ -46,6 +46,7 @@ const release = progress.release?.results ?? {};
     <p class="cta">
       <a class="button" href={`${base}/try/`}>Try it with your own rule</a>
       <a class="button quiet" href="#where">How good is it?</a>
+      <a class="button quiet" href="#limits">How bad is it?</a>
     </p>
   </section>
 
@@ -114,7 +115,7 @@ const release = progress.release?.results ?? {};
     {`After 32-bit training with 12 rounds, the current model gets a*b ${pct(release['a*b']?.exact)} and (a*b)+a ${pct(release['(a*b)+a']?.exact)} exactly right at 32 bits. Products of values it has to compute first, like (a+b)*a or a*a − b*b, are still right only on their lowest ~6 bits.`}
   </p>
 
-  <h2>What works and what doesn't</h2>
+  <h2 id="limits">What works and what doesn't</h2>
   <div class="grid-3">
     <div class="card">
       <h3>Works: combining steps it knows</h3>

@@ -59,7 +59,7 @@ const parameters = info.parameters.toLocaleString('en-US');
         <span class="small muted">Random rules, made up in your browser:</span>
         <button class="chip kind active" type="button" data-kind="all">All kinds</button>
         {KINDS.map((k) => <button class="chip kind" type="button" data-kind={k.kind}>{k.label}</button>)}
-        <button class="chip again" type="button" data-role="again">New rules ↻</button>
+        <button class="again" type="button" data-role="again">↻ New rules</button>
       </div>
       <ol class="rule-list" data-role="generated"></ol>
     </div>
@@ -136,8 +136,16 @@ const parameters = info.parameters.toLocaleString('en-US');
       </table>
     </div>
     <details class="small">
-      <summary>The first 8 of the 999 examples it read</summary>
-      <div data-role="examples"></div>
+      <summary>All 999 examples it read</summary>
+      <div class="pager">
+        <button type="button" class="chip" data-role="page-prev">← Previous</button>
+        <span class="small muted" data-role="page-label"></span>
+        <button type="button" class="chip" data-role="page-next">Next →</button>
+      </div>
+      <table class="examples">
+        <thead><tr><th class="num">#</th><th class="num">a</th><th class="num">b</th><th class="num">c</th></tr></thead>
+        <tbody data-role="examples"></tbody>
+      </table>
     </details>
     <p class="small muted">
       <strong>Bits recovered</strong> is the width plus log<sub>2</sub> of the probability the model gave the true
@@ -335,6 +343,31 @@ const parameters = info.parameters.toLocaleString('en-US');
     }
   }
 
+  // The 999 examples, 25 to a page: only the page on screen is built.
+  const PAGE = 25;
+  let shownExamples: bigint[][] = [];
+  let examplePage = 0;
+  function showExamples(): void {
+    const pages = Math.max(1, Math.ceil(shownExamples.length / PAGE));
+    examplePage = Math.min(Math.max(examplePage, 0), pages - 1);
+    const start = examplePage * PAGE;
+    $('examples').innerHTML = shownExamples
+      .slice(start, start + PAGE)
+      .map(([a, b, c], k) => `<tr><td class="num muted">${start + k + 1}</td><td class="num">${a}</td><td class="num">${b}</td><td class="num">${c}</td></tr>`)
+      .join('');
+    $('page-label').textContent = `${start + 1}–${Math.min(start + PAGE, shownExamples.length)} of ${shownExamples.length}`;
+    $<HTMLButtonElement>('page-prev').disabled = examplePage === 0;
+    $<HTMLButtonElement>('page-next').disabled = examplePage === pages - 1;
+  }
+  $('page-prev').addEventListener('click', () => {
+    examplePage--;
+    showExamples();
+  });
+  $('page-next').addEventListener('click', () => {
+    examplePage++;
+    showExamples();
+  });
+
   function render(width: number, pairs: [bigint, bigint][], answers: bigint[], p: Float32Array, seconds: number,
     distinct: number, mine: number): void {
     let exact = 0;
@@ -381,10 +414,9 @@ const parameters = info.parameters.toLocaleString('en-US');
     $('sure').textContent = `${sure} / ${QUESTIONS} · ${sure ? `${sureRight} / ${sure}` : '—'}`;
     $('note').textContent = `c = ${input.value} at ${width} bits${smallBox.checked ? ' with a, b under 256' : ''}: 999 examples (${distinct.toLocaleString('en-US')} different answers), ${QUESTIONS} new questions${mine ? ` (${mine} of yours)` : ''}, answered on your device in ${seconds.toFixed(1)} s.`;
     $('rows').innerHTML = rows.join('');
-    $('examples').innerHTML = `<table><thead><tr><th class="num">a</th><th class="num">b</th><th class="num">c</th></tr></thead><tbody>${pairs
-      .slice(0, 8)
-      .map(([a, b], n) => `<tr><td class="num">${a}</td><td class="num">${b}</td><td class="num">${answers[n]}</td></tr>`)
-      .join('')}</tbody></table>`;
+    shownExamples = pairs.slice(0, CONTEXT).map(([a, b], n) => [a, b, answers[n]!]);
+    examplePage = 0;
+    showExamples();
     $<HTMLElement>('result').hidden = false;
   }
 
@@ -527,6 +559,39 @@ const parameters = info.parameters.toLocaleString('en-US');
     background: var(--series-1);
     color: #fff;
     border-color: var(--series-1);
+  }
+
+  .again {
+    font: inherit;
+    font-weight: 700;
+    padding: 0.45rem 1rem;
+    border: none;
+    border-radius: 999px;
+    background: var(--series-1);
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 1px 3px color-mix(in oklab, var(--series-1) 40%, transparent);
+  }
+
+  .again:hover {
+    filter: brightness(1.08);
+  }
+
+  .pager {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin: 0.6rem 0;
+  }
+
+  .pager button:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .examples {
+    max-width: 30rem;
+    font-variant-numeric: tabular-nums;
   }
 
   .rule-list {

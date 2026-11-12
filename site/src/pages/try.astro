@@ -59,9 +59,9 @@ const parameters = info.parameters.toLocaleString('en-US');
         <span class="small muted">Random rules, made up in your browser:</span>
         <button class="chip kind active" type="button" data-kind="all">All kinds</button>
         {KINDS.map((k) => <button class="chip kind" type="button" data-kind={k.kind}>{k.label}</button>)}
-        <button class="chip again" type="button" data-role="again">New batch ↻</button>
+        <button class="chip again" type="button" data-role="again">New rule +</button>
       </div>
-      <div class="chips" data-role="generated"></div>
+      <ol class="rule-list" data-role="generated"></ol>
     </div>
     <p class="small muted weak-note">
       It can multiply <code>a</code> by <code>b</code>, but not values it has to compute first, such as
@@ -391,36 +391,46 @@ const parameters = info.parameters.toLocaleString('en-US');
     return `2^${bits.toFixed(0)}`;
   }
 
-  // Random rules: a fresh batch on load and on demand. Picking one only fills in the rule.
+  // Random rules, one per line: a few on load, one more (of the chosen kind) per click on "New rule". Picking a rule
+  // only fills it in.
   let shownKind: Kind | 'all' = 'all';
-  function batch(): void {
-    const kinds = shownKind === 'all' ? KINDS.flatMap((k) => [k.kind, k.kind]) : Array<Kind>(8).fill(shownKind);
-    const box = $('generated');
-    box.replaceChildren(
-      ...kinds.map((kind) => {
-        const rule = generate(kind);
-        const chip = document.createElement('button');
-        chip.type = 'button';
-        chip.className = 'chip rule';
-        chip.textContent = rule;
-        chip.title = KINDS.find((k) => k.kind === kind)!.label;
-        chip.addEventListener('click', () => {
-          input.value = rule;
-          input.focus();
-        });
-        return chip;
-      }),
-    );
+  const LIMIT = 12;
+  function line(kind: Kind): HTMLLIElement {
+    const rule = generate(kind);
+    const item = document.createElement('li');
+    const pickButton = document.createElement('button');
+    pickButton.type = 'button';
+    pickButton.className = 'rule';
+    pickButton.innerHTML = `<span class="tag"></span><code></code>`;
+    pickButton.querySelector('.tag')!.textContent = KINDS.find((k) => k.kind === kind)!.label.replace(/s$/, '').toLowerCase();
+    pickButton.querySelector('code')!.textContent = rule;
+    pickButton.title = 'Use this rule';
+    pickButton.addEventListener('click', () => {
+      input.value = rule;
+      input.focus();
+    });
+    item.append(pickButton);
+    return item;
+  }
+  const nextKind = (): Kind => (shownKind === 'all' ? KINDS[Math.floor(Math.random() * KINDS.length)]!.kind : shownKind);
+  function addRule(): void {
+    const list = $('generated');
+    list.prepend(line(nextKind()));
+    while (list.children.length > LIMIT) list.lastElementChild!.remove();
+  }
+  function fillRules(): void {
+    const kinds = shownKind === 'all' ? KINDS.map((k) => k.kind) : Array<Kind>(5).fill(shownKind);
+    $('generated').replaceChildren(...kinds.map(line));
   }
   document.querySelectorAll<HTMLButtonElement>('[data-kind]').forEach((button) =>
     button.addEventListener('click', () => {
       shownKind = button.dataset.kind as Kind | 'all';
       document.querySelectorAll('[data-kind]').forEach((b) => b.classList.toggle('active', b === button));
-      batch();
+      fillRules();
     }),
   );
-  $('again').addEventListener('click', batch);
-  batch();
+  $('again').addEventListener('click', addRule);
+  fillRules();
 
   document.querySelectorAll<HTMLButtonElement>('[data-formula]').forEach((button) =>
     button.addEventListener('click', () => {
@@ -515,11 +525,44 @@ const parameters = info.parameters.toLocaleString('en-US');
     border-color: var(--series-1);
   }
 
-  .generated :global(.chip.rule) {
-    font-family: var(--mono);
-    font-size: 0.78rem;
+  .rule-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .rule-list :global(button.rule) {
+    display: flex;
+    gap: 0.6rem;
+    align-items: baseline;
+    width: 100%;
     text-align: left;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: none;
+    color: var(--ink);
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .rule-list :global(button.rule:hover) {
+    border-color: var(--axis);
+    background: color-mix(in oklab, var(--series-1) 6%, transparent);
+  }
+
+  .rule-list :global(.tag) {
+    flex: 0 0 6rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .rule-list :global(code) {
+    font-size: 0.82rem;
     overflow-wrap: anywhere;
+    background: none;
   }
 
   .chips.weak {

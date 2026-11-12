@@ -1,14 +1,13 @@
-// Make a CSV for the Try page's "Use your own data": 999 examples of a rule, then questions.
+// Make a CSV for the Try page's "Use your own data": 999 examples of a rule, then questions with c left empty.
 //
 //   bun scripts/generate-csv.ts 'a * b + a'                   999 examples + 200 questions at 32 bits, to stdout
 //   bun scripts/generate-csv.ts 'a * b + a' -o rule.csv       to a file
-//   bun scripts/generate-csv.ts '(a ^ b) * 3' --width 16 --small --questions 1000 --blank
+//   bun scripts/generate-csv.ts '(a ^ b) * 3' --width 16 --small --questions 1000
 //
 // Options:
 //   --width 16|32     number width; values wrap at it after every step, as on the page (default 32)
 //   --small           a and b under 256
 //   --questions N     question rows after the 999 examples (default 200)
-//   --blank           leave c empty on the question rows (otherwise filled in, so the page can check its answers)
 //   --seed N          the same file every time for the same N (default: a new random file each run)
 //   -o, --output F    write to F instead of stdout
 //
@@ -22,7 +21,7 @@ const CONTEXT = 999;
 function usage(message?: string): never {
   if (message) console.error(`error: ${message}`);
   console.error(
-    "usage: bun scripts/generate-csv.ts '<formula>' [--width 16|32] [--small] [--questions N] [--blank] [--seed N] [-o file]",
+    "usage: bun scripts/generate-csv.ts '<formula>' [--width 16|32] [--small] [--questions N] [--seed N] [-o file]",
   );
   process.exit(message ? 1 : 0);
 }
@@ -32,7 +31,6 @@ let formula: string | undefined;
 let width = 32;
 let small = false;
 let questions = 200;
-let blank = false;
 let seed: number | undefined;
 let output: string | undefined;
 for (let i = 0; i < args.length; i++) {
@@ -42,7 +40,6 @@ for (let i = 0; i < args.length; i++) {
   else if (arg === "--width") width = Number(value());
   else if (arg === "--small") small = true;
   else if (arg === "--questions") questions = Number(value());
-  else if (arg === "--blank") blank = true;
   else if (arg === "--seed") seed = Number(value());
   else if (arg === "-o" || arg === "--output") output = value();
   else if (formula === undefined) formula = arg;
@@ -93,17 +90,20 @@ while (lines.length <= total) {
   const key = `${a},${b}`;
   if (seen.has(key)) continue;
   seen.add(key);
+  if (lines.length > CONTEXT) {
+    lines.push(`${a},${b},`); // a question: c left empty for the model to answer
+    continue;
+  }
   const c = evaluate(tree, a, b, width);
-  const example = lines.length <= CONTEXT;
-  if (example) answers.add(String(c));
-  lines.push(example || !blank ? `${a},${b},${c}` : `${a},${b},`);
+  answers.add(String(c));
+  lines.push(`${a},${b},${c}`);
 }
 const text = `${lines.join("\n")}\n`;
 if (output) writeFileSync(output, text);
 else process.stdout.write(text);
 console.error(
   `c = ${formula} at ${width} bits${small ? ", a and b under 256" : ""}: ${CONTEXT} examples (${answers.size} different c), ` +
-    `${questions} questions${blank ? " with c left empty" : " with c filled in"}${output ? ` → ${output}` : ""}`,
+    `${questions} questions with c left empty${output ? ` → ${output}` : ""}`,
 );
 if (answers.size < 24)
   console.error(
